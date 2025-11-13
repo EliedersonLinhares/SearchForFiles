@@ -1,0 +1,389 @@
+package com.esl.searchforfiles.service;
+
+import com.esl.searchforfiles.cache.LRUCache;
+import com.esl.searchforfiles.database.DatabaseManager;
+import com.esl.searchforfiles.model.FileInfo;
+import com.esl.searchforfiles.model.FileType;
+import com.esl.searchforfiles.model.IndexStats;
+import com.esl.searchforfiles.model.SearchCriteria;
+
+import java.sql.*;
+import java.util.*;
+
+/**
+ * Serviço responsável por todas as operações de busca
+ *
+ * Funcionalidades:
+ * - Busca por nome (com wildcards)
+ * - Busca por tipo de arquivo
+ * - Busca avançada com múltiplos filtros
+ * - Cache LRU para performance
+ * - Geração de estatísticas
+ * - Logging de buscas
+ *
+ * @author Sistema de Busca
+ */
+public class SearchService {
+    private final DatabaseManager dbManager;
+    private final LRUCache<String, List<FileInfo>> cache;
+    private static final int CACHE_SIZE = 100;
+    private static final int DEFAULT_LIMIT = 1000;
+
+    /**
+     * Construtor
+     * @param dbManager Gerenciador do banco de dados
+     */
+    public SearchService(DatabaseManager dbManager) {
+        this.dbManager = dbManager;
+        this.cache = new LRUCache<>(CACHE_SIZE);
+    }
+
+    /**
+     * Busca arquivos por nome com suporte a wildcards
+     * Wildcards suportados: * (qualquer sequência) e ? (qualquer caractere)
+     * Resultados são ordenados por frequência de acesso e nome
+     *
+     * @param pattern Padrão de busca (ex: "*.pdf", "relatorio*", "*2024*")
+     * @return Lista de arquivos encontrados (máximo 1000)
+     * @throws SQLException se houver erro na consulta
+     */
+    public List<FileInfo> searchByName(String pattern) throws SQLException {
+        String cacheKey = "name:" + pattern;
+
+        // Tenta obter do cache
+        List<FileInfo> cached = cache.get(cacheKey);
+        if (cached != null) {
+            System.out.println("💨 Cache HIT - Resultado instantâneo");
+            return new ArrayList<>(cached); // Retorna cópia para segurança
+        }
+
+        System.out.println("🔍 Buscando no banco de dados...");
+        long startTime = System.currentTimeMillis();
+
+        String sql = """
+            SELECT * FROM file_index 
+            WHERE name LIKE ? 
+            ORDER BY access_count DESC, name 
+            LIMIT ?
+        """;
+
+        List<FileInfo> results = new ArrayList<>();
+
+        try (PreparedStatement pstmt = dbManager.getConnection().prepareStatement(sql)) {
+            pstmt.setString(1, pattern.replace("*", "%").replace("?", "_"));
+            pstmt.setInt(2, DEFAULT_LIMIT);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    results.add(extractFileInfo(rs));
+                }
+            }
+        }
+
+        long elapsed = System.currentTimeMillis() - startTime;
+
+        // Loga estatísticas
+        dbManager.logSearchStats(pattern, results.size(), elapsed);
+
+        // Armazena no cache
+        cache.put(cacheKey, results);
+
+        System.out.printf("✓ Busca concluída em %dms - %d resultados\n", elapsed, results.size());
+
+        return results;
+    }
+
+    /**
+     * Busca arquivos por tipo (categoria)
+     * Tipos suportados: AUDIO, VIDEO, IMAGE, DOCUMENT, COMPRESSED, EXECUTABLE, FOLDER, ALL
+     * Resultados ordenados por data de modificação (mais recentes primeiro)
+     *
+     * @param fileType Tipo de arquivo desejado
+     * @return Lista de arquivos do tipo especificado (máximo 1000)
+     * @throws SQLException se houver erro na consulta
+     */
+    public List<FileInfo> searchByFileType(FileType fileType) throws SQLException {
+        String cacheKey = "type:" + fileType.name();
+
+        // Tenta obter do cache
+        List<FileInfo> cached = cache.get(cacheKey);
+        if (cached != null) {
+            System.out.println("💨 Cache HIT - Resultado instantâneo");
+            return new ArrayList<>(cached);
+        }
+
+        System.out.println("🔍 Buscando arquivos do tipo: " + fileType);
+        long startTime = System.currentTimeMillis();
+
+        String sql = fileType == FileType.ALL ?
+                "SELECT * FROM file_index ORDER BY last_modified DESC LIMIT ?" :
+                "SELECT * FROM file_index WHERE file_type = ? ORDER BY last_modified DESC LIMIT ?";
+
+        List<FileInfo> results = new ArrayList<>();
+
+        try (PreparedStatement pstmt = dbManager.getConnection().prepareStatement(sql)) {
+            if (fileType == FileType.ALL) {
+                pstmt.setInt(1, DEFAULT_LIMIT);
+            } else {
+                pstmt.setString(1, fileType.name());
+                pstmt.setInt(2, DEFAULT_LIMIT);
+            }
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    results.add(extractFileInfo(rs));
+                }
+            }
+        }
+
+        long elapsed = System.currentTimeMillis() - startTime;
+
+        // Loga estatísticas
+        dbManager.logSearchStats("type:" + fileType, results.size(), elapsed);
+
+        // Armazena no cache
+        cache.put(cacheKey, results);
+
+        System.out.printf("✓ Busca concluída em %dms - %d resultados\n", elapsed, results.size());
+
+        return results;
+    }
+
+    /**
+     * Busca avançada com múltiplos critérios combinados
+     * Todos os critérios são aplicados com operador AND (todos devem ser atendidos)
+     *
+     * Critérios suportados:
+     * - Nome (com wildcards)
+     * - Extensão específica
+     * - Tipo de arquivo
+     * - Tamanho mínimo/máximo
+     * - Pasta específica (com ou sem subpastas)
+     * - Drive específico
+     * - Data de modificação (antes/depois)
+     * - Ordenação customizada
+     * - Limite de resultados
+     *
+     * @param criteria Objeto com os critérios de busca
+     * @return Lista de arquivos que atendem TODOS os critérios
+     * @throws SQLException se houver erro na consulta
+     */
+    public List<FileInfo> advancedSearch(SearchCriteria criteria) throws SQLException {
+        String cacheKey = criteria.toCacheKey();
+
+        // Tenta obter do cache
+        List<FileInfo> cached = cache.get(cacheKey);
+        if (cached != null) {
+            System.out.println("Cache HIT - Resultado instantâneo");
+            return new ArrayList<>(cached);
+        }
+
+        System.out.println("🔍 Executando busca avançada...");
+        long startTime = System.currentTimeMillis();
+
+        // Constrói query SQL dinamicamente
+        StringBuilder sql = new StringBuilder("SELECT * FROM file_index WHERE 1=1");
+        List<Object> params = new ArrayList<>();
+
+        // Filtro por nome
+        if (criteria.getNamePattern() != null && !criteria.getNamePattern().isEmpty()) {
+            sql.append(" AND name LIKE ?");
+            params.add(criteria.getNamePattern().replace("*", "%").replace("?", "_"));
+        }
+
+        // Filtro por extensão
+        if (criteria.getExtension() != null && !criteria.getExtension().isEmpty()) {
+            sql.append(" AND extension = ?");
+            params.add(criteria.getExtension().toLowerCase());
+        }
+
+        // Filtro por tipo de arquivo
+        if (criteria.getFileType() != null && criteria.getFileType() != FileType.ALL) {
+            sql.append(" AND file_type = ?");
+            params.add(criteria.getFileType().name());
+        }
+
+        // Filtro por tamanho mínimo
+        if (criteria.getMinSize() != null) {
+            sql.append(" AND size >= ?");
+            params.add(criteria.getMinSize());
+        }
+
+        // Filtro por tamanho máximo
+        if (criteria.getMaxSize() != null) {
+            sql.append(" AND size <= ?");
+            params.add(criteria.getMaxSize());
+        }
+
+        // Filtro por pasta (com ou sem subpastas)
+        if (criteria.getParentPath() != null && !criteria.getParentPath().isEmpty()) {
+            if (criteria.isIncludeSubfolders()) {
+                // Inclui subpastas (busca recursiva)
+                sql.append(" AND path LIKE ?");
+                params.add(criteria.getParentPath() + "%");
+            } else {
+                // Apenas pasta atual (não recursivo)
+                sql.append(" AND parent_path = ?");
+                params.add(criteria.getParentPath());
+            }
+        }
+
+        // Filtro por drive
+        if (criteria.getDriveFilter() != null && !criteria.getDriveFilter().isEmpty()) {
+            String driveLetter = criteria.getDriveFilter().toUpperCase().replaceAll("[:\\\\]", "");
+            sql.append(" AND path LIKE ?");
+            params.add(driveLetter + ":\\%");
+        }
+
+        // Filtro por data de modificação (depois de)
+        if (criteria.getModifiedAfter() != null) {
+            sql.append(" AND last_modified >= ?");
+            params.add(criteria.getModifiedAfter());
+        }
+
+        // Filtro por data de modificação (antes de)
+        if (criteria.getModifiedBefore() != null) {
+            sql.append(" AND last_modified <= ?");
+            params.add(criteria.getModifiedBefore());
+        }
+
+        // Ordenação
+        sql.append(" ORDER BY ").append(criteria.getSortBy())
+                .append(" ").append(criteria.getSortOrder());
+
+        // Limite
+        sql.append(" LIMIT ").append(criteria.getLimit());
+
+        // Executa query
+        List<FileInfo> results = new ArrayList<>();
+
+        try (PreparedStatement pstmt = dbManager.getConnection().prepareStatement(sql.toString())) {
+            // Define parâmetros
+            for (int i = 0; i < params.size(); i++) {
+                pstmt.setObject(i + 1, params.get(i));
+            }
+
+            // Executa e processa resultados
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    results.add(extractFileInfo(rs));
+                }
+            }
+        }
+
+        long elapsed = System.currentTimeMillis() - startTime;
+
+        // Loga estatísticas
+        dbManager.logSearchStats(cacheKey, results.size(), elapsed);
+
+        // Armazena no cache
+        cache.put(cacheKey, results);
+
+        System.out.printf("✓ Busca avançada concluída em %dms - %d resultados\n", elapsed, results.size());
+
+        return results;
+    }
+
+    /**
+     * Obtém estatísticas completas do índice
+     * Inclui: total de arquivos, tamanho total, distribuição por tipo e drive
+     *
+     * @return Objeto com todas as estatísticas
+     * @throws SQLException se houver erro na consulta
+     */
+    public IndexStats getIndexStats() throws SQLException {
+        IndexStats stats = new IndexStats();
+
+        try (Statement stmt = dbManager.getConnection().createStatement()) {
+
+            // Total de arquivos
+            ResultSet rs = stmt.executeQuery("SELECT COUNT(*) as total FROM file_index");
+            if (rs.next()) {
+                stats.setTotalFiles(rs.getLong("total"));
+            }
+
+            // Distribuição por tipo de arquivo
+            rs = stmt.executeQuery(
+                    "SELECT file_type, COUNT(*) as count FROM file_index GROUP BY file_type"
+            );
+            Map<FileType, Long> byType = new HashMap<>();
+            while (rs.next()) {
+                String type = rs.getString("file_type");
+                long count = rs.getLong("count");
+                try {
+                    byType.put(FileType.valueOf(type), count);
+                } catch (IllegalArgumentException e) {
+                    // Ignora tipos inválidos
+                }
+            }
+            stats.setFilesByType(byType);
+
+            // Distribuição por drive
+            rs = stmt.executeQuery(
+                    "SELECT SUBSTR(path, 1, 2) as drive, COUNT(*) as count " +
+                            "FROM file_index " +
+                            "WHERE path LIKE '_:\\%' " +
+                            "GROUP BY drive"
+            );
+            Map<String, Long> byDrive = new HashMap<>();
+            while (rs.next()) {
+                String drive = rs.getString("drive");
+                long count = rs.getLong("count");
+                byDrive.put(drive, count);
+            }
+            stats.setFilesByDrive(byDrive);
+
+            // Tamanho total
+            rs = stmt.executeQuery("SELECT SUM(size) as total_size FROM file_index");
+            if (rs.next()) {
+                stats.setTotalSize(rs.getLong("total_size"));
+            }
+
+            // Data do último update
+            rs = stmt.executeQuery("SELECT MAX(indexed_at) as last_update FROM file_index");
+            if (rs.next()) {
+                stats.setLastUpdate(rs.getLong("last_update"));
+            }
+        }
+
+        return stats;
+    }
+
+    /**
+     * Limpa todo o cache de buscas
+     * Útil após indexação ou modificação massiva de arquivos
+     */
+    public void clearCache() {
+        cache.clear();
+        System.out.println("🗑️  Cache limpo");
+    }
+
+    /**
+     * Extrai informações de arquivo de um ResultSet
+     */
+    private FileInfo extractFileInfo(ResultSet rs) throws SQLException {
+        return new FileInfo(
+                rs.getString("path"),
+                rs.getString("name"),
+                rs.getString("extension"),
+                FileType.valueOf(rs.getString("file_type")),
+                rs.getLong("size"),
+                rs.getLong("last_modified"),
+                rs.getBoolean("is_directory")
+        );
+    }
+
+    /**
+     * Obtém informações do cache (para debugging)
+     */
+    public int getCacheSize() {
+        return cache.size();
+    }
+
+    /**
+     * Verifica se uma busca está em cache
+     */
+    public boolean isCached(String cacheKey) {
+        return cache.containsKey(cacheKey);
+    }
+}
