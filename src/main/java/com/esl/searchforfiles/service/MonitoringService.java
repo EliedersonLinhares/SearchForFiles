@@ -208,50 +208,132 @@ public class MonitoringService {
         });
     }
 
+//    /**
+//     * Handlers executam em Virtual Threads
+//     */
+//    private void handleFileCreated(Path file) {
+//        try {
+//            if (Files.exists(file)) {
+//                BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
+//                dbManager.indexFile(file, attrs);
+//                searchService.clearCache();
+//
+//                String type = attrs.isDirectory() ? " Pasta" : " Arquivo";
+//                System.out.println("➕ " + type + " criado: " + file.getFileName() +
+//                        " [VThread: " + Thread.currentThread().threadId() + "]");
+//            }
+//        } catch (Exception e) {
+//            // Erro silencioso
+//        }
+//    }
     /**
-     * Handlers executam em Virtual Threads
+     * Handler de arquivo criado
+     * CORRIGIDO: Validações adicionais
      */
     private void handleFileCreated(Path file) {
         try {
+            // VALIDAÇÃO: Path não pode ser nulo
+            if (file == null) {
+                return;
+            }
+
+            // VALIDAÇÃO: Arquivo deve existir
             if (Files.exists(file)) {
                 BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
-                dbManager.indexFile(file, attrs);
-                searchService.clearCache();
 
-                String type = attrs.isDirectory() ? " Pasta" : " Arquivo";
-                System.out.println("➕ " + type + " criado: " + file.getFileName() +
-                        " [VThread: " + Thread.currentThread().threadId() + "]");
+                // VALIDAÇÃO: Atributos não podem ser nulos
+                if (attrs != null) {
+                    dbManager.indexFile(file, attrs);
+                    searchService.clearCache();
+
+                    String type = attrs.isDirectory() ? "📁 Pasta" : "📄 Arquivo";
+                    Path fileName = file.getFileName();
+                    String name = (fileName != null) ? fileName.toString() : file.toString();
+
+                    System.out.println("➕ " + type + " criado: " + name +
+                            " [VThread: " + Thread.currentThread().threadId() + "]");
+                }
             }
         } catch (Exception e) {
-            // Erro silencioso
+            // Erro silencioso - comum durante monitoramento
+            System.err.println("⚠️  Erro ao indexar arquivo criado: " + e.getMessage());
         }
     }
-
+//    private void handleFileDeleted(Path file) {
+//        try {
+//            dbManager.deleteFile(file.toAbsolutePath().toString());
+//            searchService.clearCache();
+//            System.out.println("➖ Arquivo deletado: " + file.getFileName() +
+//                    " [VThread: " + Thread.currentThread().threadId() + "]");
+//        } catch (SQLException e) {
+//            System.err.println(" Erro ao remover do índice: " + file.getFileName());
+//        }
+//    }
+    /**
+     * Handler de arquivo deletado
+     * CORRIGIDO: Validações adicionais
+     */
     private void handleFileDeleted(Path file) {
         try {
+            // VALIDAÇÃO: Path não pode ser nulo
+            if (file == null) {
+                return;
+            }
+
             dbManager.deleteFile(file.toAbsolutePath().toString());
             searchService.clearCache();
-            System.out.println("➖ Arquivo deletado: " + file.getFileName() +
+
+            Path fileName = file.getFileName();
+            String name = (fileName != null) ? fileName.toString() : file.toString();
+
+            System.out.println("➖ Arquivo deletado: " + name +
                     " [VThread: " + Thread.currentThread().threadId() + "]");
-        } catch (SQLException e) {
-            System.err.println(" Erro ao remover do índice: " + file.getFileName());
+        } catch (Exception e) {
+            System.err.println("⚠️  Erro ao remover do índice: " + e.getMessage());
         }
     }
-
+//    private void handleFileModified(Path file) {
+//        try {
+//            if (Files.exists(file) && Files.isRegularFile(file)) {
+//                BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
+//                dbManager.indexFile(file, attrs);
+//                searchService.clearCache();
+//                System.out.println("  Arquivo modificado: " + file.getFileName() +
+//                        " [VThread: " + Thread.currentThread().threadId() + "]");
+//            }
+//        } catch (Exception e) {
+//            // Erro silencioso
+//        }
+//    }
+    /**
+     * Handler de arquivo modificado
+     * CORRIGIDO: Validações adicionais
+     */
     private void handleFileModified(Path file) {
         try {
+            // VALIDAÇÃO: Path não pode ser nulo
+            if (file == null) {
+                return;
+            }
+
             if (Files.exists(file) && Files.isRegularFile(file)) {
                 BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
-                dbManager.indexFile(file, attrs);
-                searchService.clearCache();
-                System.out.println("  Arquivo modificado: " + file.getFileName() +
-                        " [VThread: " + Thread.currentThread().threadId() + "]");
+
+                if (attrs != null) {
+                    dbManager.indexFile(file, attrs);
+                    searchService.clearCache();
+
+                    Path fileName = file.getFileName();
+                    String name = (fileName != null) ? fileName.toString() : file.toString();
+
+                    System.out.println("✏️  Arquivo modificado: " + name +
+                            " [VThread: " + Thread.currentThread().threadId() + "]");
+                }
             }
         } catch (Exception e) {
             // Erro silencioso
         }
     }
-
     public void shutdown() {
         stopMonitoring();
 
