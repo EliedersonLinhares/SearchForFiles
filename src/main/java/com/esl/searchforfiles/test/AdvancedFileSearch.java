@@ -1,4 +1,4 @@
-package com.esl.searchforfiles;
+package com.esl.searchforfiles.test;
 
 import com.esl.searchforfiles.database.DatabaseManager;
 import com.esl.searchforfiles.model.*;

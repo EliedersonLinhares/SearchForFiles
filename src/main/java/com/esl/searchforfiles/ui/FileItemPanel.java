@@ -22,97 +22,191 @@ public class FileItemPanel extends JPanel {
     private final FileInfo fileInfo;
     private ResultsPanel.FileItemClickListener clickListener;
 
-    public FileItemPanel(File file, FileInfo fileInfo, int width, int height) {
-        this.file = file;
-        this.fileInfo = fileInfo;
+    // Cores para estados
+    private final Color normalColor = new Color(56, 56, 56);
+    private final Color hoverColor = new Color(70, 70, 70);
 
-        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        setBackground(Color.WHITE);
-        setBorder(BorderFactory.createLineBorder(new Color(230, 230, 230)));
-        setAlignmentX(Component.CENTER_ALIGNMENT);
+//    public FileItemPanel(File file, FileInfo fileInfo, int width, int height) {
+//        this.file = file;
+//        this.fileInfo = fileInfo;
+//
+//        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+//        setBackground(Color.BLACK);
+//        setBorder(BorderFactory.createLineBorder(new Color(230, 230, 230)));
+//        setAlignmentX(Component.CENTER_ALIGNMENT);
+//
+//        // Ícone / Miniatura
+//        JLabel iconLabel = createIconLabel(width);
+//
+//        // Nome do arquivo
+//        JLabel nameLabel = new JLabel(shortName(file.getName(), 14));
+//        nameLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+//        nameLabel.setHorizontalAlignment(SwingConstants.CENTER);
+//        nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+//
+//        // Tooltip
+//        setToolTipText(createTooltip());
+//
+//        // Layout
+//        add(Box.createVerticalGlue());
+//        add(iconLabel);
+//        add(Box.createVerticalStrut(5));
+//        add(nameLabel);
+//        add(Box.createVerticalGlue());
+//
+//        // Mouse listeners
+//        addMouseListener(new MouseAdapter() {
+//            @Override
+//            public void mouseClicked(MouseEvent e) {
+//                if (e.getClickCount() == 2 && clickListener != null) {
+//                    clickListener.onFileDoubleClick(file);
+//                }
+//            }
+//
+//            @Override
+//            public void mousePressed(MouseEvent e) {
+//                if (e.isPopupTrigger() && clickListener != null) {
+//                    clickListener.onFileRightClick(file, fileInfo, FileItemPanel.this, e.getX(), e.getY());
+//                }
+//            }
+//
+//            @Override
+//            public void mouseReleased(MouseEvent e) {
+//                if (e.isPopupTrigger() && clickListener != null) {
+//                    clickListener.onFileRightClick(file, fileInfo, FileItemPanel.this, e.getX(), e.getY());
+//                }
+//            }
+//
+//            @Override
+//            public void mouseEntered(MouseEvent e) {
+//                setBackground(new Color(240, 240, 255));
+//                setBackground(Color.BLACK);
+//                setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+//            }
+//
+//            @Override
+//            public void mouseExited(MouseEvent e) {
+//                setBackground(Color.BLACK);
+//                setCursor(Cursor.getDefaultCursor());
+//            }
+//        });
+//    }
+public FileItemPanel(File file, FileInfo fileInfo, int width, int height) {
+    this.file = file;
+    this.fileInfo = fileInfo;
 
-        // Ícone / Miniatura
-        JLabel iconLabel = createIconLabel(width);
+    setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+    setBackground(normalColor);
+    setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(56, 162, 218)),
+            BorderFactory.createEmptyBorder(5, 5, 5, 5)
+    ));
+    setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // Nome do arquivo
-        JLabel nameLabel = new JLabel(shortName(file.getName(), 14));
-        nameLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        nameLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+    // Ícone / Miniatura
+    JLabel iconLabel = createIconLabel(width);
 
-        // Tooltip
-        setToolTipText(createTooltip());
+    // Nome do arquivo
+    JLabel nameLabel = new JLabel(shortName(file.getName(), 14));
+    nameLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+    nameLabel.setHorizontalAlignment(SwingConstants.CENTER);
+    nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        // Layout
-        add(Box.createVerticalGlue());
-        add(iconLabel);
-        add(Box.createVerticalStrut(5));
-        add(nameLabel);
-        add(Box.createVerticalGlue());
+    // Tooltip
+    setToolTipText(createTooltip());
 
-        // Mouse listeners
-        addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2 && clickListener != null) {
-                    clickListener.onFileDoubleClick(file);
-                }
+    // Layout
+    add(Box.createVerticalGlue());
+    add(iconLabel);
+    add(Box.createVerticalStrut(5));
+    add(nameLabel);
+    add(Box.createVerticalGlue());
+
+    // Mouse listeners
+    addMouseListener(new MouseAdapter() {
+        @Override
+        public void mouseClicked(MouseEvent e) {
+            if (e.getClickCount() == 2 && clickListener != null) {
+                clickListener.onFileDoubleClick(file);
             }
-
-            @Override
-            public void mousePressed(MouseEvent e) {
-                if (e.isPopupTrigger() && clickListener != null) {
-                    clickListener.onFileRightClick(file, fileInfo, FileItemPanel.this, e.getX(), e.getY());
-                }
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                if (e.isPopupTrigger() && clickListener != null) {
-                    clickListener.onFileRightClick(file, fileInfo, FileItemPanel.this, e.getX(), e.getY());
-                }
-            }
-
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                setBackground(new Color(240, 240, 255));
-                setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                setBackground(Color.WHITE);
-                setCursor(Cursor.getDefaultCursor());
-            }
-        });
-    }
-
-    private JLabel createIconLabel(int width) {
-        JLabel iconLabel = new JLabel();
-        iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-        iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
-
-        if (fileInfo.getFileType() == FileType.IMAGE && file.exists()) {
-            try {
-                BufferedImage img = ImageIO.read(file);
-                if (img != null) {
-                    int size = Math.min(width - 40, 100);
-                    Image scaled = img.getScaledInstance(size, size, Image.SCALE_SMOOTH);
-                    iconLabel.setIcon(new ImageIcon(scaled));
-                } else {
-                    iconLabel.setIcon(getSystemIcon(file));
-                }
-            } catch (IOException e) {
-                iconLabel.setIcon(getSystemIcon(file));
-            }
-        } else {
-
-            iconLabel.setIcon(getSystemIcon(file));
         }
 
-        return iconLabel;
+        @Override
+        public void mousePressed(MouseEvent e) {
+            if (e.isPopupTrigger() && clickListener != null) {
+                clickListener.onFileRightClick(file, fileInfo, FileItemPanel.this, e.getX(), e.getY());
+            }
+        }
+
+        @Override
+        public void mouseReleased(MouseEvent e) {
+            if (e.isPopupTrigger() && clickListener != null) {
+                clickListener.onFileRightClick(file, fileInfo, FileItemPanel.this, e.getX(), e.getY());
+            }
+        }
+
+        @Override
+        public void mouseEntered(MouseEvent e) {
+            setBackground(hoverColor);
+            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        }
+
+        @Override
+        public void mouseExited(MouseEvent e) {
+            setBackground(normalColor);
+            setCursor(Cursor.getDefaultCursor());
+        }
+    });
+}
+//    private JLabel createIconLabel(int width) {
+//        JLabel iconLabel = new JLabel();
+//        iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+//        iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
+//
+//        if (fileInfo.getFileType() == FileType.IMAGE && file.exists()) {
+//            try {
+//                BufferedImage img = ImageIO.read(file);
+//                if (img != null) {
+//                    int size = Math.min(width - 40, 100);
+//                    Image scaled = img.getScaledInstance(size, size, Image.SCALE_SMOOTH);
+//                    iconLabel.setIcon(new ImageIcon(scaled));
+//                } else {
+//                    iconLabel.setIcon(getSystemIcon(file));
+//                }
+//            } catch (IOException e) {
+//                iconLabel.setIcon(getSystemIcon(file));
+//            }
+//        } else {
+//
+//            iconLabel.setIcon(getSystemIcon(file));
+//        }
+//
+//        return iconLabel;
+//    }
+private JLabel createIconLabel(int width) {
+    JLabel iconLabel = new JLabel();
+    iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+    iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
+
+    if (fileInfo.getFileType() == FileType.IMAGE && file.exists()) {
+        try {
+            BufferedImage img = ImageIO.read(file);
+            if (img != null) {
+                int size = Math.min(width - 40, 100);
+                Image scaled = img.getScaledInstance(size, size, Image.SCALE_SMOOTH);
+                iconLabel.setIcon(new ImageIcon(scaled));
+            } else {
+                iconLabel.setIcon(getSystemIcon(file));
+            }
+        } catch (IOException e) {
+            iconLabel.setIcon(getSystemIcon(file));
+        }
+    } else {
+        iconLabel.setIcon(getSystemIcon(file));
     }
 
+    return iconLabel;
+}
     private String createTooltip() {
         return String.format(
                 "<html><b>%s</b><br>Tamanho: %.2f MB<br>Tipo: %s<br>Caminho: %s</html>",

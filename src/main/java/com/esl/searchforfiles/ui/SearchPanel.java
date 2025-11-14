@@ -58,7 +58,7 @@ public class SearchPanel extends JPanel {
         JTextField field = new JTextField();
         field.setFont(new Font("SansSerif", Font.PLAIN, 14));
         field.setText("Digite o nome do arquivo (ex: foto, *.pdf, relatorio*)");
-        field.setForeground(Color.GRAY);
+        field.setForeground(Color.WHITE);
 
         // Placeholder behavior
         field.addFocusListener(new FocusAdapter() {
@@ -66,7 +66,6 @@ public class SearchPanel extends JPanel {
             public void focusGained(FocusEvent e) {
                 if (field.getText().equals("Digite o nome do arquivo (ex: foto, *.pdf, relatorio*)")) {
                     field.setText("");
-                    field.setForeground(Color.BLACK);
                 }
             }
 
@@ -74,7 +73,6 @@ public class SearchPanel extends JPanel {
             public void focusLost(FocusEvent e) {
                 if (field.getText().isEmpty()) {
                     field.setText("Digite o nome do arquivo (ex: foto, *.pdf, relatorio*)");
-                    field.setForeground(Color.GRAY);
                 }
             }
         });

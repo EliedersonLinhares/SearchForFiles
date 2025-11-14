@@ -13,7 +13,7 @@ public class SearchCriteria {
     private Long modifiedBefore;
     private String sortBy = "name";
     private String sortOrder = "ASC";
-    private int limit = 1000;
+    private int limit = 3000;
 
     // Getters
     public String getNamePattern() { return namePattern; }

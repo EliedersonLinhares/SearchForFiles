@@ -1,13 +1,12 @@
 package com.esl.searchforfiles.ui;
 
-import com.esl.searchforfiles.AdvancedFileSearch;
+import com.esl.searchforfiles.test.AdvancedFileSearch;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.model.SearchCriteria;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.File;
 import java.sql.SQLException;
 import java.util.List;
 
