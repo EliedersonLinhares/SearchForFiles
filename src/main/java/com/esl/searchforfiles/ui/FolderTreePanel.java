@@ -1,5 +1,7 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.service.FavoritesService;
+
 import javax.swing.*;
 import javax.swing.event.*;
 import javax.swing.filechooser.FileSystemView;
@@ -8,6 +10,8 @@ import java.awt.*;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 /**
  * Painel com JTree para navegação de drives e pastas
@@ -16,12 +20,14 @@ public class FolderTreePanel extends JPanel {
 
     private final JTree folderTree;
     private final DefaultMutableTreeNode rootNode;
+    private final FavoritesService favoritesService;
     private FolderSelectionListener selectionListener;
 
-    public FolderTreePanel() {
+    public FolderTreePanel(FavoritesService favoritesService) {
+        this.favoritesService = favoritesService;
+
         setLayout(new BorderLayout());
-        setBorder(BorderFactory.createTitledBorder("Navegação"));
-        setPreferredSize(new Dimension(300, 600));
+        setBorder(BorderFactory.createTitledBorder("📁 Navegação"));
 
         rootNode = new DefaultMutableTreeNode("Computador");
         folderTree = new JTree(rootNode);
@@ -39,6 +45,37 @@ public class FolderTreePanel extends JPanel {
                 File selectedFile = (File) selectedNode.getUserObject();
                 if (selectedFile.isDirectory() && selectionListener != null) {
                     selectionListener.onFolderSelected(selectedFile);
+                }
+            }
+        });
+
+        // NOVO: Menu de contexto (botão direito)
+        JPopupMenu contextMenu = createContextMenu();
+
+        folderTree.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (e.isPopupTrigger()) {
+                    showContextMenu(e);
+                }
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                if (e.isPopupTrigger()) {
+                    showContextMenu(e);
+                }
+            }
+
+            private void showContextMenu(MouseEvent e) {
+                TreePath path = folderTree.getPathForLocation(e.getX(), e.getY());
+                if (path != null) {
+                    folderTree.setSelectionPath(path);
+                    DefaultMutableTreeNode node = (DefaultMutableTreeNode) path.getLastPathComponent();
+
+                    if (node.getUserObject() instanceof File) {
+                        contextMenu.show(e.getComponent(), e.getX(), e.getY());
+                    }
                 }
             }
         });
@@ -75,6 +112,59 @@ public class FolderTreePanel extends JPanel {
         add(scrollPane, BorderLayout.CENTER);
     }
 
+    /**
+     * NOVO: Cria menu de contexto com opção de favoritos
+     */
+    private JPopupMenu createContextMenu() {
+        JPopupMenu menu = new JPopupMenu();
+
+        JMenuItem addFavoriteItem = new JMenuItem("⭐ Adicionar aos Favoritos");
+        addFavoriteItem.addActionListener(e -> {
+            DefaultMutableTreeNode selectedNode =
+                    (DefaultMutableTreeNode) folderTree.getLastSelectedPathComponent();
+
+            if (selectedNode != null && selectedNode.getUserObject() instanceof File) {
+                File selectedFile = (File) selectedNode.getUserObject();
+
+                if (favoritesService.isFavorite(selectedFile.getAbsolutePath())) {
+                    JOptionPane.showMessageDialog(this,
+                            "Esta pasta já está nos favoritos!",
+                            "Aviso", JOptionPane.INFORMATION_MESSAGE);
+                    return;
+                }
+
+                if (favoritesService.addFavorite(selectedFile.getAbsolutePath())) {
+                    JOptionPane.showMessageDialog(this,
+                            "Pasta adicionada aos favoritos!\n\n" + selectedFile.getAbsolutePath(),
+                            "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+                }
+            }
+        });
+
+        JMenuItem openItem = new JMenuItem("Abrir no Explorer");
+        openItem.addActionListener(e -> {
+            DefaultMutableTreeNode selectedNode =
+                    (DefaultMutableTreeNode) folderTree.getLastSelectedPathComponent();
+
+            if (selectedNode != null && selectedNode.getUserObject() instanceof File) {
+                File selectedFile = (File) selectedNode.getUserObject();
+                try {
+                    Desktop.getDesktop().open(selectedFile);
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this,
+                            "Erro ao abrir: " + ex.getMessage(),
+                            "Erro", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+
+        menu.add(addFavoriteItem);
+        menu.addSeparator();
+        menu.add(openItem);
+
+        return menu;
+    }
+    
     private void populateDrives() {
         rootNode.removeAllChildren();
 
