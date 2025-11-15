@@ -12,6 +12,7 @@ Project to create a program to find files on computer using virtual threads and 
 - ✅ LRU cache for frequents searches.
 - ✅ Support for multiple drives.
 - ✅ Basic interface in swing.
+- ✅ Option to add an folder from tree to favorites panel, to fast access
  
 ## 🚀 Features to be implemented
 - ℹ️ Better UI design
