@@ -19,8 +19,6 @@ import javax.swing.filechooser.FileSystemView;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.geom.AffineTransform;
-import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -58,18 +56,20 @@ public FileItemPanel(File file, FileInfo fileInfo, int width, int height) {
 
     setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
     setBackground(normalColor);
-    setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(56, 162, 218)),
-            BorderFactory.createEmptyBorder(5, 5, 5, 5)
-    ));
+//    setBorder(BorderFactory.createCompoundBorder(
+//            BorderFactory.createLineBorder(new Color(56, 162, 218)),
+//            BorderFactory.createEmptyBorder(5, 5, 5, 5)
+//    ));
     setAlignmentX(Component.CENTER_ALIGNMENT);
 
     // Ícone / Miniatura
     JLabel iconLabel = createIconLabel(width, file);
+    iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
+    iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
     // Nome do arquivo
-    JLabel nameLabel = new JLabel(shortName(file.getName(), 14));
-    nameLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+    JLabel nameLabel = new JLabel(shortName(file.getName(), 30));
+    nameLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
     nameLabel.setHorizontalAlignment(SwingConstants.CENTER);
     nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
@@ -124,7 +124,8 @@ private JLabel createIconLabel(int width, File file) {
     JLabel label = new JLabel();
     label.setHorizontalAlignment(SwingConstants.CENTER);
 
-    int thumbSize = Math.min(width - 40, 100);
+    int thumbSize = Math.min(width - 10, 128);
+    System.out.println("Thumbsize: " + thumbSize);
 
     if (isImage(file)) {
         label.setIcon(getLoadingIcon());
@@ -147,7 +148,7 @@ private JLabel createIconLabel(int width, File file) {
     }
 
     // fallback: ícone do sistema
-    int iconSize = 48;
+    int iconSize = 128;
     label.setIcon(getSystemIconCached(file, iconSize));
     return label;
 }
@@ -155,7 +156,7 @@ private JLabel createIconLabel(int width, File file) {
     // --- um ícone provisório "loading" gerado dinamicamente ---
 // cria um ImageIcon simples (quadrado) que você pode usar enquanto a thumbnail carrega.
 // você pode substituir por um GIF animado se preferir.
-    private static final ImageIcon LOADING_ICON = createLoadingIcon(48, 48);
+    private static final ImageIcon LOADING_ICON = createLoadingIcon(128, 128);
 
     private static ImageIcon createLoadingIcon(int w, int h) {
         BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
@@ -432,7 +433,11 @@ private JLabel createIconLabel(int width, File file) {
             // Timeout para evitar travamentos
             grabber.setOption("timeout", "5000000"); // 5 segundos em microsegundos
 
-            grabber.start();
+            try {
+                grabber.start();
+            } catch (FFmpegFrameGrabber.Exception e) {
+                throw new RuntimeException(e);
+            }
 
             // Tenta pegar um frame do meio do vídeo
             int totalFrames = grabber.getLengthInFrames();
@@ -613,25 +618,67 @@ private JLabel createIconLabel(int width, File file) {
         });
     }
 
+//    private void loadThumbnailAsyncCached(File file, int size, Preset preset, JLabel target) {
+//
+//        String key = "thumb_" + file.getAbsolutePath() + "_" + size + "_" + preset;
+//
+//        // Verifica cache antes
+//        ImageIcon cached = ICON_CACHE.get(key);
+//        if (cached != null) {
+//            target.setIcon(cached);
+//            return;
+//        }
+//
+//        // Carrega em background
+//        new SwingWorker<ImageIcon, Void>() {
+//
+//            @Override
+//            protected ImageIcon doInBackground() throws Exception {
+//                BufferedImage img = loadThumbnail(file, size, preset);
+//                if (img == null) return null;
+//
+//                ImageIcon icon = new ImageIcon(img);
+//                ICON_CACHE.put(key, icon);
+//                return icon;
+//            }
+//
+//            @Override
+//            protected void done() {
+//                try {
+//                    ImageIcon icon = get();
+//                    if (icon != null) {
+//                        target.setIcon(icon);
+//                    } else {
+//                        target.setIcon(getSystemIconCached(file, size));
+//                    }
+//                } catch (Exception e) {
+//                    target.setIcon(getSystemIconCached(file, size));
+//                }
+//            }
+//        }.execute();
+//    }
+    /**
+     * Carrega thumbnail de IMAGEM de forma assíncrona
+     * USA APENAS CACHE EM MEMÓRIA (não salva em disco)
+     */
     private void loadThumbnailAsyncCached(File file, int size, Preset preset, JLabel target) {
-
         String key = "thumb_" + file.getAbsolutePath() + "_" + size + "_" + preset;
 
-        // Verifica cache antes
+        // Verifica APENAS cache em memória
         ImageIcon cached = ICON_CACHE.get(key);
         if (cached != null) {
             target.setIcon(cached);
             return;
         }
 
-        // Carrega em background
+        // Gera thumbnail em background (SEM salvar em disco)
         new SwingWorker<ImageIcon, Void>() {
-
             @Override
             protected ImageIcon doInBackground() throws Exception {
                 BufferedImage img = loadThumbnail(file, size, preset);
                 if (img == null) return null;
 
+                // Salva APENAS no cache em memória
                 ImageIcon icon = new ImageIcon(img);
                 ICON_CACHE.put(key, icon);
                 return icon;
@@ -642,17 +689,19 @@ private JLabel createIconLabel(int width, File file) {
                 try {
                     ImageIcon icon = get();
                     if (icon != null) {
-                        target.setIcon(icon);
+                        SwingUtilities.invokeLater(() -> target.setIcon(icon));
                     } else {
-                        target.setIcon(getSystemIconCached(file, size));
+                        SwingUtilities.invokeLater(() ->
+                                target.setIcon(getSystemIconCached(file, size)));
                     }
                 } catch (Exception e) {
-                    target.setIcon(getSystemIconCached(file, size));
+                    e.printStackTrace();
+                    SwingUtilities.invokeLater(() ->
+                            target.setIcon(getSystemIconCached(file, size)));
                 }
             }
         }.execute();
     }
-
     private String shortName(String name, int maxLen) {
         if (name.length() <= maxLen) return name;
         return name.substring(0, maxLen - 3) + "...";

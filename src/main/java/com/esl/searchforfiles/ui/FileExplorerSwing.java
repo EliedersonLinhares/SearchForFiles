@@ -2,6 +2,7 @@ package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.model.FileInfo;
+import com.esl.searchforfiles.model.PaginationInfo;
 import com.esl.searchforfiles.service.FavoritesService;
 
 import java.awt.*;
@@ -25,81 +26,198 @@ public class FileExplorerSwing extends JFrame {
     private final JLabel statusLabel;
     private final SearchController controller;
     private final FavoritesService favoritesService; // NOVO
+    private final PaginationPanel paginationPanel;
 
     private String selectedPath = "C:\\";
+    private int currentPage = 1; // NOVO
 
-public FileExplorerSwing() {
-    super("Advanced File Search - Interface Gráfica");
-    setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-    setSize(1400, 800);
-    setLocationRelativeTo(null);
-    setLayout(new BorderLayout(10, 10));
+//public FileExplorerSwing() {
+//    super("Advanced File Search - Interface Gráfica");
+//    setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+//    setSize(1400, 800);
+//    setLocationRelativeTo(null);
+//    setLayout(new BorderLayout(10, 10));
+//
+//  //  getContentPane().setBackground(new Color(250, 250, 252));
+//
+//    // NOVO: Inicializa gerenciador de favoritos
+//    favoritesService = new FavoritesService();
+//
+//    // Inicializa controlador
+//    try {
+//        controller = new SearchController(this);
+//    } catch (SQLException e) {
+//        JOptionPane.showMessageDialog(this,
+//                "Erro ao inicializar: " + e.getMessage(),
+//                "Erro", JOptionPane.ERROR_MESSAGE);
+//        throw new RuntimeException(e);
+//    }
+//
+//    // === PAINEL SUPERIOR ===
+//    searchPanel = new SearchPanel();
+//    searchPanel.setSearchListener(this::onSearch);
+//    searchPanel.setIndexListener(this::onIndexRequest);
+//    add(searchPanel, BorderLayout.NORTH);
+//
+//    // === PAINEL ESQUERDO (Tree + Favoritos) ===
+//    JPanel leftPanel = createLeftPanel();
+//
+//    // === PAINEL CENTRAL (Resultados) ===
+//    resultsPanel = new ResultsPanel();
+//    resultsPanel.setBackgroundColor(new Color(45, 45, 45));
+//
+//    resultsPanel.setFileItemClickListener(new ResultsPanel.FileItemClickListener() {
+//        @Override
+//        public void onFileDoubleClick(File file) {
+//            try {
+//                Desktop.getDesktop().open(file);
+//            } catch (IOException e) {
+//                JOptionPane.showMessageDialog(FileExplorerSwing.this,
+//                        "Erro ao abrir: " + e.getMessage());
+//            }
+//        }
+//
+//        @Override
+//        public void onFileRightClick(File file, FileInfo fileInfo, Component source, int x, int y) {
+//            FileContextMenu menu = new FileContextMenu(file, fileInfo, source);
+//            menu.show(source, x, y);
+//        }
+//    });
+//
+//    // NOVO: Painel de paginação
+//    paginationPanel = new PaginationPanel();
+//    paginationPanel.setPaginationListener(new PaginationPanel.PaginationListener() {
+//        @Override
+//        public void onPageChanged(int newPage) {
+//            currentPage = newPage;
+//            performCurrentSearch();
+//        }
+//
+//        @Override
+//        public void onPageSizeChanged(int newPageSize) {
+//            currentPage = 1; // Volta para primeira página
+//            performCurrentSearch();
+//        }
+//    });
+//
+//    // NOVO: Painel central com resultados e paginação
+//    JPanel centerPanel = new JPanel(new BorderLayout());
+//    centerPanel.add(resultsPanel, BorderLayout.CENTER);
+//    centerPanel.add(paginationPanel, BorderLayout.SOUTH);
+//
+//
+//    // Split pane horizontal
+//    JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+//            leftPanel, resultsPanel);
+//    splitPane.setDividerLocation(300);
+//    splitPane.setResizeWeight(0.2);
+//    add(splitPane, BorderLayout.CENTER);
+//
+//    // === PAINEL INFERIOR (Status) ===
+//    JPanel statusPanel = new JPanel(new BorderLayout());
+//    statusPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+//    statusLabel = new JLabel("📁 Local de busca: C:\\ | Sistema pronto");
+//    statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+//    statusPanel.add(statusLabel, BorderLayout.WEST);
+//    add(statusPanel, BorderLayout.SOUTH);
+//
+//    showWelcomeMessage();
+//
+//    setVisible(true);
+//}
 
-  //  getContentPane().setBackground(new Color(250, 250, 252));
+    public FileExplorerSwing() {
+        super("Advanced File Search - Interface Gráfica");
+        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        setSize(1400, 800);
+        setLocationRelativeTo(null);
+        setLayout(new BorderLayout(10, 10));
 
-    // NOVO: Inicializa gerenciador de favoritos
-    favoritesService = new FavoritesService();
+        //getContentPane().setBackground(new Color(250, 250, 252));
 
-    // Inicializa controlador
-    try {
-        controller = new SearchController(this);
-    } catch (SQLException e) {
-        JOptionPane.showMessageDialog(this,
-                "Erro ao inicializar: " + e.getMessage(),
-                "Erro", JOptionPane.ERROR_MESSAGE);
-        throw new RuntimeException(e);
+        favoritesService = new FavoritesService();
+
+        try {
+            controller = new SearchController(this);
+        } catch (SQLException e) {
+            JOptionPane.showMessageDialog(this,
+                    "Erro ao inicializar: " + e.getMessage(),
+                    "Erro", JOptionPane.ERROR_MESSAGE);
+            throw new RuntimeException(e);
+        }
+
+        // === PAINEL SUPERIOR ===
+        searchPanel = new SearchPanel();
+        searchPanel.setSearchListener(this::onSearch);
+        searchPanel.setIndexListener(this::onIndexRequest);
+        add(searchPanel, BorderLayout.NORTH);
+
+        // === PAINEL ESQUERDO ===
+        JPanel leftPanel = createLeftPanel();
+
+        // === PAINEL CENTRAL ===
+        resultsPanel = new ResultsPanel();
+        resultsPanel.setBackgroundColor(new Color(45, 45, 45));
+
+        resultsPanel.setFileItemClickListener(new ResultsPanel.FileItemClickListener() {
+            @Override
+            public void onFileDoubleClick(File file) {
+                try {
+                    Desktop.getDesktop().open(file);
+                } catch (IOException e) {
+                    JOptionPane.showMessageDialog(FileExplorerSwing.this,
+                            "Erro ao abrir: " + e.getMessage());
+                }
+            }
+
+            @Override
+            public void onFileRightClick(File file, FileInfo fileInfo, Component source, int x, int y) {
+                FileContextMenu menu = new FileContextMenu(file, fileInfo, source);
+                menu.show(source, x, y);
+            }
+        });
+
+        // NOVO: Painel de paginação
+        paginationPanel = new PaginationPanel();
+        paginationPanel.setPaginationListener(new PaginationPanel.PaginationListener() {
+            @Override
+            public void onPageChanged(int newPage) {
+                currentPage = newPage;
+                performCurrentSearch();
+            }
+
+            @Override
+            public void onPageSizeChanged(int newPageSize) {
+                currentPage = 1; // Volta para primeira página
+                performCurrentSearch();
+            }
+        });
+
+        // NOVO: Painel central com resultados e paginação
+        JPanel centerPanel = new JPanel(new BorderLayout());
+        centerPanel.add(resultsPanel, BorderLayout.CENTER);
+        centerPanel.add(paginationPanel, BorderLayout.SOUTH);
+
+        // Split pane
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+                leftPanel, centerPanel);
+        splitPane.setDividerLocation(300);
+        splitPane.setResizeWeight(0.2);
+        add(splitPane, BorderLayout.CENTER);
+
+        // === PAINEL INFERIOR ===
+        JPanel statusPanel = new JPanel(new BorderLayout());
+        statusPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        statusLabel = new JLabel("📁 Local de busca: C:\\ | Sistema pronto");
+        statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        statusPanel.add(statusLabel, BorderLayout.WEST);
+        add(statusPanel, BorderLayout.SOUTH);
+
+        showWelcomeMessage();
+
+        setVisible(true);
     }
 
-    // === PAINEL SUPERIOR ===
-    searchPanel = new SearchPanel();
-    searchPanel.setSearchListener(this::onSearch);
-    searchPanel.setIndexListener(this::onIndexRequest);
-    add(searchPanel, BorderLayout.NORTH);
-
-    // === PAINEL ESQUERDO (Tree + Favoritos) ===
-    JPanel leftPanel = createLeftPanel();
-
-    // === PAINEL CENTRAL (Resultados) ===
-    resultsPanel = new ResultsPanel();
-    resultsPanel.setBackgroundColor(new Color(45, 45, 45));
-
-    resultsPanel.setFileItemClickListener(new ResultsPanel.FileItemClickListener() {
-        @Override
-        public void onFileDoubleClick(File file) {
-            try {
-                Desktop.getDesktop().open(file);
-            } catch (IOException e) {
-                JOptionPane.showMessageDialog(FileExplorerSwing.this,
-                        "Erro ao abrir: " + e.getMessage());
-            }
-        }
-
-        @Override
-        public void onFileRightClick(File file, FileInfo fileInfo, Component source, int x, int y) {
-            FileContextMenu menu = new FileContextMenu(file, fileInfo, source);
-            menu.show(source, x, y);
-        }
-    });
-
-    // Split pane horizontal
-    JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
-            leftPanel, resultsPanel);
-    splitPane.setDividerLocation(300);
-    splitPane.setResizeWeight(0.2);
-    add(splitPane, BorderLayout.CENTER);
-
-    // === PAINEL INFERIOR (Status) ===
-    JPanel statusPanel = new JPanel(new BorderLayout());
-    statusPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-    statusLabel = new JLabel("📁 Local de busca: C:\\ | Sistema pronto");
-    statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-    statusPanel.add(statusLabel, BorderLayout.WEST);
-    add(statusPanel, BorderLayout.SOUTH);
-
-    showWelcomeMessage();
-
-    setVisible(true);
-}
     /**
      * NOVO: Cria painel esquerdo com Tree e Favoritos
      */
@@ -142,29 +260,99 @@ public FileExplorerSwing() {
     }
 
 
+    /**
+     * Executa busca atual com paginação
+     * NOVO MÉTODO
+     */
+    private void performCurrentSearch() {
+        String searchTerm = searchPanel.getSearchTerm();
+        String filter = searchPanel.getSelectedFilter();
+        int pageSize = paginationPanel.getPageSize();
+
+        if (searchTerm.isEmpty()) {
+            return;
+        }
+
+        onSearchWithPagination(searchTerm, filter, currentPage, pageSize);
+    }
+
+
+
+
+//    private void onSearch(String searchTerm, String filter) {
+//        resultsPanel.showMessage("🔍 Buscando: " + searchTerm + "...",
+//                ResultsPanel.MessageType.LOADING);
+//
+//        controller.performSearch(searchTerm, filter, selectedPath,
+//                new SearchController.SearchCallback() {
+//                    @Override
+//                    public void onSearchStarted() {
+//                        // Já mostrou loading acima
+//                    }
+//
+//                    @Override
+//                    public void onSearchCompleted(List<FileInfo> results) {
+//                        if (results.isEmpty()) {
+//                            resultsPanel.showMessage("Nenhum arquivo encontrado para: " + searchTerm,
+//                                    ResultsPanel.MessageType.NO_RESULTS);
+//                        } else {
+//                            resultsPanel.showResults(results);
+//                        }
+//
+//                        statusLabel.setText(String.format(
+//                                "✓ Encontrados: %d arquivo(s) | Local: %s",
+//                                results.size(), selectedPath
+//                        ));
+//                    }
+//
+//                    @Override
+//                    public void onSearchError(Exception e) {
+//                        resultsPanel.showMessage("Erro: " + e.getMessage(),
+//                                ResultsPanel.MessageType.ERROR);
+//                    }
+//                });
+//    }
+
+    /**
+     * Handler de busca com paginação
+     * MODIFICADO
+     */
     private void onSearch(String searchTerm, String filter) {
+        currentPage = 1; // Reset para primeira página
+        onSearchWithPagination(searchTerm, filter, currentPage, paginationPanel.getPageSize());
+    }
+
+    /**
+     * Executa busca paginada
+     * NOVO MÉTODO
+     */
+    private void onSearchWithPagination(String searchTerm, String filter, int page, int pageSize) {
         resultsPanel.showMessage("🔍 Buscando: " + searchTerm + "...",
                 ResultsPanel.MessageType.LOADING);
 
-        controller.performSearch(searchTerm, filter, selectedPath,
-                new SearchController.SearchCallback() {
+        paginationPanel.setEnabled(false);
+
+        controller.performSearchWithPagination(searchTerm, filter, selectedPath, page, pageSize,
+                new SearchController.PaginatedSearchCallback() {
                     @Override
                     public void onSearchStarted() {
-                        // Já mostrou loading acima
+                        // Já mostrou loading
                     }
 
                     @Override
-                    public void onSearchCompleted(List<FileInfo> results) {
+                    public void onSearchCompleted(List<FileInfo> results, PaginationInfo pagination) {
                         if (results.isEmpty()) {
                             resultsPanel.showMessage("Nenhum arquivo encontrado para: " + searchTerm,
                                     ResultsPanel.MessageType.NO_RESULTS);
+                            paginationPanel.setEnabled(false);
                         } else {
                             resultsPanel.showResults(results);
+                            paginationPanel.updatePagination(pagination);
                         }
 
                         statusLabel.setText(String.format(
-                                "✓ Encontrados: %d arquivo(s) | Local: %s",
-                                results.size(), selectedPath
+                                "✓ %s | Local: %s",
+                                pagination, selectedPath
                         ));
                     }
 
@@ -172,6 +360,7 @@ public FileExplorerSwing() {
                     public void onSearchError(Exception e) {
                         resultsPanel.showMessage("Erro: " + e.getMessage(),
                                 ResultsPanel.MessageType.ERROR);
+                        paginationPanel.setEnabled(false);
                     }
                 });
     }

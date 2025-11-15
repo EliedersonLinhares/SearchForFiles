@@ -156,7 +156,7 @@ public class ResultsPanel extends JPanel {
 
         int spacing = 15;
         int minItemWidth = 130;
-        int itemHeight = 140;
+        int itemHeight = 160;
 
         // Calcula quantos itens cabem por linha
         int itemsPerRow = Math.max(1, (panelWidth - spacing) / (minItemWidth + spacing));

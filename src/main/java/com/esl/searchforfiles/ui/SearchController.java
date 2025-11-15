@@ -1,5 +1,7 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.model.PaginationInfo;
+import com.esl.searchforfiles.service.SearchService;
 import com.esl.searchforfiles.test.AdvancedFileSearch;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.FileType;
@@ -11,18 +13,124 @@ import java.sql.SQLException;
 import java.util.List;
 
 /**
- * Controlador responsável pela lógica de busca e indexação
+ * Controlador de busca com suporte a paginação
  */
 public class SearchController {
 
     private final AdvancedFileSearch searchSystem;
     private final JFrame parentFrame;
 
+    // Armazena última busca para paginação
+    private SearchCriteria lastCriteria;
+    private String lastSelectedPath;
+
     public SearchController(JFrame parentFrame) throws SQLException {
         this.parentFrame = parentFrame;
         this.searchSystem = new AdvancedFileSearch();
         System.out.println("✓ Sistema de busca inicializado");
     }
+
+    /**
+     * Busca com paginação
+     * NOVO MÉTODO
+     */
+    public void performSearchWithPagination(String searchTerm, String filter, String selectedPath,
+                                            int page, int pageSize, PaginatedSearchCallback callback) {
+
+        if (searchTerm.isEmpty()) {
+            JOptionPane.showMessageDialog(parentFrame,
+                    "Digite um termo de busca!",
+                    "Busca vazia", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String processedTerm = processSearchTerm(searchTerm);
+
+        // Cria critérios
+        SearchCriteria criteria = new SearchCriteria()
+                .withName(processedTerm)
+                .inPath(selectedPath, true);
+
+        if (!"TODOS".equals(filter)) {
+            if ("FOLDER".equals(filter)) {
+                criteria.withFileType(FileType.FOLDER);
+            } else {
+                criteria.withFileType(FileType.valueOf(filter));
+            }
+        }
+
+        // Armazena para navegação de páginas
+        this.lastCriteria = criteria;
+        this.lastSelectedPath = selectedPath;
+
+        SwingWorker<SearchService.SearchResult, Void> worker = new SwingWorker<>() {
+            @Override
+            protected SearchService.SearchResult doInBackground() throws Exception {
+                System.out.println("🔍 Buscando: " + searchTerm +
+                        " → Página: " + page + "/" + pageSize +
+                        " | Tipo: " + filter +
+                        " | Pasta: " + selectedPath);
+
+                // Busca com paginação
+                return searchSystem.getSearchService().advancedSearchWithPagination(
+                        criteria, page, pageSize
+                );
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    SearchService.SearchResult result = get();
+                    callback.onSearchCompleted(result.getResults(), result.getPagination());
+
+                    System.out.println("✓ " + result.getPagination());
+
+                } catch (Exception e) {
+                    callback.onSearchError(e);
+                    e.printStackTrace();
+                }
+            }
+        };
+
+        callback.onSearchStarted();
+        worker.execute();
+    }
+
+    /**
+     * Navega para página específica (usa última busca)
+     * NOVO MÉTODO
+     */
+    public void goToPage(int page, int pageSize, PaginatedSearchCallback callback) {
+        if (lastCriteria == null || lastSelectedPath == null) {
+            System.err.println("Nenhuma busca anterior para paginar");
+            return;
+        }
+
+        SwingWorker<SearchService.SearchResult, Void> worker = new SwingWorker<>() {
+            @Override
+            protected SearchService.SearchResult doInBackground() throws Exception {
+                return searchSystem.getSearchService().advancedSearchWithPagination(
+                        lastCriteria, page, pageSize
+                );
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    SearchService.SearchResult result = get();
+                    callback.onSearchCompleted(result.getResults(), result.getPagination());
+                } catch (Exception e) {
+                    callback.onSearchError(e);
+                    e.printStackTrace();
+                }
+            }
+        };
+
+        callback.onSearchStarted();
+        worker.execute();
+    }
+
+
 
     /**
      * Executa busca de forma assíncrona
@@ -159,5 +267,14 @@ public class SearchController {
     public interface IndexCallback {
         void onIndexCompleted();
         void onIndexError(Exception e);
+    }
+    /**
+     * Callback para busca paginada
+     * NOVA INTERFACE
+     */
+    public interface PaginatedSearchCallback {
+        void onSearchStarted();
+        void onSearchCompleted(List<FileInfo> results, PaginationInfo pagination);
+        void onSearchError(Exception e);
     }
 }

@@ -2,10 +2,7 @@ package com.esl.searchforfiles.service;
 
 import com.esl.searchforfiles.cache.LRUCache;
 import com.esl.searchforfiles.database.DatabaseManager;
-import com.esl.searchforfiles.model.FileInfo;
-import com.esl.searchforfiles.model.FileType;
-import com.esl.searchforfiles.model.IndexStats;
-import com.esl.searchforfiles.model.SearchCriteria;
+import com.esl.searchforfiles.model.*;
 
 import java.sql.*;
 import java.util.*;
@@ -386,4 +383,191 @@ public class SearchService {
     public boolean isCached(String cacheKey) {
         return cache.containsKey(cacheKey);
     }
+
+    /**
+     * Busca avançada com paginação
+     * NOVO MÉTODO
+     */
+    public SearchResult advancedSearchWithPagination(SearchCriteria criteria, int page, int pageSize)
+            throws SQLException {
+
+        String cacheKey = criteria.toCacheKey() + ":page:" + page + ":size:" + pageSize;
+
+        long startTime = System.currentTimeMillis();
+
+        // Primeiro, conta total de resultados
+        long totalResults = countResults(criteria);
+
+        // Calcula offset
+        int offset = (page - 1) * pageSize;
+
+        // Busca com LIMIT e OFFSET
+        List<FileInfo> results = executePagedQuery(criteria, offset, pageSize);
+
+        long elapsed = System.currentTimeMillis() - startTime;
+
+        // Cria informação de paginação
+        PaginationInfo pagination = new PaginationInfo(page, pageSize, totalResults);
+
+        // Loga estatísticas
+        dbManager.logSearchStats(cacheKey, results.size(), elapsed);
+
+        System.out.printf("✓ Página %d/%d: %d resultados em %dms\n",
+                page, pagination.getTotalPages(), results.size(), elapsed);
+
+        return new SearchResult(results, pagination);
+    }
+    /**
+     * Conta total de resultados sem limite
+     * NOVO MÉTODO
+     */
+    private long countResults(SearchCriteria criteria) throws SQLException {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM file_index WHERE 1=1");
+        List<Object> params = new ArrayList<>();
+
+        // Aplica os mesmos filtros da busca principal
+        addCriteriaToQuery(sql, params, criteria);
+
+        try (PreparedStatement pstmt = dbManager.getConnection().prepareStatement(sql.toString())) {
+            setParameters(pstmt, params);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Executa query com paginação (LIMIT e OFFSET)
+     * NOVO MÉTODO
+     */
+    private List<FileInfo> executePagedQuery(SearchCriteria criteria, int offset, int limit)
+            throws SQLException {
+
+        StringBuilder sql = new StringBuilder("SELECT * FROM file_index WHERE 1=1");
+        List<Object> params = new ArrayList<>();
+
+        // Aplica filtros
+        addCriteriaToQuery(sql, params, criteria);
+
+        // Ordenação
+        sql.append(" ORDER BY ").append(criteria.getSortBy())
+                .append(" ").append(criteria.getSortOrder());
+
+        // PAGINAÇÃO: LIMIT e OFFSET
+        sql.append(" LIMIT ? OFFSET ?");
+
+        List<FileInfo> results = new ArrayList<>();
+
+        try (PreparedStatement pstmt = dbManager.getConnection().prepareStatement(sql.toString())) {
+            // Define parâmetros dos filtros
+            setParameters(pstmt, params);
+
+            // Define LIMIT e OFFSET
+            int paramIndex = params.size() + 1;
+            pstmt.setInt(paramIndex, limit);
+            pstmt.setInt(paramIndex + 1, offset);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    results.add(extractFileInfo(rs));
+                }
+            }
+        }
+
+        return results;
+    }
+    /**
+     * Adiciona critérios à query SQL
+     * NOVO MÉTODO (extraído para reutilização)
+     */
+    private void addCriteriaToQuery(StringBuilder sql, List<Object> params, SearchCriteria criteria) {
+        if (criteria.getNamePattern() != null && !criteria.getNamePattern().isEmpty()) {
+            sql.append(" AND name LIKE ?");
+            params.add(criteria.getNamePattern().replace("*", "%").replace("?", "_"));
+        }
+
+        if (criteria.getExtension() != null && !criteria.getExtension().isEmpty()) {
+            sql.append(" AND extension = ?");
+            params.add(criteria.getExtension().toLowerCase());
+        }
+
+        if (criteria.getFileType() != null && criteria.getFileType() != FileType.ALL) {
+            sql.append(" AND file_type = ?");
+            params.add(criteria.getFileType().name());
+        }
+
+        if (criteria.getMinSize() != null) {
+            sql.append(" AND size >= ?");
+            params.add(criteria.getMinSize());
+        }
+
+        if (criteria.getMaxSize() != null) {
+            sql.append(" AND size <= ?");
+            params.add(criteria.getMaxSize());
+        }
+
+        if (criteria.getParentPath() != null && !criteria.getParentPath().isEmpty()) {
+            if (criteria.isIncludeSubfolders()) {
+                sql.append(" AND path LIKE ?");
+                params.add(criteria.getParentPath() + "%");
+            } else {
+                sql.append(" AND parent_path = ?");
+                params.add(criteria.getParentPath());
+            }
+        }
+
+        if (criteria.getDriveFilter() != null && !criteria.getDriveFilter().isEmpty()) {
+            String driveLetter = criteria.getDriveFilter().toUpperCase().replaceAll("[:\\\\]", "");
+            sql.append(" AND path LIKE ?");
+            params.add(driveLetter + ":\\%");
+        }
+
+        if (criteria.getModifiedAfter() != null) {
+            sql.append(" AND last_modified >= ?");
+            params.add(criteria.getModifiedAfter());
+        }
+
+        if (criteria.getModifiedBefore() != null) {
+            sql.append(" AND last_modified <= ?");
+            params.add(criteria.getModifiedBefore());
+        }
+    }
+
+    /**
+     * Define parâmetros no PreparedStatement
+     * NOVO MÉTODO (extraído para reutilização)
+     */
+    private void setParameters(PreparedStatement pstmt, List<Object> params) throws SQLException {
+        for (int i = 0; i < params.size(); i++) {
+            pstmt.setObject(i + 1, params.get(i));
+        }
+    }
+    /**
+     * Classe para resultado paginado
+     * NOVA CLASSE INTERNA
+     */
+    public static class SearchResult {
+        private final List<FileInfo> results;
+        private final PaginationInfo pagination;
+
+        public SearchResult(List<FileInfo> results, PaginationInfo pagination) {
+            this.results = results;
+            this.pagination = pagination;
+        }
+
+        public List<FileInfo> getResults() {
+            return results;
+        }
+
+        public PaginationInfo getPagination() {
+            return pagination;
+        }
+    }
+
+
 }

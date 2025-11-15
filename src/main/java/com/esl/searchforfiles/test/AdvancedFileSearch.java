@@ -46,6 +46,7 @@ public class AdvancedFileSearch {
     // MÉTODOS DE INDEXAÇÃO
     // ========================================================================
 
+
     /**
      * Indexa um diretório completo com todas as subpastas
      * Utiliza thread pool com 8 threads para indexação paralela
@@ -111,6 +112,15 @@ public class AdvancedFileSearch {
     // ========================================================================
     // MÉTODOS DE BUSCA
     // ========================================================================
+
+
+    /**
+     * Expõe SearchService para paginação
+     * NOVO MÉTODO
+     */
+    public SearchService getSearchService() {
+        return searchService;
+    }
 
     /**
      * Busca arquivos por nome usando wildcards
