@@ -13,7 +13,9 @@ Project to create a program to find files on computer using virtual threads and 
 - ✅ Support for multiple drives.
 - ✅ Basic interface in swing.
 - ✅ Option to add an folder from tree to favorites panel, to fast access
- 
+- ✅ Show video and pdf thumbnails
+- ✅ Save video thumbnails on disc(cache) to reduce time rendering
+
 ## 🚀 Features to be implemented
 - ℹ️ Better UI design
 

@@ -1,5 +1,6 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.model.FileInfo;
 
 import javax.swing.*;
@@ -10,6 +11,7 @@ import java.util.List;
 
 /**
  * Painel para exibir resultados da busca em grid
+ * ATUALIZADO: Inclui menu de contexto para gerenciar cache de thumbnails
  */
 public class ResultsPanel extends JPanel {
 
@@ -23,11 +25,18 @@ public class ResultsPanel extends JPanel {
     // Cor de fundo customizável
     private Color backgroundColor = new Color(245, 245, 250); // Cinza azulado claro
 
+
+    // NOVO: Gerenciador de cache de thumbnails
+    private final ThumbnailCacheManager cacheManager;
+
     public ResultsPanel() {
         setLayout(new BorderLayout());
 
         gridPanel = new JPanel(null); // Layout manual
         gridPanel.setBackground(backgroundColor);
+
+        // NOVO: Inicializa o gerenciador de cache
+        this.cacheManager = FileItemPanel.getThumbnailCacheManager();
 
         scrollPane = new JScrollPane(gridPanel);
         scrollPane.getVerticalScrollBar().setUnitIncrement(20);
@@ -37,6 +46,9 @@ public class ResultsPanel extends JPanel {
         // Listener para redimensionamento
         // CORREÇÃO: Listener otimizado para redimensionamento fluido
         setupResizeListener();
+
+        // NOVO: Configura menu de contexto do cache
+        setupCacheContextMenu();
     }
     /**
      * Configura listener para redimensionamento fluido
@@ -60,53 +72,59 @@ public class ResultsPanel extends JPanel {
             }
         });
     }
-//    public void showResults(List<FileInfo> results) {
-//        gridPanel.removeAll();
-//        gridPanel.setLayout(null);
-//
-//        int panelWidth = scrollPane.getViewport().getWidth();
-//        if (panelWidth <= 0) {
-//            panelWidth = getWidth();
-//        }
-//
-//        int spacing = 15;
-//        int minItemWidth = 130;
-//        int itemHeight = 140;
-//
-//        int itemsPerRow = Math.max(1, (panelWidth - spacing) / (minItemWidth + spacing));
-//        int dynamicWidth = (panelWidth - (itemsPerRow + 1) * spacing) / itemsPerRow;
-//
-//        int x = spacing;
-//        int y = spacing;
-//        int count = 0;
-//
-//        for (FileInfo fileInfo : results) {
-//            File file = new File(fileInfo.getPath());
-//            if (!file.exists()) continue;
-//
-//            FileItemPanel item = new FileItemPanel(file, fileInfo, dynamicWidth, itemHeight);
-//            item.setBounds(x, y, dynamicWidth, itemHeight);
-//
-//            // Listener de clique
-//            if (clickListener != null) {
-//                item.setClickListener(clickListener);
-//            }
-//
-//            gridPanel.add(item);
-//
-//            count++;
-//            if (count % itemsPerRow == 0) {
-//                x = spacing;
-//                y += itemHeight + spacing;
-//            } else {
-//                x += dynamicWidth + spacing;
-//            }
-//        }
-//
-//        gridPanel.setPreferredSize(new Dimension(panelWidth, y + itemHeight + spacing));
-//        gridPanel.revalidate();
-//        gridPanel.repaint();
-//    }
+
+    /**
+     * NOVO: Configura menu de contexto para gerenciar cache
+     */
+    private void setupCacheContextMenu() {
+        // Adiciona listener de mouse ao gridPanel
+        gridPanel.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (e.isPopupTrigger()) {
+                    showCacheMenu(e);
+                }
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                if (e.isPopupTrigger()) {
+                    showCacheMenu(e);
+                }
+            }
+
+            private void showCacheMenu(MouseEvent e) {
+                // Só mostra o menu se não clicar em um FileItemPanel
+                Component comp = gridPanel.getComponentAt(e.getPoint());
+                if (comp == gridPanel || comp == null) {
+                    CacheContextMenu.show(gridPanel, cacheManager, e.getX(), e.getY());
+                }
+            }
+        });
+
+        // OPCIONAL: Adiciona atalho de teclado (Ctrl+Shift+C)
+        InputMap inputMap = getInputMap(WHEN_IN_FOCUSED_WINDOW);
+        ActionMap actionMap = getActionMap();
+
+        KeyStroke cacheKeyStroke = KeyStroke.getKeyStroke(
+                KeyEvent.VK_C,
+                InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK
+        );
+
+        inputMap.put(cacheKeyStroke, "showCacheMenu");
+        actionMap.put("showCacheMenu", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // Mostra menu no centro do painel
+                int x = gridPanel.getWidth() / 2;
+                int y = gridPanel.getHeight() / 2;
+                CacheContextMenu.show(gridPanel, cacheManager, x, y);
+            }
+        });
+    }
+
+
+
     /**
      * Exibe resultados no grid
      * MODIFICADO: Armazena resultados para re-renderização
@@ -179,15 +197,6 @@ public class ResultsPanel extends JPanel {
         gridPanel.repaint();
     }
 
-//    public void showMessage(String message, MessageType type) {
-//        gridPanel.removeAll();
-//        gridPanel.setLayout(new BorderLayout());
-//
-//        JPanel messagePanel = createMessagePanel(message, type);
-//        gridPanel.add(messagePanel, BorderLayout.CENTER);
-//        gridPanel.revalidate();
-//        gridPanel.repaint();
-//    }
     /**
      * Exibe mensagem centralizada
      * MODIFICADO: Usa backgroundColor
@@ -205,34 +214,6 @@ public class ResultsPanel extends JPanel {
         gridPanel.repaint();
     }
 
-//    private JPanel createMessagePanel(String message, MessageType type) {
-//        JPanel panel = new JPanel();
-//        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-//        panel.setBackground(Color.WHITE);
-//
-//        String icon = switch (type) {
-//            case WELCOME -> "🔍";
-//            case LOADING -> "⏳";
-//            case NO_RESULTS -> "❌";
-//            case ERROR -> "⚠️";
-//        };
-//
-//        JLabel iconLabel = new JLabel(icon);
-//        iconLabel.setFont(new Font("SansSerif", Font.PLAIN, 48));
-//        iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-//
-//        JLabel messageLabel = new JLabel(message);
-//        messageLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
-//        messageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-//
-//        panel.add(Box.createVerticalGlue());
-//        panel.add(iconLabel);
-//        panel.add(Box.createVerticalStrut(10));
-//        panel.add(messageLabel);
-//        panel.add(Box.createVerticalGlue());
-//
-//        return panel;
-//    }
     /**
      * Cria painel de mensagem
      * MODIFICADO: Usa backgroundColor

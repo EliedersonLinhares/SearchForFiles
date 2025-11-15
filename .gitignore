@@ -39,3 +39,7 @@ build/
 file_index.db
 file_index.db-shm
 file_index.db-wal
+
+####project ####
+favorites.txt
+hs_err_pid3800.log

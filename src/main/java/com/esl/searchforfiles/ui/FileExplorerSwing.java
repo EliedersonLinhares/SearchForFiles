@@ -1,5 +1,6 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.service.FavoritesService;
 
@@ -27,86 +28,6 @@ public class FileExplorerSwing extends JFrame {
 
     private String selectedPath = "C:\\";
 
-//public FileExplorerSwing() {
-//    super("Advanced File Search - Interface Gráfica");
-//    setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-//    setSize(1400, 800);
-//    setLocationRelativeTo(null);
-//    setLayout(new BorderLayout(10, 10));
-//
-//    // NOVO: Define cor de fundo da janela
-//    //getContentPane().setBackground(new Color(250, 250, 252));
-//
-//    // Inicializa controlador
-//    try {
-//        controller = new SearchController(this);
-//    } catch (SQLException e) {
-//        JOptionPane.showMessageDialog(this,
-//                "Erro ao inicializar: " + e.getMessage(),
-//                "Erro", JOptionPane.ERROR_MESSAGE);
-//        throw new RuntimeException(e);
-//    }
-//
-//    // === PAINEL SUPERIOR ===
-//    searchPanel = new SearchPanel();
-//    searchPanel.setSearchListener(this::onSearch);
-//    searchPanel.setIndexListener(this::onIndexRequest);
-//    add(searchPanel, BorderLayout.NORTH);
-//
-//    // === PAINEL ESQUERDO (Tree) ===
-//    treePanel = new FolderTreePanel();
-//    treePanel.setSelectionListener(this::onFolderSelected);
-//    treePanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 200, 0));
-//
-//    // === PAINEL CENTRAL (Resultados) ===
-//    resultsPanel = new ResultsPanel();
-//
-//    // NOVO: Define cor de fundo customizada
-//  //  resultsPanel.setBackgroundColor(new Color(245, 245, 250)); // Cinza azulado claro
-//    // Outras opções de cores:
-//    // resultsPanel.setBackgroundColor(new Color(250, 250, 250)); // Cinza quase branco
-//     resultsPanel.setBackgroundColor(new Color(45, 45, 45)); // Alice Blue
-//    // resultsPanel.setBackgroundColor(new Color(248, 248, 255)); // Ghost White
-//    // resultsPanel.setBackgroundColor(new Color(245, 255, 250)); // Mint Cream
-//
-//    resultsPanel.setFileItemClickListener(new ResultsPanel.FileItemClickListener() {
-//        @Override
-//        public void onFileDoubleClick(File file) {
-//            try {
-//                Desktop.getDesktop().open(file);
-//            } catch (IOException e) {
-//                JOptionPane.showMessageDialog(FileExplorerSwing.this,
-//                        "Erro ao abrir: " + e.getMessage());
-//            }
-//        }
-//
-//        @Override
-//        public void onFileRightClick(File file, FileInfo fileInfo, Component source, int x, int y) {
-//            FileContextMenu menu = new FileContextMenu(file, fileInfo, source);
-//            menu.show(source, x, y);
-//        }
-//    });
-//
-//    // Split pane
-//    JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
-//            treePanel, resultsPanel);
-//    splitPane.setDividerLocation(300);
-//    splitPane.setResizeWeight(0.2);
-//    add(splitPane, BorderLayout.CENTER);
-//
-//    // === PAINEL INFERIOR (Status) ===
-//    JPanel statusPanel = new JPanel(new BorderLayout());
-//    statusPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-//    statusLabel = new JLabel("📁 Local de busca: C:\\ | Sistema pronto");
-//    statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-//    statusPanel.add(statusLabel, BorderLayout.WEST);
-//    add(statusPanel, BorderLayout.SOUTH);
-//
-//    // Mensagem inicial
-//    showWelcomeMessage();
-//
-//    setVisible(true);
-//}
 public FileExplorerSwing() {
     super("Advanced File Search - Interface Gráfica");
     setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -313,20 +234,5 @@ public FileExplorerSwing() {
         super.dispose();
     }
 
-//    public static void main(String[] args) {
-//        try {
-//            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-//        } catch (Exception e) {
-//            // Usa padrão
-//        }
-//
-//        SwingUtilities.invokeLater(() -> {
-//            System.out.println("╔════════════════════════════════════════════════════════════════╗");
-//            System.out.println("║  INTERFACE GRÁFICA - Advanced File Search                     ║");
-//            System.out.println("╚════════════════════════════════════════════════════════════════╝");
-//            FlatDarkFlatIJTheme.setup();
-//            new FileExplorerSwing();
-//        });
-//    }
 
 }

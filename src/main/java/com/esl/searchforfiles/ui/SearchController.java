@@ -45,7 +45,7 @@ public class SearchController {
                 SearchCriteria criteria = new SearchCriteria()
                         .withName(processedTerm)
                         .inPath(selectedPath, true)
-                        .limit(1000);
+                        .limit(3000);
 
                 if (!"TODOS".equals(filter)) {
                     if ("FOLDER".equals(filter)) {
