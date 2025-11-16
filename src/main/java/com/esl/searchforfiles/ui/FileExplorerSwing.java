@@ -30,6 +30,8 @@ public class FileExplorerSwing extends JFrame {
 
     private String selectedPath = "C:\\";
     private int currentPage = 1; // NOVO
+    private String currentSortBy = "name"; // NOVO
+    private String currentSortOrder = "ASC"; // NOVO
 
 //public FileExplorerSwing() {
 //    super("Advanced File Search - Interface Gráfica");
@@ -146,11 +148,17 @@ public class FileExplorerSwing extends JFrame {
             throw new RuntimeException(e);
         }
 
-        // === PAINEL SUPERIOR ===
+//        // === PAINEL SUPERIOR ===
         searchPanel = new SearchPanel();
         searchPanel.setSearchListener(this::onSearch);
         searchPanel.setIndexListener(this::onIndexRequest);
         add(searchPanel, BorderLayout.NORTH);
+
+        // MODIFICADO: Listener agora recebe sortBy e sortOrder
+//        searchPanel = new SearchPanel();
+//        searchPanel.setSearchListener(this::onSearch);
+//        searchPanel.setIndexListener(this::onIndexRequest);
+//        add(searchPanel, BorderLayout.NORTH);
 
         // === PAINEL ESQUERDO ===
         JPanel leftPanel = createLeftPanel();
@@ -260,22 +268,37 @@ public class FileExplorerSwing extends JFrame {
     }
 
 
+//    /**
+//     * Executa busca atual com paginação
+//     * NOVO MÉTODO
+//     */
+//    private void performCurrentSearch() {
+//        String searchTerm = searchPanel.getSearchTerm();
+//        String filter = searchPanel.getSelectedFilter();
+//        int pageSize = paginationPanel.getPageSize();
+//
+//        if (searchTerm.isEmpty()) {
+//            return;
+//        }
+//
+//        onSearchWithPagination(searchTerm, filter, currentPage, pageSize);
+//    }
     /**
      * Executa busca atual com paginação
-     * NOVO MÉTODO
      */
     private void performCurrentSearch() {
         String searchTerm = searchPanel.getSearchTerm();
         String filter = searchPanel.getSelectedFilter();
+        String sortBy = searchPanel.getSortBy(); // NOVO
+        String sortOrder = searchPanel.getSortOrder(); // NOVO
         int pageSize = paginationPanel.getPageSize();
 
         if (searchTerm.isEmpty()) {
             return;
         }
 
-        onSearchWithPagination(searchTerm, filter, currentPage, pageSize);
+        onSearchWithPagination(searchTerm, filter, sortBy, sortOrder, currentPage, pageSize);
     }
-
 
 
 
@@ -313,26 +336,84 @@ public class FileExplorerSwing extends JFrame {
 //                });
 //    }
 
+//    /**
+//     * Handler de busca com paginação
+//     * MODIFICADO
+//     */
+//    private void onSearch(String searchTerm, String filter) {
+//        currentPage = 1; // Reset para primeira página
+//        onSearchWithPagination(searchTerm, filter, currentPage, paginationPanel.getPageSize());
+//    }
     /**
-     * Handler de busca com paginação
-     * MODIFICADO
+     * Handler de busca com ordenação
+     * MODIFICADO: Recebe sortBy e sortOrder
      */
-    private void onSearch(String searchTerm, String filter) {
+    private void onSearch(String searchTerm, String filter, String sortBy, String sortOrder) {
         currentPage = 1; // Reset para primeira página
-        onSearchWithPagination(searchTerm, filter, currentPage, paginationPanel.getPageSize());
+        currentSortBy = sortBy; // NOVO: Armazena ordenação
+        currentSortOrder = sortOrder; // NOVO: Armazena ordem
+
+        onSearchWithPagination(searchTerm, filter, sortBy, sortOrder,
+                currentPage, paginationPanel.getPageSize());
     }
 
+//    /**
+//     * Executa busca paginada
+//     * NOVO MÉTODO
+//     */
+//    private void onSearchWithPagination(String searchTerm, String filter, int page, int pageSize) {
+//        resultsPanel.showMessage("🔍 Buscando: " + searchTerm + "...",
+//                ResultsPanel.MessageType.LOADING);
+//
+//        paginationPanel.setEnabled(false);
+//
+//        controller.performSearchWithPagination(searchTerm, filter, selectedPath, page, pageSize,
+//                new SearchController.PaginatedSearchCallback() {
+//                    @Override
+//                    public void onSearchStarted() {
+//                        // Já mostrou loading
+//                    }
+//
+//                    @Override
+//                    public void onSearchCompleted(List<FileInfo> results, PaginationInfo pagination) {
+//                        if (results.isEmpty()) {
+//                            resultsPanel.showMessage("Nenhum arquivo encontrado para: " + searchTerm,
+//                                    ResultsPanel.MessageType.NO_RESULTS);
+//                            paginationPanel.setEnabled(false);
+//                        } else {
+//                            resultsPanel.showResults(results);
+//                            paginationPanel.updatePagination(pagination);
+//                        }
+//
+//                        statusLabel.setText(String.format(
+//                                "✓ %s | Local: %s",
+//                                pagination, selectedPath
+//                        ));
+//                    }
+//
+//                    @Override
+//                    public void onSearchError(Exception e) {
+//                        resultsPanel.showMessage("Erro: " + e.getMessage(),
+//                                ResultsPanel.MessageType.ERROR);
+//                        paginationPanel.setEnabled(false);
+//                    }
+//                });
+//    }
     /**
-     * Executa busca paginada
-     * NOVO MÉTODO
+     * Executa busca paginada com ordenação
+     * MODIFICADO: Adiciona parâmetros de ordenação
      */
-    private void onSearchWithPagination(String searchTerm, String filter, int page, int pageSize) {
+    private void onSearchWithPagination(String searchTerm, String filter,
+                                        String sortBy, String sortOrder,
+                                        int page, int pageSize) {
+
         resultsPanel.showMessage("🔍 Buscando: " + searchTerm + "...",
                 ResultsPanel.MessageType.LOADING);
 
         paginationPanel.setEnabled(false);
 
-        controller.performSearchWithPagination(searchTerm, filter, selectedPath, page, pageSize,
+        controller.performSearchWithPagination(searchTerm, filter, selectedPath,
+                sortBy, sortOrder, page, pageSize,
                 new SearchController.PaginatedSearchCallback() {
                     @Override
                     public void onSearchStarted() {
@@ -350,9 +431,13 @@ public class FileExplorerSwing extends JFrame {
                             paginationPanel.updatePagination(pagination);
                         }
 
+                        // NOVO: Mostra critério de ordenação no status
+                        String sortInfo = getSortDisplayName(sortBy) + " " +
+                                (sortOrder.equals("ASC") ? "↑" : "↓");
+
                         statusLabel.setText(String.format(
-                                "✓ %s | Local: %s",
-                                pagination, selectedPath
+                                "✓ %s | Ordem: %s | Local: %s",
+                                pagination, sortInfo, selectedPath
                         ));
                     }
 
@@ -364,7 +449,20 @@ public class FileExplorerSwing extends JFrame {
                     }
                 });
     }
-
+    /**
+     * Converte nome do campo para exibição
+     * NOVO MÉTODO
+     */
+    private String getSortDisplayName(String fieldName) {
+        return switch (fieldName) {
+            case "name" -> "Nome";
+            case "last_modified" -> "Data";
+            case "size" -> "Tamanho";
+            case "file_type" -> "Tipo";
+            case "path" -> "Caminho";
+            default -> fieldName;
+        };
+    }
     private void onIndexRequest() {
         String message = String.format(
                 "Deseja indexar a pasta selecionada?\n\n" +

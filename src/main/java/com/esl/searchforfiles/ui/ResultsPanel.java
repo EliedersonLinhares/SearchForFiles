@@ -31,7 +31,7 @@ public class ResultsPanel extends JPanel {
 
     public ResultsPanel() {
         setLayout(new BorderLayout());
-
+        setBorder(BorderFactory.createTitledBorder("\uD83D\uDDBC Resultados"));
         gridPanel = new JPanel(null); // Layout manual
         gridPanel.setBackground(backgroundColor);
 
