@@ -37,36 +37,6 @@ public class DatabaseManager {
         }
     }
 
-//    public synchronized void indexFile(Path file, BasicFileAttributes attrs) throws SQLException {
-//        String path = file.toAbsolutePath().toString();
-//        String name = file.getFileName().toString();
-//        String extension = PathUtils.getExtension(name);
-//        FileType fileType = FileTypeDetector.detect(name, attrs.isDirectory());
-//        long size = attrs.size();
-//        long lastModified = attrs.lastModifiedTime().toMillis();
-//        String parentPath = file.getParent() != null ? file.getParent().toString() : "";
-//        boolean isDirectory = attrs.isDirectory();
-//        long indexedAt = System.currentTimeMillis();
-//
-//        String sql = """
-//            INSERT OR REPLACE INTO file_index
-//            (path, name, extension, file_type, size, last_modified, parent_path, is_directory, indexed_at)
-//            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-//        """;
-//
-//        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
-//            pstmt.setString(1, path);
-//            pstmt.setString(2, name);
-//            pstmt.setString(3, extension);
-//            pstmt.setString(4, fileType.name());
-//            pstmt.setLong(5, size);
-//            pstmt.setLong(6, lastModified);
-//            pstmt.setString(7, parentPath);
-//            pstmt.setBoolean(8, isDirectory);
-//            pstmt.setLong(9, indexedAt);
-//            pstmt.executeUpdate();
-//        }
-//    }
     /**
      * Indexa um arquivo com validações robustas
      * CORRIGIDO: Trata casos onde getFileName() retorna null

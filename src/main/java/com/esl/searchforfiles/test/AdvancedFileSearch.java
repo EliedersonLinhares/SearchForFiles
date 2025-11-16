@@ -41,7 +41,7 @@ public class AdvancedFileSearch {
         this.searchService = new SearchService(dbManager);
         this.monitoringService = new MonitoringService(dbManager, searchService);
     }
-
+    public MonitoringService getMonitoringService() { return monitoringService; }
     // ========================================================================
     // MÉTODOS DE INDEXAÇÃO
     // ========================================================================
@@ -565,6 +565,4 @@ public class AdvancedFileSearch {
             }
         }
     }
-
-
 }

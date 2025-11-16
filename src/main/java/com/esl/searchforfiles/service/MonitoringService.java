@@ -5,7 +5,6 @@ import com.esl.searchforfiles.database.DatabaseManager;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -208,24 +207,6 @@ public class MonitoringService {
         });
     }
 
-//    /**
-//     * Handlers executam em Virtual Threads
-//     */
-//    private void handleFileCreated(Path file) {
-//        try {
-//            if (Files.exists(file)) {
-//                BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
-//                dbManager.indexFile(file, attrs);
-//                searchService.clearCache();
-//
-//                String type = attrs.isDirectory() ? " Pasta" : " Arquivo";
-//                System.out.println("➕ " + type + " criado: " + file.getFileName() +
-//                        " [VThread: " + Thread.currentThread().threadId() + "]");
-//            }
-//        } catch (Exception e) {
-//            // Erro silencioso
-//        }
-//    }
     /**
      * Handler de arquivo criado
      * CORRIGIDO: Validações adicionais
@@ -259,16 +240,6 @@ public class MonitoringService {
             System.err.println("⚠️  Erro ao indexar arquivo criado: " + e.getMessage());
         }
     }
-//    private void handleFileDeleted(Path file) {
-//        try {
-//            dbManager.deleteFile(file.toAbsolutePath().toString());
-//            searchService.clearCache();
-//            System.out.println("➖ Arquivo deletado: " + file.getFileName() +
-//                    " [VThread: " + Thread.currentThread().threadId() + "]");
-//        } catch (SQLException e) {
-//            System.err.println(" Erro ao remover do índice: " + file.getFileName());
-//        }
-//    }
     /**
      * Handler de arquivo deletado
      * CORRIGIDO: Validações adicionais
@@ -292,19 +263,6 @@ public class MonitoringService {
             System.err.println("⚠️  Erro ao remover do índice: " + e.getMessage());
         }
     }
-//    private void handleFileModified(Path file) {
-//        try {
-//            if (Files.exists(file) && Files.isRegularFile(file)) {
-//                BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
-//                dbManager.indexFile(file, attrs);
-//                searchService.clearCache();
-//                System.out.println("  Arquivo modificado: " + file.getFileName() +
-//                        " [VThread: " + Thread.currentThread().threadId() + "]");
-//            }
-//        } catch (Exception e) {
-//            // Erro silencioso
-//        }
-//    }
     /**
      * Handler de arquivo modificado
      * CORRIGIDO: Validações adicionais
