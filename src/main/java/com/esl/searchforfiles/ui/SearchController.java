@@ -26,9 +26,19 @@ public class SearchController {
     private final JFrame parentFrame;
     private final MonitoringService monitoringService;
 
-    // Armazena última busca para paginação
+    // Armazena última busca para paginação e auto-refresh
     private SearchCriteria lastCriteria;
     private String lastSelectedPath;
+    private String lastSearchTerm;
+    private String lastFilter;
+    private String lastSortBy;
+    private String lastSortOrder;
+    private int lastPage;
+    private int lastPageSize;
+    private PaginatedSearchCallback lastCallback;
+
+    // NOVO: Listener para mudanças no sistema de arquivos
+    private FileSystemChangeListener fileSystemChangeListener;
 
     // Controle de monitoramento automático
     private String currentMonitoredPath = null;
@@ -39,41 +49,131 @@ public class SearchController {
         this.searchSystem = new AdvancedFileSearch();
         this.monitoringService = searchSystem.getMonitoringService();
 
+        // NOVO: Configura listener de mudanças
+        setupMonitoringListener();
+
+        // ========================================================================
+        // NOVO: CONFIGURAÇÃO DO CALLBACK PARA AUTO-REFRESH
+        // ========================================================================
+
+        // Configura callback no MonitoringService para ser notificado quando
+        // arquivos forem criados, modificados ou deletados
+
+         this.monitoringService.setFileChangeCallback(this::onFileSystemChange);
+
         System.out.println("✅ Sistema de busca inicializado");
         System.out.println("📡 Monitoramento automático ativado");
     }
 
+    // ========================================================================
+    // AUTO-REFRESH QUANDO ARQUIVOS MUDAM
+    // ========================================================================
+
+    /**
+     * Configura listener para detectar mudanças no sistema de arquivos
+     * NOVO MÉTODO
+     */
+    private void setupMonitoringListener() {
+        // Adiciona hook no MonitoringService para ser notificado de mudanças
+        // Nota: Isso requer modificação no MonitoringService para suportar callbacks
+        System.out.println("🔄 Auto-refresh configurado");
+    }
+
+    /**
+     * Atualiza resultados automaticamente após mudança no sistema de arquivos
+     * NOVO MÉTODO
+     */
+    public void refreshCurrentSearch() {
+        // Só atualiza se há uma busca anterior ativa
+        if (lastCallback == null || lastSearchTerm == null || lastSearchTerm.isEmpty()) {
+            System.out.println("⚠️ Nenhuma busca ativa para atualizar");
+            return;
+        }
+
+        System.out.println("🔄 Auto-refresh: Atualizando resultados...");
+
+        // Re-executa a última busca de forma silenciosa
+        SwingWorker<SearchService.SearchResult, Void> worker = new SwingWorker<>() {
+            @Override
+            protected SearchService.SearchResult doInBackground() throws Exception {
+                return searchSystem.getSearchService().advancedSearchWithPagination(
+                        lastCriteria, lastPage, lastPageSize
+                );
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    SearchService.SearchResult result = get();
+
+                    // Notifica callback para atualizar UI
+                    lastCallback.onSearchCompleted(result.getResults(), result.getPagination());
+
+                    System.out.println("✅ Resultados atualizados automaticamente (" +
+                            result.getResults().size() + " arquivos)");
+
+                } catch (Exception e) {
+                    System.err.println("❌ Erro ao atualizar: " + e.getMessage());
+                }
+            }
+        };
+
+        worker.execute();
+    }
+
+    /**
+     * Define listener para mudanças no sistema de arquivos
+     * NOVO MÉTODO
+     */
+    public void setFileSystemChangeListener(FileSystemChangeListener listener) {
+        this.fileSystemChangeListener = listener;
+    }
+
+    /**
+     * Notifica que houve mudança no sistema de arquivos
+     * Chamado pelo MonitoringService (requer modificação naquela classe)
+     * NOVO MÉTODO
+     */
+    public void onFileSystemChange() {
+        // Notifica listener (UI)
+        if (fileSystemChangeListener != null) {
+            SwingUtilities.invokeLater(() -> {
+                fileSystemChangeListener.onFileSystemChanged();
+            });
+        }
+
+        // Auto-refresh automático após pequeno delay (debounce)
+        Timer timer = new Timer(500, e -> {
+            refreshCurrentSearch();
+        });
+        timer.setRepeats(false);
+        timer.start();
+    }
+
 
     // ========================================================================
-    // MONITORAMENTO AUTOMÁTICO (TRANSPARENTE)
+    // MONITORAMENTO AUTOMÁTICO
     // ========================================================================
 
     /**
      * Atualiza monitoramento automaticamente ao selecionar pasta
-     * NOVO: Gerencia monitoramento de forma transparente
-     *
-     * @param newPath Nova pasta selecionada
      */
     public void updateMonitoredFolder(String newPath) {
-        // Se é a mesma pasta, não faz nada
         if (newPath != null && newPath.equals(currentMonitoredPath)) {
             return;
         }
 
-        // Validações básicas
         if (newPath == null || newPath.trim().isEmpty()) {
             stopCurrentMonitoring();
             return;
         }
 
-        // Não monitora drives raiz
         if (isDriveRoot(newPath)) {
             System.out.println("⚠️ Drive raiz não será monitorado: " + newPath);
             stopCurrentMonitoring();
             return;
         }
 
-        // Verifica se pasta existe
         Path folderPath = Paths.get(newPath);
         if (!Files.exists(folderPath) || !Files.isDirectory(folderPath)) {
             System.out.println("⚠️ Pasta inválida para monitoramento: " + newPath);
@@ -81,7 +181,6 @@ public class SearchController {
             return;
         }
 
-        // Verifica tamanho da pasta (estimativa rápida)
         long estimatedFiles = estimateFileCountFast(folderPath);
         if (estimatedFiles > MAX_FOLDER_SIZE) {
             System.out.println(String.format(
@@ -92,15 +191,16 @@ public class SearchController {
             return;
         }
 
-        // Para monitoramento anterior (se existir)
         stopCurrentMonitoring();
-
-        // Inicia novo monitoramento em background
         startMonitoringAsync(newPath);
     }
 
     /**
      * Inicia monitoramento de forma assíncrona (não bloqueia UI)
+     */
+
+    /**
+     * Inicia monitoramento de forma assíncrona
      */
     private void startMonitoringAsync(String path) {
         SwingWorker<Boolean, Void> worker = new SwingWorker<>() {
@@ -135,7 +235,6 @@ public class SearchController {
 
         worker.execute();
     }
-
     /**
      * Para monitoramento atual (se existir)
      */
@@ -209,10 +308,77 @@ public class SearchController {
 
 
 
-    /**
-     * Busca com paginação e ordenação
-     * MODIFICADO: Adiciona parâmetros de ordenação
-     */
+//    /**
+//     * Busca com paginação e ordenação
+//     * MODIFICADO: Adiciona parâmetros de ordenação
+//     */
+//    public void performSearchWithPagination(String searchTerm, String filter, String selectedPath,
+//                                            String sortBy, String sortOrder,
+//                                            int page, int pageSize,
+//                                            PaginatedSearchCallback callback) {
+//
+//        if (searchTerm.isEmpty()) {
+//            JOptionPane.showMessageDialog(parentFrame,
+//                    "Digite um termo de busca!",
+//                    "Busca vazia", JOptionPane.WARNING_MESSAGE);
+//            return;
+//        }
+//
+//        String processedTerm = processSearchTerm(searchTerm);
+//
+//        // Cria critérios COM ordenação
+//        SearchCriteria criteria = new SearchCriteria()
+//                .withName(processedTerm)
+//                .inPath(selectedPath, true)
+//                .sortBy(sortBy, sortOrder); // NOVO: Define ordenação
+//
+//        if (!"TODOS".equals(filter)) {
+//            if ("FOLDER".equals(filter)) {
+//                criteria.withFileType(FileType.FOLDER);
+//            } else {
+//                criteria.withFileType(FileType.valueOf(filter));
+//            }
+//        }
+//
+//        this.lastCriteria = criteria;
+//        this.lastSelectedPath = selectedPath;
+//
+//        SwingWorker<SearchService.SearchResult, Void> worker = new SwingWorker<>() {
+//            @Override
+//            protected SearchService.SearchResult doInBackground() throws Exception {
+//                System.out.println(String.format(
+//                        "🔍 Busca: %s | Ordem: %s %s | Página: %d/%d | Tipo: %s | Pasta: %s",
+//                        searchTerm, sortBy, sortOrder, page, pageSize, filter, selectedPath
+//                ));
+//
+//                return searchSystem.getSearchService().advancedSearchWithPagination(
+//                        criteria, page, pageSize
+//                );
+//            }
+//
+//            @Override
+//            protected void done() {
+//                try {
+//                    SearchService.SearchResult result = get();
+//                    callback.onSearchCompleted(result.getResults(), result.getPagination());
+//
+//                    System.out.println("✓ " + result.getPagination() +
+//                            " (Ordenado por: " + sortBy + " " + sortOrder + ")");
+//
+//                } catch (Exception e) {
+//                    callback.onSearchError(e);
+//                    e.printStackTrace();
+//                }
+//            }
+//        };
+//
+//        callback.onSearchStarted();
+//        worker.execute();
+//    }
+    // ========================================================================
+    // MÉTODOS DE BUSCA
+    // ========================================================================
+
     public void performSearchWithPagination(String searchTerm, String filter, String selectedPath,
                                             String sortBy, String sortOrder,
                                             int page, int pageSize,
@@ -227,11 +393,10 @@ public class SearchController {
 
         String processedTerm = processSearchTerm(searchTerm);
 
-        // Cria critérios COM ordenação
         SearchCriteria criteria = new SearchCriteria()
                 .withName(processedTerm)
                 .inPath(selectedPath, true)
-                .sortBy(sortBy, sortOrder); // NOVO: Define ordenação
+                .sortBy(sortBy, sortOrder);
 
         if (!"TODOS".equals(filter)) {
             if ("FOLDER".equals(filter)) {
@@ -241,8 +406,16 @@ public class SearchController {
             }
         }
 
+        // MODIFICADO: Armazena todos os parâmetros para auto-refresh
         this.lastCriteria = criteria;
         this.lastSelectedPath = selectedPath;
+        this.lastSearchTerm = searchTerm;
+        this.lastFilter = filter;
+        this.lastSortBy = sortBy;
+        this.lastSortOrder = sortOrder;
+        this.lastPage = page;
+        this.lastPageSize = pageSize;
+        this.lastCallback = callback;
 
         SwingWorker<SearchService.SearchResult, Void> worker = new SwingWorker<>() {
             @Override
@@ -263,7 +436,7 @@ public class SearchController {
                     SearchService.SearchResult result = get();
                     callback.onSearchCompleted(result.getResults(), result.getPagination());
 
-                    System.out.println("✓ " + result.getPagination() +
+                    System.out.println("✅ " + result.getPagination() +
                             " (Ordenado por: " + sortBy + " " + sortOrder + ")");
 
                 } catch (Exception e) {
@@ -276,15 +449,16 @@ public class SearchController {
         callback.onSearchStarted();
         worker.execute();
     }
-
-    /**
-     * Navega para página específica (usa última busca)
-     */
     public void goToPage(int page, int pageSize, PaginatedSearchCallback callback) {
         if (lastCriteria == null || lastSelectedPath == null) {
             System.err.println("Nenhuma busca anterior para paginar");
             return;
         }
+
+        // MODIFICADO: Atualiza parâmetros para auto-refresh
+        this.lastPage = page;
+        this.lastPageSize = pageSize;
+        this.lastCallback = callback;
 
         SwingWorker<SearchService.SearchResult, Void> worker = new SwingWorker<>() {
             @Override
@@ -311,9 +485,6 @@ public class SearchController {
     }
 
 
-    /**
-     * Executa busca de forma assíncrona
-     */
     public void performSearch(String searchTerm, String filter, String selectedPath,
                               SearchCallback callback) {
 
@@ -355,7 +526,7 @@ public class SearchController {
                 try {
                     List<FileInfo> results = get();
                     callback.onSearchCompleted(results);
-                    System.out.println("✓ Encontrados: " + results.size() + " arquivos");
+                    System.out.println("✅ Encontrados: " + results.size() + " arquivos");
                 } catch (Exception e) {
                     callback.onSearchError(e);
                     e.printStackTrace();
@@ -458,5 +629,13 @@ public class SearchController {
         void onSearchStarted();
         void onSearchCompleted(List<FileInfo> results, PaginationInfo pagination);
         void onSearchError(Exception e);
+    }
+
+    /**
+     * Interface para notificar mudanças no sistema de arquivos
+     * NOVA INTERFACE
+     */
+    public interface FileSystemChangeListener {
+        void onFileSystemChanged();
     }
 }

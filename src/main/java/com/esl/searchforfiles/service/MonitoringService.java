@@ -22,6 +22,7 @@ import java.util.concurrent.*;
  *
  * Utiliza WatchService do Java NIO para eficiência
  *
+ * MODIFICADO: Adiciona callback para auto-refresh
  * @author Sistema de Busca
  */
 public class MonitoringService {
@@ -33,6 +34,9 @@ public class MonitoringService {
     private volatile boolean monitoring = false;
     private Thread monitorThread;
 
+    // NOVO: Callback para notificar mudanças
+    private FileChangeCallback fileChangeCallback;
+
     public MonitoringService(DatabaseManager dbManager, SearchService searchService) {
         this.dbManager = dbManager;
         this.searchService = searchService;
@@ -40,6 +44,29 @@ public class MonitoringService {
         this.virtualExecutor = Executors.newVirtualThreadPerTaskExecutor();
         this.watchKeys = new ConcurrentHashMap<>();
     }
+
+    /**
+     * Define callback para ser notificado quando arquivos mudarem
+     * NOVO MÉTODO
+     */
+    public void setFileChangeCallback(FileChangeCallback callback) {
+        this.fileChangeCallback = callback;
+    }
+
+    /**
+     * Notifica callback sobre mudança no sistema de arquivos
+     * NOVO MÉTODO
+     */
+    private void notifyFileChange() {
+        if (fileChangeCallback != null) {
+            try {
+                fileChangeCallback.onFileChanged();
+            } catch (Exception e) {
+                System.err.println("⚠️ Erro ao notificar mudança: " + e.getMessage());
+            }
+        }
+    }
+
 
     public void startMonitoring(String rootPath) throws IOException {
         if (monitoring) {
@@ -105,8 +132,88 @@ public class MonitoringService {
      * Loop principal de monitoramento
      * Roda em uma Virtual Thread
      */
+//    private void monitorLoop(String rootPath) {
+//        System.out.println(" Virtual Thread de monitoramento iniciada: " + Thread.currentThread());
+//
+//        while (monitoring) {
+//            try {
+//                WatchKey key = watchService.poll(1, TimeUnit.SECONDS);
+//
+//                if (key == null) {
+//                    continue;
+//                }
+//
+//                Path dir = watchKeys.get(key);
+//                if (dir == null) {
+//                    key.reset();
+//                    continue;
+//                }
+//
+//                // Processa eventos em Virtual Threads
+//                for (WatchEvent<?> event : key.pollEvents()) {
+//                    WatchEvent.Kind<?> kind = event.kind();
+//
+//                    if (kind == StandardWatchEventKinds.OVERFLOW) {
+//                        System.out.println("⚠️  OVERFLOW - Alguns eventos foram perdidos");
+//                        continue;
+//                    }
+//
+//                    @SuppressWarnings("unchecked")
+//                    WatchEvent<Path> ev = (WatchEvent<Path>) event;
+//                    Path filename = ev.context();
+//                    Path child = dir.resolve(filename);
+//
+//                    // Cada evento é processado em uma Virtual Thread separada!
+//                    if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
+//                        // Virtual Thread para criação
+//                        Thread.ofVirtual().start(() -> handleFileCreated(child));
+//
+//                        if (Files.isDirectory(child, LinkOption.NOFOLLOW_LINKS)) {
+//                            try {
+//                                registerDirectory(child);
+//                            } catch (IOException e) {
+//                                System.err.println("❌ Erro ao registrar diretório: " + child);
+//                            }
+//                        }
+//
+//                    } else if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
+//                        // Virtual Thread para deleção
+//                        Thread.ofVirtual().start(() -> handleFileDeleted(child));
+//
+//                    } else if (kind == StandardWatchEventKinds.ENTRY_MODIFY) {
+//                        // Virtual Thread para modificação
+//                        Thread.ofVirtual().start(() -> handleFileModified(child));
+//                    }
+//                }
+//
+//                boolean valid = key.reset();
+//                if (!valid) {
+//                    watchKeys.remove(key);
+//                    System.out.println("  Diretório removido do monitoramento: " + dir);
+//
+//                    if (watchKeys.isEmpty()) {
+//                        System.out.println("  Nenhum diretório para monitorar. Encerrando...");
+//                        monitoring = false;
+//                        break;
+//                    }
+//                }
+//
+//            } catch (InterruptedException e) {
+//                System.out.println("  Monitoramento interrompido");
+//                break;
+//            } catch (Exception e) {
+//                System.err.println(" Erro no monitoramento: " + e.getMessage());
+//            }
+//        }
+//
+//        System.out.println(" Virtual Thread de monitoramento encerrada");
+//    }
+    /**
+     * Loop principal de monitoramento
+     * MODIFICADO: Notifica mudanças para auto-refresh
+     */
     private void monitorLoop(String rootPath) {
-        System.out.println(" Virtual Thread de monitoramento iniciada: " + Thread.currentThread());
+        System.out.println("🚀 Virtual Thread de monitoramento iniciada: " + Thread.currentThread());
 
         while (monitoring) {
             try {
@@ -122,12 +229,15 @@ public class MonitoringService {
                     continue;
                 }
 
+                boolean hasChanges = false; // NOVO: Flag para detectar mudanças
+
                 // Processa eventos em Virtual Threads
                 for (WatchEvent<?> event : key.pollEvents()) {
                     WatchEvent.Kind<?> kind = event.kind();
 
                     if (kind == StandardWatchEventKinds.OVERFLOW) {
-                        System.out.println("⚠️  OVERFLOW - Alguns eventos foram perdidos");
+                        System.out.println("⚠️ OVERFLOW - Alguns eventos foram perdidos");
+                        hasChanges = true;
                         continue;
                     }
 
@@ -136,9 +246,9 @@ public class MonitoringService {
                     Path filename = ev.context();
                     Path child = dir.resolve(filename);
 
-                    // Cada evento é processado em uma Virtual Thread separada!
+                    // Cada evento é processado em uma Virtual Thread separada
                     if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
-                        // Virtual Thread para criação
+                        hasChanges = true;
                         Thread.ofVirtual().start(() -> handleFileCreated(child));
 
                         if (Files.isDirectory(child, LinkOption.NOFOLLOW_LINKS)) {
@@ -150,38 +260,42 @@ public class MonitoringService {
                         }
 
                     } else if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
-                        // Virtual Thread para deleção
+                        hasChanges = true;
                         Thread.ofVirtual().start(() -> handleFileDeleted(child));
 
                     } else if (kind == StandardWatchEventKinds.ENTRY_MODIFY) {
-                        // Virtual Thread para modificação
+                        hasChanges = true;
                         Thread.ofVirtual().start(() -> handleFileModified(child));
                     }
+                }
+
+                // NOVO: Notifica mudanças para auto-refresh
+                if (hasChanges) {
+                    notifyFileChange();
                 }
 
                 boolean valid = key.reset();
                 if (!valid) {
                     watchKeys.remove(key);
-                    System.out.println("  Diretório removido do monitoramento: " + dir);
+                    System.out.println("📂 Diretório removido do monitoramento: " + dir);
 
                     if (watchKeys.isEmpty()) {
-                        System.out.println("  Nenhum diretório para monitorar. Encerrando...");
+                        System.out.println("⚠️ Nenhum diretório para monitorar. Encerrando...");
                         monitoring = false;
                         break;
                     }
                 }
 
             } catch (InterruptedException e) {
-                System.out.println("  Monitoramento interrompido");
+                System.out.println("⚠️ Monitoramento interrompido");
                 break;
             } catch (Exception e) {
-                System.err.println(" Erro no monitoramento: " + e.getMessage());
+                System.err.println("❌ Erro no monitoramento: " + e.getMessage());
             }
         }
 
-        System.out.println(" Virtual Thread de monitoramento encerrada");
+        System.out.println("🏁 Virtual Thread de monitoramento encerrada");
     }
-
     private void registerDirectory(Path dir) throws IOException {
         Files.walkFileTree(dir, new SimpleFileVisitor<Path>() {
             @Override
@@ -324,5 +438,13 @@ public class MonitoringService {
 
     public int getMonitoredDirectories() {
         return watchKeys.size();
+    }
+
+    /**
+     * Interface para callback de mudanças
+     * NOVA INTERFACE
+     */
+    public interface FileChangeCallback {
+        void onFileChanged();
     }
 }

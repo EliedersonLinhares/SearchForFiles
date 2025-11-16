@@ -1,6 +1,6 @@
 package com.esl.searchforfiles.ui;
 
-import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
+
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.PaginationInfo;
 import com.esl.searchforfiles.service.FavoritesService;
@@ -23,7 +23,7 @@ public class FileExplorerSwing extends JFrame {
     private FolderTreePanel treePanel;
     private FavoritesPanel favoritesPanel; // NOVO
     private final ResultsPanel resultsPanel;
-    private final JLabel statusLabel;
+    private JLabel statusLabel;
     private final SearchController controller;
     private final FavoritesService favoritesService; // NOVO
     private final PaginationPanel paginationPanel;
@@ -33,7 +33,8 @@ public class FileExplorerSwing extends JFrame {
     private String currentSortBy = "last_modified"; // NOVO
     private String currentSortOrder = "DESC"; // NOVO
 
-
+    // NOVO: Indicador de auto-refresh
+    private JLabel autoRefreshIndicator;
 
     public FileExplorerSwing() {
         super("Advanced File Search - Interface Gráfica");
@@ -42,12 +43,16 @@ public class FileExplorerSwing extends JFrame {
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
-        //getContentPane().setBackground(new Color(250, 250, 252));
+
 
         favoritesService = new FavoritesService();
 
         try {
             controller = new SearchController(this);
+
+            // NOVO: Configura listener para auto-refresh
+            controller.setFileSystemChangeListener(this::onFileSystemChanged);
+
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this,
                     "Erro ao inicializar: " + e.getMessage(),
@@ -114,17 +119,72 @@ public class FileExplorerSwing extends JFrame {
         splitPane.setResizeWeight(0.2);
         add(splitPane, BorderLayout.CENTER);
 
+//        // === PAINEL INFERIOR ===
+//        JPanel statusPanel = new JPanel(new BorderLayout());
+//        statusPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+//        statusLabel = new JLabel("📁 Local de busca: C:\\ | Sistema pronto");
+//        statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+//        statusPanel.add(statusLabel, BorderLayout.WEST);
+//        add(statusPanel, BorderLayout.SOUTH);
+
         // === PAINEL INFERIOR ===
-        JPanel statusPanel = new JPanel(new BorderLayout());
-        statusPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-        statusLabel = new JLabel("📁 Local de busca: C:\\ | Sistema pronto");
-        statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        statusPanel.add(statusLabel, BorderLayout.WEST);
+        JPanel statusPanel = createStatusPanel(); // MODIFICADO
         add(statusPanel, BorderLayout.SOUTH);
 
         showWelcomeMessage();
 
         setVisible(true);
+    }
+
+
+    /**
+     * Cria painel de status com indicador de auto-refresh
+     * NOVO MÉTODO
+     */
+    private JPanel createStatusPanel() {
+        JPanel statusPanel = new JPanel(new BorderLayout());
+        statusPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+
+        // Label principal de status
+        statusLabel = new JLabel("📂 Local de busca: C:\\ | Sistema pronto");
+        statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+
+        // NOVO: Indicador de auto-refresh (inicialmente invisível)
+        autoRefreshIndicator = new JLabel();
+        autoRefreshIndicator.setFont(new Font("SansSerif", Font.BOLD, 11));
+        autoRefreshIndicator.setForeground(new Color(76, 175, 80)); // Verde
+        autoRefreshIndicator.setVisible(false);
+
+        statusPanel.add(statusLabel, BorderLayout.WEST);
+        statusPanel.add(autoRefreshIndicator, BorderLayout.EAST);
+
+        return statusPanel;
+    }
+    /**
+     * Chamado quando o sistema de arquivos muda
+     * NOVO MÉTODO
+     */
+    private void onFileSystemChanged() {
+        // Mostra feedback visual temporário
+        showAutoRefreshIndicator();
+
+        System.out.println("🔄 Sistema de arquivos modificado - Auto-refresh ativado");
+    }
+
+    /**
+     * Mostra indicador visual de auto-refresh
+     * NOVO MÉTODO
+     */
+    private void showAutoRefreshIndicator() {
+        autoRefreshIndicator.setText("🔄 Atualizando...");
+        autoRefreshIndicator.setVisible(true);
+
+        // Esconde após 2 segundos
+        Timer timer = new Timer(2000, e -> {
+            autoRefreshIndicator.setVisible(false);
+        });
+        timer.setRepeats(false);
+        timer.start();
     }
 
     /**
