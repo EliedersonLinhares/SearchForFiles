@@ -56,10 +56,6 @@ public FileItemPanel(File file, FileInfo fileInfo, int width, int height) {
 
     setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
     setBackground(normalColor);
-//    setBorder(BorderFactory.createCompoundBorder(
-//            BorderFactory.createLineBorder(new Color(56, 162, 218)),
-//            BorderFactory.createEmptyBorder(5, 5, 5, 5)
-//    ));
     setAlignmentX(Component.CENTER_ALIGNMENT);
 
     // Ícone / Miniatura
@@ -125,22 +121,17 @@ private JLabel createIconLabel(int width, File file) {
     label.setHorizontalAlignment(SwingConstants.CENTER);
 
     int thumbSize = Math.min(width - 10, 128);
-    System.out.println("Thumbsize: " + thumbSize);
 
     if (isImage(file)) {
         label.setIcon(getLoadingIcon());
         loadThumbnailAsyncCached(file, thumbSize, Preset.MEDIO, label);
-
         return label;
     }
-
     if (isVideo(file)) {
         label.setIcon(getLoadingIcon());
         loadVideoThumbnailAsync(file, thumbSize, label);
-
         return label;
     }
-
     if (isPdf(file)) {
         label.setIcon(getLoadingIcon());
         loadPdfThumbnailAsync(file, thumbSize, label);
@@ -419,7 +410,6 @@ private JLabel createIconLabel(int width, File file) {
         });
     }
 
-
     // Atualizado  com melhor tratamento de erros:
     private BufferedImage extractVideoThumbnail(File file, int size) {
         FFmpegFrameGrabber grabber = null;
@@ -499,31 +489,6 @@ private JLabel createIconLabel(int width, File file) {
             }
         }
     }
-
-//    /**
-//     * Retorna informações sobre o cache de thumbnails
-//     */
-//    public static String getCacheInfo() {
-//        return String.format(
-//                "Cache de Thumbnails:\n" +
-//                        "- Localização: %s\n" +
-//                        "- Thumbnails salvos: %d\n" +
-//                        "- Tamanho total: %s",
-//                THUMBNAIL_CACHE.getCacheDirectory(),
-//                THUMBNAIL_CACHE.getThumbnailCount(),
-//                THUMBNAIL_CACHE.getCacheSizeFormatted()
-//        );
-//    }
-//
-//    /**
-//     * Limpa o cache de thumbnails
-//     */
-//    public static void clearThumbnailCache() {
-//        THUMBNAIL_CACHE.clearCache();
-//        ICON_CACHE.clear(); // Limpa também o cache em memória
-//        System.out.println("Cache de thumbnails limpo.");
-//    }
-
     /**
      * Limpa thumbnails mais antigos que X dias
      */
@@ -617,46 +582,6 @@ private JLabel createIconLabel(int width, File file) {
             return (ImageIcon) resizeIcon(sysIcon, size);
         });
     }
-
-//    private void loadThumbnailAsyncCached(File file, int size, Preset preset, JLabel target) {
-//
-//        String key = "thumb_" + file.getAbsolutePath() + "_" + size + "_" + preset;
-//
-//        // Verifica cache antes
-//        ImageIcon cached = ICON_CACHE.get(key);
-//        if (cached != null) {
-//            target.setIcon(cached);
-//            return;
-//        }
-//
-//        // Carrega em background
-//        new SwingWorker<ImageIcon, Void>() {
-//
-//            @Override
-//            protected ImageIcon doInBackground() throws Exception {
-//                BufferedImage img = loadThumbnail(file, size, preset);
-//                if (img == null) return null;
-//
-//                ImageIcon icon = new ImageIcon(img);
-//                ICON_CACHE.put(key, icon);
-//                return icon;
-//            }
-//
-//            @Override
-//            protected void done() {
-//                try {
-//                    ImageIcon icon = get();
-//                    if (icon != null) {
-//                        target.setIcon(icon);
-//                    } else {
-//                        target.setIcon(getSystemIconCached(file, size));
-//                    }
-//                } catch (Exception e) {
-//                    target.setIcon(getSystemIconCached(file, size));
-//                }
-//            }
-//        }.execute();
-//    }
     /**
      * Carrega thumbnail de IMAGEM de forma assíncrona
      * USA APENAS CACHE EM MEMÓRIA (não salva em disco)

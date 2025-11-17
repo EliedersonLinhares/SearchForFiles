@@ -4,6 +4,7 @@ package com.esl.searchforfiles.ui;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.PaginationInfo;
 import com.esl.searchforfiles.service.FavoritesService;
+import com.esl.searchforfiles.service.SyncService;
 
 import java.awt.*;
 import java.io.File;
@@ -35,6 +36,8 @@ public class FileExplorerSwing extends JFrame {
 
     // NOVO: Indicador de auto-refresh
     private JLabel autoRefreshIndicator;
+
+    private JLabel syncIndicator; // NOVO
 
     public FileExplorerSwing() {
         super("Advanced File Search - Interface Gráfica");
@@ -149,17 +152,191 @@ public class FileExplorerSwing extends JFrame {
         statusLabel = new JLabel("📂 Local de busca: C:\\ | Sistema pronto");
         statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
 
-        // NOVO: Indicador de auto-refresh (inicialmente invisível)
+
+
+//        // NOVO: Indicador de auto-refresh (inicialmente invisível)
+//        autoRefreshIndicator = new JLabel();
+//        autoRefreshIndicator.setFont(new Font("SansSerif", Font.BOLD, 11));
+//        autoRefreshIndicator.setForeground(new Color(76, 175, 80)); // Verde
+//        autoRefreshIndicator.setVisible(false);
+//
+//        statusPanel.add(statusLabel, BorderLayout.WEST);
+//        statusPanel.add(autoRefreshIndicator, BorderLayout.EAST);
+//
+//        return statusPanel;
+
+        // Painel de indicadores à direita
+        JPanel indicatorsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+
+        // Indicador de sincronização (NOVO)
+        syncIndicator = new JLabel();
+        syncIndicator.setFont(new Font("SansSerif", Font.BOLD, 11));
+        syncIndicator.setForeground(new Color(33, 150, 243)); // Azul
+        syncIndicator.setVisible(false);
+
+        // Indicador de auto-refresh
         autoRefreshIndicator = new JLabel();
         autoRefreshIndicator.setFont(new Font("SansSerif", Font.BOLD, 11));
         autoRefreshIndicator.setForeground(new Color(76, 175, 80)); // Verde
         autoRefreshIndicator.setVisible(false);
 
+        indicatorsPanel.add(syncIndicator);
+        indicatorsPanel.add(autoRefreshIndicator);
+
         statusPanel.add(statusLabel, BorderLayout.WEST);
-        statusPanel.add(autoRefreshIndicator, BorderLayout.EAST);
+        statusPanel.add(indicatorsPanel, BorderLayout.EAST);
 
         return statusPanel;
     }
+
+
+    /**
+     * Mostra indicador de sincronização
+     * NOVO MÉTODO
+     */
+    private void showSyncIndicator(String message) {
+        syncIndicator.setText(message);
+        syncIndicator.setVisible(true);
+    }
+
+//    /**
+//     * Esconde indicador de sincronização
+//     * NOVO MÉTODO
+//     */
+//    private void hideSyncIndicator() {
+//        Timer timer = new Timer(3000, e -> {
+//            syncIndicator.setVisible(false);
+//        });
+//        timer.setRepeats(false);
+//        timer.start();
+//    }
+    /**
+     * Esconde indicador com cor apropriada
+     * MODIFICADO: Trata caso de pasta não indexada
+     */
+    private void hideSyncIndicator(boolean isWarning) {
+        if (isWarning) {
+            syncIndicator.setForeground(new Color(255, 152, 0)); // Laranja para aviso
+        } else {
+            syncIndicator.setForeground(new Color(33, 150, 243)); // Azul normal
+        }
+
+        Timer timer = new Timer(5000, e -> { // 5 segundos para avisos
+            syncIndicator.setVisible(false);
+        });
+        timer.setRepeats(false);
+        timer.start();
+    }
+//    /**
+//     * Cria callback para sincronização
+//     * NOVO MÉTODO
+//     */
+//    private SearchController.SyncCallback createSyncCallback() {
+//        return new SearchController.SyncCallback() {
+//            @Override
+//            public void onSyncCompleted(SyncService.SyncResult result) {
+//                SwingUtilities.invokeLater(() -> {
+//                    if (result.hasChanges()) {
+//                        String message = String.format(
+//                                "✅ Sincronizado: +%d | ↻%d | -%d",
+//                                result.getAdded(),
+//                                result.getUpdated(),
+//                                result.getDeleted()
+//                        );
+//                        showSyncIndicator(message);
+//
+//                        // Atualiza status
+//                        String statusText = "📂 " + selectedPath + " | " + result.getSummary();
+//                        String monitoringStatus = controller.getMonitoringStatus();
+//                        if (!monitoringStatus.isEmpty()) {
+//                            statusText += " | " + monitoringStatus;
+//                        }
+//                        statusLabel.setText(statusText);
+//
+//                    } else {
+//                        showSyncIndicator("✅ Sincronizado");
+//                        updateStatusLabel();
+//                    }
+//
+//                    hideSyncIndicator();
+//                });
+//            }
+//
+//            @Override
+//            public void onSyncError(Exception e) {
+//                SwingUtilities.invokeLater(() -> {
+//                    showSyncIndicator("❌ Erro na sincronização");
+//                    hideSyncIndicator();
+//                });
+//            }
+//        };
+//    }
+
+    /**
+     * Cria callback para sincronização
+     * MODIFICADO: Trata caso de pasta não indexada
+     */
+    private SearchController.SyncCallback createSyncCallback() {
+        return new SearchController.SyncCallback() {
+            @Override
+            public void onSyncCompleted(SyncService.SyncResult result) {
+                SwingUtilities.invokeLater(() -> {
+                    // CASO 1: Pasta não indexada
+                    if (result.isNotIndexed()) {
+                        showSyncIndicator("⚠️ Pasta não indexada - Use 'Indexar'");
+                        hideSyncIndicator(true); // Aviso em laranja
+
+                        String statusText = "📂 " + selectedPath +
+                                " | ⚠️ Pasta não indexada";
+                        statusLabel.setText(statusText);
+
+                        // Limpa resultados se há busca ativa
+                        resultsPanel.showMessage(
+                                "⚠️ Pasta não está indexada\n\n" +
+                                        "Clique em 'Indexar' para indexar esta pasta antes de buscar.",
+                                ResultsPanel.MessageType.ERROR
+                        );
+
+                        return;
+                    }
+
+                    // CASO 2: Pasta indexada com mudanças
+                    if (result.hasChanges()) {
+                        String message = String.format(
+                                "✅ Sincronizado: +%d | ↻%d | -%d",
+                                result.getAdded(),
+                                result.getUpdated(),
+                                result.getDeleted()
+                        );
+                        showSyncIndicator(message);
+
+                        String statusText = "📂 " + selectedPath + " | " + result.getSummary();
+                        String monitoringStatus = controller.getMonitoringStatus();
+                        if (!monitoringStatus.isEmpty()) {
+                            statusText += " | " + monitoringStatus;
+                        }
+                        statusLabel.setText(statusText);
+
+                    } else {
+                        // CASO 3: Pasta indexada sem mudanças
+                        showSyncIndicator("✅ Sincronizado");
+                        updateStatusLabel();
+                    }
+
+                    hideSyncIndicator(false); // Normal em azul
+                });
+            }
+
+            @Override
+            public void onSyncError(Exception e) {
+                SwingUtilities.invokeLater(() -> {
+                    showSyncIndicator("❌ Erro na sincronização");
+                    hideSyncIndicator(true);
+                });
+            }
+        };
+    }
+
     /**
      * Chamado quando o sistema de arquivos muda
      * NOVO MÉTODO
@@ -214,23 +391,41 @@ public class FileExplorerSwing extends JFrame {
         return leftPanel;
     }
 
+//    /**
+//     * NOVO: Handler para seleção de favorito
+//     */
+//    private void onFavoriteSelected(File folder) {
+//        System.out.println(folder != null);
+//        System.out.println(folder.exists());
+//        System.out.println(folder.isDirectory());
+//        if (folder != null && folder.exists() && folder.isDirectory()) {
+//            selectedPath = folder.getAbsolutePath();
+//
+//            // NOVO: Atualiza monitoramento automaticamente
+//            controller.updateMonitoredFolder(selectedPath);
+//
+//            statusLabel.setText("⭐ Favorito selecionado: " + selectedPath);
+//            System.out.println("⭐ Favorito selecionado: " + selectedPath);
+//        }
+//    }
+
     /**
-     * NOVO: Handler para seleção de favorito
+     * Handler para seleção de favorito
+     * MODIFICADO: Sincroniza automaticamente
      */
     private void onFavoriteSelected(File folder) {
-        System.out.println(folder != null);
-        System.out.println(folder.exists());
-        System.out.println(folder.isDirectory());
         if (folder != null && folder.exists() && folder.isDirectory()) {
             selectedPath = folder.getAbsolutePath();
 
-            // NOVO: Atualiza monitoramento automaticamente
-            controller.updateMonitoredFolder(selectedPath);
+            // NOVO: Sincroniza e monitora
+            showSyncIndicator("🔄 Verificando mudanças...");
+            controller.updateMonitoredFolder(selectedPath, createSyncCallback());
 
-            statusLabel.setText("⭐ Favorito selecionado: " + selectedPath);
+            updateStatusLabel();
             System.out.println("⭐ Favorito selecionado: " + selectedPath);
         }
     }
+
 
     /**
      * Executa busca atual com paginação
@@ -242,9 +437,9 @@ public class FileExplorerSwing extends JFrame {
         String sortOrder = searchPanel.getSortOrder(); // NOVO
         int pageSize = paginationPanel.getPageSize();
 
-        if (searchTerm.isEmpty()) {
-            return;
-        }
+//        if (searchTerm.isEmpty()) {
+//            return;
+//        }
 
         onSearchWithPagination(searchTerm, filter, sortBy, sortOrder, currentPage, pageSize);
     }
@@ -263,16 +458,74 @@ public class FileExplorerSwing extends JFrame {
                 currentPage, paginationPanel.getPageSize());
     }
 
+//    /**
+//     * Executa busca paginada com ordenação
+//     * MODIFICADO: Adiciona parâmetros de ordenação
+//     */
+//    private void onSearchWithPagination(String searchTerm, String filter,
+//                                        String sortBy, String sortOrder,
+//                                        int page, int pageSize) {
+//
+//        resultsPanel.showMessage("🔍 Buscando: " + searchTerm + "...",
+//                ResultsPanel.MessageType.LOADING);
+//
+//        paginationPanel.setEnabled(false);
+//
+//        controller.performSearchWithPagination(searchTerm, filter, selectedPath,
+//                sortBy, sortOrder, page, pageSize,
+//                new SearchController.PaginatedSearchCallback() {
+//                    @Override
+//                    public void onSearchStarted() {
+//                        // Já mostrou loading
+//                    }
+//
+//                    @Override
+//                    public void onSearchCompleted(List<FileInfo> results, PaginationInfo pagination) {
+//                        if (results.isEmpty()) {
+//                            resultsPanel.showMessage("Nenhum arquivo encontrado para: " + searchTerm,
+//                                    ResultsPanel.MessageType.NO_RESULTS);
+//                            paginationPanel.setEnabled(false);
+//                        } else {
+//                            resultsPanel.showResults(results);
+//                            paginationPanel.updatePagination(pagination);
+//                        }
+//
+//                        // NOVO: Mostra critério de ordenação no status
+//                        String sortInfo = getSortDisplayName(sortBy) + " " +
+//                                (sortOrder.equals("ASC") ? "↑" : "↓");
+//
+//                        statusLabel.setText(String.format(
+//                                "✓ %s | Ordem: %s | Local: %s",
+//                                pagination, sortInfo, selectedPath
+//                        ));
+//                    }
+//
+//                    @Override
+//                    public void onSearchError(Exception e) {
+//                        resultsPanel.showMessage("Erro: " + e.getMessage(),
+//                                ResultsPanel.MessageType.ERROR);
+//                        paginationPanel.setEnabled(false);
+//                    }
+//                });
+//    }
+
     /**
-     * Executa busca paginada com ordenação
-     * MODIFICADO: Adiciona parâmetros de ordenação
+     * Executa busca paginada
+     * MODIFICADO: Mensagem diferenciada para busca vazia
      */
     private void onSearchWithPagination(String searchTerm, String filter,
                                         String sortBy, String sortOrder,
                                         int page, int pageSize) {
 
-        resultsPanel.showMessage("🔍 Buscando: " + searchTerm + "...",
-                ResultsPanel.MessageType.LOADING);
+        // MODIFICADO: Mensagem de loading diferenciada
+        String loadingMessage;
+        if (searchTerm == null || searchTerm.trim().isEmpty()) {
+            loadingMessage = "📂 Carregando todos os arquivos...";
+        } else {
+            loadingMessage = "🔍 Buscando: " + searchTerm + "...";
+        }
+
+        resultsPanel.showMessage(loadingMessage, ResultsPanel.MessageType.LOADING);
 
         paginationPanel.setEnabled(false);
 
@@ -281,28 +534,51 @@ public class FileExplorerSwing extends JFrame {
                 new SearchController.PaginatedSearchCallback() {
                     @Override
                     public void onSearchStarted() {
-                        // Já mostrou loading
                     }
 
                     @Override
                     public void onSearchCompleted(List<FileInfo> results, PaginationInfo pagination) {
                         if (results.isEmpty()) {
-                            resultsPanel.showMessage("Nenhum arquivo encontrado para: " + searchTerm,
-                                    ResultsPanel.MessageType.NO_RESULTS);
+                            // MODIFICADO: Mensagem diferenciada para busca vazia
+                            String emptyMessage;
+                            if (searchTerm == null || searchTerm.trim().isEmpty()) {
+                                emptyMessage = "📂 Pasta vazia ou não indexada\n\n" +
+                                        "Não há arquivos nesta pasta ou ela não foi indexada ainda.";
+                            } else {
+                                emptyMessage = "Nenhum arquivo encontrado para: " + searchTerm;
+                            }
+
+                            resultsPanel.showMessage(emptyMessage, ResultsPanel.MessageType.NO_RESULTS);
                             paginationPanel.setEnabled(false);
                         } else {
                             resultsPanel.showResults(results);
                             paginationPanel.updatePagination(pagination);
                         }
 
-                        // NOVO: Mostra critério de ordenação no status
                         String sortInfo = getSortDisplayName(sortBy) + " " +
                                 (sortOrder.equals("ASC") ? "↑" : "↓");
 
-                        statusLabel.setText(String.format(
-                                "✓ %s | Ordem: %s | Local: %s",
-                                pagination, sortInfo, selectedPath
-                        ));
+                        String monitoringStatus = controller.getMonitoringStatus();
+
+                        // MODIFICADO: Status diferenciado para listagem vs busca
+                        String statusText;
+                        if (searchTerm == null || searchTerm.trim().isEmpty()) {
+                            statusText = String.format(
+                                    "📂 Listando: %s | Ordem: %s | Local: %s",
+                                    pagination, sortInfo, selectedPath
+                            );
+                        } else {
+                            statusText = String.format(
+                                    "✅ %s | Ordem: %s | Local: %s",
+                                    pagination, sortInfo, selectedPath
+                            );
+                        }
+
+                        if (!monitoringStatus.isEmpty()) {
+                            statusText += " | " + monitoringStatus + " 🔄";
+                        }
+
+                        statusLabel.setText(statusText);
                     }
 
                     @Override
@@ -313,6 +589,8 @@ public class FileExplorerSwing extends JFrame {
                     }
                 });
     }
+
+
     /**
      * Converte nome do campo para exibição
      * NOVO MÉTODO
@@ -363,15 +641,33 @@ public class FileExplorerSwing extends JFrame {
                 });
     }
 
+//    private void onFolderSelected(File folder) {
+//        selectedPath = folder.getAbsolutePath();
+//
+//        // NOVO: Atualiza monitoramento automaticamente
+//        controller.updateMonitoredFolder(selectedPath);
+//
+//        updateStatusLabel();
+//        System.out.println("📁 Selecionado: " + selectedPath);
+//    }
+
+    /**
+     * Handler para seleção de pasta
+     * MODIFICADO: Sincroniza automaticamente
+     */
     private void onFolderSelected(File folder) {
         selectedPath = folder.getAbsolutePath();
 
-        // NOVO: Atualiza monitoramento automaticamente
-        controller.updateMonitoredFolder(selectedPath);
+        // NOVO: Sincroniza e monitora
+        showSyncIndicator("🔄 Verificando mudanças...");
+        controller.updateMonitoredFolder(selectedPath, createSyncCallback());
 
         updateStatusLabel();
-        System.out.println("📁 Selecionado: " + selectedPath);
+        System.out.println("📂 Selecionado: " + selectedPath);
     }
+
+
+
     /**
      * Atualiza label de status com informação de monitoramento
      * NOVO MÉTODO
@@ -388,14 +684,19 @@ public class FileExplorerSwing extends JFrame {
     }
 
     /**
-     * Mostra mensagem de boas-vindas
+     * Mensagem de boas-vindas
+     * MODIFICADO: Menciona busca vazia
      */
     private void showWelcomeMessage() {
         resultsPanel.showMessage(
                 "Sistema de Busca Avançada\n" +
                         "Selecione uma pasta e clique em 'Indexar'\n\n" +
-                        "💡 Dica: O monitoramento automático será ativado\n" +
-                        "   quando você selecionar uma pasta específica",
+                        "💡 Recursos Ativos:\n" +
+                        "   🔄 Sincronização automática (apenas pastas indexadas)\n" +
+                        "   📡 Monitoramento em tempo real\n" +
+                        "   ⚡ Auto-refresh de resultados\n" +
+                        "   📂 Busca vazia = Lista TODOS os arquivos\n" +
+                        "   ✅ Índice sempre atualizado",
                 ResultsPanel.MessageType.WELCOME
         );
     }

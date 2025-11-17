@@ -20,7 +20,7 @@ Project to create a program to find files on computer using virtual threads and 
 - ✅ Save video thumbnails on disc(cache) to reduce time rendering
 - ✅ The search now is paginated, with possibility for a hundred itens
 - ✅ Add filters and ordering possibilities when you search an archive
-- ✅ Add real time monitoring 
+- ✅ Add real time monitoring and update arquives when start the program
 
 ## 🚀 Features to be implemented
 - ℹ️ Better UI design

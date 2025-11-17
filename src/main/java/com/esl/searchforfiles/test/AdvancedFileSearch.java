@@ -41,12 +41,40 @@ public class AdvancedFileSearch {
         this.searchService = new SearchService(dbManager);
         this.monitoringService = new MonitoringService(dbManager, searchService);
     }
-    public MonitoringService getMonitoringService() { return monitoringService; }
+
     // ========================================================================
     // MÉTODOS DE INDEXAÇÃO
     // ========================================================================
 
+    /**
+     * Obtém o serviço de monitoramento
+     * Permite SearchController gerenciar monitoramento automático
+     *
+     * @return MonitoringService instance
+     */
+    public MonitoringService getMonitoringService() {
+        return this.monitoringService;
+    }
 
+    /**
+     * Obtém o gerenciador de banco de dados
+     * Necessário para SyncService
+     *
+     * @return DatabaseManager instance
+     */
+    public DatabaseManager getDatabaseManager() {
+        return this.dbManager;
+    }
+
+    /**
+     * Obtém o serviço de busca
+     * Necessário para SyncService
+     *
+     * @return SearchService instance
+     */
+    public SearchService getSearchService() {
+        return this.searchService;
+    }
     /**
      * Indexa um diretório completo com todas as subpastas
      * Utiliza thread pool com 8 threads para indexação paralela
@@ -114,13 +142,13 @@ public class AdvancedFileSearch {
     // ========================================================================
 
 
-    /**
-     * Expõe SearchService para paginação
-     * NOVO MÉTODO
-     */
-    public SearchService getSearchService() {
-        return searchService;
-    }
+//    /**
+//     * Expõe SearchService para paginação
+//     * NOVO MÉTODO
+//     */
+//    public SearchService getSearchService() {
+//        return searchService;
+//    }
 
     /**
      * Busca arquivos por nome usando wildcards
