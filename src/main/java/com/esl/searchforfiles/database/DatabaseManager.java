@@ -130,6 +130,30 @@ public class DatabaseManager {
         return tags;
     }
 
+
+    /**
+     * Busca tags cujo nome contém o termo informado (case-insensitive).
+     * Limita a 'limit' resultados para não sobrecarregar a UI.
+     * O índice COLLATE NOCASE em tags(name) garante performance.
+     */
+    public List<String> searchTags(String term, int limit) throws SQLException {
+        String sql = """
+            SELECT name FROM tags
+            WHERE name LIKE ? COLLATE NOCASE
+            ORDER BY name COLLATE NOCASE
+            LIMIT ?
+        """;
+        List<String> result = new ArrayList<>();
+        try (PreparedStatement p = conn.prepareStatement(sql)) {
+            p.setString(1, "%" + term + "%");
+            p.setInt(2, limit);
+            try (ResultSet rs = p.executeQuery()) {
+                while (rs.next()) result.add(rs.getString("name"));
+            }
+        }
+        return result;
+    }
+
     /**
      * Indexa um arquivo com validações robustas
      * CORRIGIDO: Trata casos onde getFileName() retorna null

@@ -7,25 +7,28 @@ import com.esl.searchforfiles.model.FileInfo;
 import javax.swing.*;
 import java.awt.*;
 import java.sql.SQLException;
+import java.util.HashSet;
+import java.util.Set;
 
 // ════════════════════════════════════════════════════════════════
 // 6. TagManagerDialog — JDialog completo para adicionar/remover tags
 // ════════════════════════════════════════════════════════════════
+
 public class TagManagerDialog extends JDialog {
 
-    private final FileInfo fileInfo;
+    private final FileInfo        fileInfo;
     private final DatabaseManager dbManager;
 
     private DefaultListModel<String> listModel;
     private JList<String>            tagList;
-    private JTextField               newTagField;
+    private AutocompleteTagField     autocompleteField; // NOVO — substitui JTextField
 
     public TagManagerDialog(Frame owner, FileInfo fileInfo, DatabaseManager dbManager) {
         super(owner, "🏷️  Tags — " + fileInfo.getName(), true);
         this.fileInfo  = fileInfo;
         this.dbManager = dbManager;
 
-        setSize(380, 340);
+        setSize(400, 360);
         setLocationRelativeTo(owner);
         setLayout(new BorderLayout(8, 8));
         getRootPane().setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -37,15 +40,14 @@ public class TagManagerDialog extends JDialog {
         loadTags();
     }
 
-    // ── cabeçalho ───────────────────────────────────────────────────
     private JLabel buildHeader() {
         JLabel lbl = new JLabel("Arquivo: " + fileInfo.getName());
         lbl.setFont(new Font("SansSerif", Font.BOLD, 13));
         return lbl;
     }
 
-    // ── lista + campo de entrada ─────────────────────────────────────
     private JPanel buildCenter() {
+        // ── Lista de tags aplicadas ───────────────────────────────
         listModel = new DefaultListModel<>();
         tagList   = new JList<>(listModel);
         tagList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -55,19 +57,20 @@ public class TagManagerDialog extends JDialog {
         JScrollPane scroll = new JScrollPane(tagList);
         scroll.setBorder(BorderFactory.createTitledBorder("Tags aplicadas"));
 
-        // Campo para nova tag
-        newTagField = new JTextField();
-        newTagField.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        newTagField.setToolTipText("Digite o nome da nova tag e pressione Enter");
-        newTagField.addActionListener(e -> addTag());
+        // ── Campo de autocomplete ─────────────────────────────────
+        autocompleteField = new AutocompleteTagField(
+                dbManager, getCurrentTagsAsSet());
+
+        // Quando usuário seleciona/confirma uma sugestão → adiciona direto
+        autocompleteField.setTagSelectedListener(this::addTag);
 
         JButton addBtn = new JButton("＋ Adicionar");
-        addBtn.addActionListener(e -> addTag());
+        addBtn.addActionListener(e -> addTag(autocompleteField.getText()));
 
         JPanel inputRow = new JPanel(new BorderLayout(5, 0));
         inputRow.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
-        inputRow.add(newTagField, BorderLayout.CENTER);
-        inputRow.add(addBtn,      BorderLayout.EAST);
+        inputRow.add(autocompleteField, BorderLayout.CENTER);
+        inputRow.add(addBtn,            BorderLayout.EAST);
 
         JPanel panel = new JPanel(new BorderLayout(0, 4));
         panel.add(scroll,    BorderLayout.CENTER);
@@ -75,7 +78,6 @@ public class TagManagerDialog extends JDialog {
         return panel;
     }
 
-    // ── botões inferiores ────────────────────────────────────────────
     private JPanel buildFooter() {
         JButton removeBtn = new JButton("🗑  Remover selecionada");
         removeBtn.addActionListener(e -> removeSelectedTag());
@@ -99,20 +101,23 @@ public class TagManagerDialog extends JDialog {
         return panel;
     }
 
-    // ── operações ────────────────────────────────────────────────────
+    // ── Operações ─────────────────────────────────────────────────
+
     private void loadTags() {
         try {
             listModel.clear();
             for (String t : dbManager.getTagsForFile(fileInfo.getPath()))
                 listModel.addElement(t);
+            // Atualiza o conjunto do autocomplete
+            autocompleteField.setAlreadyApplied(getCurrentTagsAsSet());
         } catch (SQLException ex) {
             showError("Erro ao carregar tags: " + ex.getMessage());
         }
     }
 
-    private void addTag() {
-        String name = newTagField.getText().trim();
-        if (name.isEmpty()) return;
+    private void addTag(String name) {
+        if (name == null || name.isBlank()) return;
+        name = name.trim();
 
         if (listModel.contains(name)) {
             JOptionPane.showMessageDialog(this,
@@ -124,8 +129,9 @@ public class TagManagerDialog extends JDialog {
         try {
             dbManager.addTagToFile(fileInfo.getPath(), name);
             listModel.addElement(name);
-            newTagField.setText("");
-            newTagField.requestFocus();
+            autocompleteField.clear();
+            autocompleteField.setAlreadyApplied(getCurrentTagsAsSet()); // atualiza exclusões
+            autocompleteField.requestFieldFocus();
         } catch (SQLException ex) {
             showError("Erro ao adicionar tag: " + ex.getMessage());
         }
@@ -147,6 +153,7 @@ public class TagManagerDialog extends JDialog {
         try {
             dbManager.removeTagFromFile(fileInfo.getPath(), selected);
             listModel.removeElement(selected);
+            autocompleteField.setAlreadyApplied(getCurrentTagsAsSet());
         } catch (SQLException ex) {
             showError("Erro ao remover tag: " + ex.getMessage());
         }
@@ -161,33 +168,38 @@ public class TagManagerDialog extends JDialog {
         }
 
         String newName = JOptionPane.showInputDialog(this,
-                "Novo nome para a tag \"" + selected + "\":",
-                selected);
+                "Novo nome para a tag \"" + selected + "\":", selected);
 
         if (newName == null || newName.isBlank() || newName.equals(selected)) return;
         newName = newName.trim();
 
         try {
-            // Remove a antiga e adiciona a nova (renomear = swap)
             dbManager.removeTagFromFile(fileInfo.getPath(), selected);
             dbManager.addTagToFile(fileInfo.getPath(), newName);
-
             int idx = listModel.indexOf(selected);
             listModel.set(idx, newName);
+            autocompleteField.setAlreadyApplied(getCurrentTagsAsSet());
         } catch (SQLException ex) {
             showError("Erro ao renomear tag: " + ex.getMessage());
         }
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────
+
+    /** Snapshot das tags atuais como Set para excluir do autocomplete. */
+    private Set<String> getCurrentTagsAsSet() {
+        Set<String> set = new HashSet<>();
+        for (int i = 0; i < listModel.size(); i++)
+            set.add(listModel.getElementAt(i));
+        return set;
     }
 
     private void showError(String msg) {
         JOptionPane.showMessageDialog(this, msg, "Erro", JOptionPane.ERROR_MESSAGE);
     }
 
-    // ── renderer com "badge" colorido ────────────────────────────────
+    // ── Renderer ─────────────────────────────────────────────────
     private static class TagCellRenderer extends DefaultListCellRenderer {
-        private static final Color BADGE_BG  = new Color(33, 150, 243);
-        private static final Color BADGE_FG  = Color.WHITE;
-
         @Override
         public Component getListCellRendererComponent(
                 JList<?> list, Object value, int index,
@@ -196,10 +208,9 @@ public class TagManagerDialog extends JDialog {
             JLabel lbl = (JLabel) super.getListCellRendererComponent(
                     list, "  🏷️  " + value + "  ", index, isSelected, cellHasFocus);
 
-            if (!isSelected) {
-                lbl.setBackground(index % 2 == 0
-                        ? new Color(245, 245, 245) : Color.WHITE);
-            }
+            if (!isSelected)
+                lbl.setBackground(index % 2 == 0 ? new Color(245, 245, 245) : Color.WHITE);
+
             lbl.setBorder(BorderFactory.createEmptyBorder(3, 6, 3, 6));
             return lbl;
         }
