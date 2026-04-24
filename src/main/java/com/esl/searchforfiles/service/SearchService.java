@@ -358,8 +358,20 @@ public class SearchService {
     /**
      * Extrai informações de arquivo de um ResultSet
      */
+//    private FileInfo extractFileInfo(ResultSet rs) throws SQLException {
+//        return new FileInfo(
+//                rs.getString("path"),
+//                rs.getString("name"),
+//                rs.getString("extension"),
+//                FileType.valueOf(rs.getString("file_type")),
+//                rs.getLong("size"),
+//                rs.getLong("last_modified"),
+//                rs.getBoolean("is_directory")
+//        );
+//    }
+
     private FileInfo extractFileInfo(ResultSet rs) throws SQLException {
-        return new FileInfo(
+        FileInfo fi = new FileInfo(
                 rs.getString("path"),
                 rs.getString("name"),
                 rs.getString("extension"),
@@ -368,6 +380,9 @@ public class SearchService {
                 rs.getLong("last_modified"),
                 rs.getBoolean("is_directory")
         );
+        fi.setRating(rs.getInt("rating"));   // NOVO — coluna adicionada na migração
+        // Tags são carregadas sob demanda via dbManager.getTagsForFile()
+        return fi;
     }
 
     /**
@@ -535,6 +550,22 @@ public class SearchService {
         if (criteria.getModifiedBefore() != null) {
             sql.append(" AND last_modified <= ?");
             params.add(criteria.getModifiedBefore());
+        }
+
+        if (criteria.getMinRating() != null) {
+            sql.append(" AND rating >= ?");
+            params.add(criteria.getMinRating());
+        }
+
+        if (criteria.getTag() != null && !criteria.getTag().isEmpty()) {
+            sql.append("""
+         AND path IN (
+             SELECT ft.file_path FROM file_tags ft
+             JOIN tags t ON t.id = ft.tag_id
+             WHERE t.name = ? COLLATE NOCASE
+         )
+    """);
+            params.add(criteria.getTag());
         }
     }
 

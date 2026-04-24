@@ -8,12 +8,21 @@ import javax.swing.*;
 
 public class FileSearch {
     static void main() {
+
         SwingUtilities.invokeLater(() -> {
             System.out.println("╔════════════════════════════════════════════════════════════════╗");
             System.out.println("║  INTERFACE GRÁFICA - Advanced File Search                     ║");
             System.out.println("╚════════════════════════════════════════════════════════════════╝");
-            // Adiciona shutdown hook
-            Runtime.getRuntime().addShutdownHook(new Thread(FileItemPanel::shutdown));
+
+           // ADICIONA SHUTDOWN HOOK para encerrar executors
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                System.out.println("Encerrando executores...");
+
+                // Encerra executor de thumbnails
+                FileItemPanel.shutdown();
+
+                System.out.println("Executores encerrados.");
+            }));
 
             FlatDarkFlatIJTheme.setup();
             new FileExplorerSwing();

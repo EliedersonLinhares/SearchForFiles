@@ -1,12 +1,15 @@
 package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
+import com.esl.searchforfiles.database.DatabaseManager;
 import com.esl.searchforfiles.model.FileInfo;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.Date;
 
 /**
@@ -18,42 +21,172 @@ public class FileContextMenu extends JPopupMenu {
     private final FileInfo fileInfo;
     private final Component parent;
     private final ThumbnailCacheManager cacheManager;
+    private final DatabaseManager dbManager;          // NOVO
+    private final FileItemPanel itemPanel; // NOVO
 
-    public FileContextMenu(File file, FileInfo fileInfo, Component parent) {
+    public FileContextMenu(File file, FileInfo fileInfo, Component parent, DatabaseManager dbManager, FileItemPanel itemPanel) {
         this.file = file;
         this.fileInfo = fileInfo;
         this.parent = parent;
+        this.dbManager = dbManager;
+        this.itemPanel = itemPanel;
         this.cacheManager = FileItemPanel.getThumbnailCacheManager();
 
         createMenuItems();
     }
 
-    private void createMenuItems() {
-        // Abrir
-        JMenuItem openItem = new JMenuItem("Abrir");
-        openItem.setIcon(UIManager.getIcon("FileView.fileIcon"));
-        openItem.addActionListener(e -> openFile());
-        add(openItem);
+//    private void createMenuItems() {
+//        // Abrir
+//        JMenuItem openItem = new JMenuItem("Abrir");
+//        openItem.setIcon(UIManager.getIcon("FileView.fileIcon"));
+//        openItem.addActionListener(e -> openFile());
+//        add(openItem);
+//
+//        // Abrir pasta
+//        JMenuItem openFolderItem = new JMenuItem("Abrir pasta");
+//        openFolderItem.setIcon(UIManager.getIcon("FileView.directoryIcon"));
+//        openFolderItem.addActionListener(e -> openFolder());
+//        add(openFolderItem);
+//
+//        addSeparator();
+//        // NOVO: Se for vídeo, adiciona opção de cache
+//        if (isVideoFile(file)) {
+//            JMenu cacheMenu = createCacheSubmenu();
+//            add(cacheMenu);
+//            addSeparator();
+//        }
+//
+//        // Propriedades
+//        JMenuItem propertiesItem = new JMenuItem("Propriedades");
+//        propertiesItem.addActionListener(e -> showProperties());
+//        add(propertiesItem);
+//    }
+private void createMenuItems() {
+    add(makeItem("Abrir", UIManager.getIcon("FileView.fileIcon"), e -> openFile()));
+    add(makeItem("Abrir pasta", UIManager.getIcon("FileView.directoryIcon"), e -> openFolder()));
+    addSeparator();
 
-        // Abrir pasta
-        JMenuItem openFolderItem = new JMenuItem("Abrir pasta");
-        openFolderItem.setIcon(UIManager.getIcon("FileView.directoryIcon"));
-        openFolderItem.addActionListener(e -> openFolder());
-        add(openFolderItem);
+    // NOVO: Submenu de avaliação ─────────────────────────────────
+    add(createRatingSubmenu());
 
+    // NOVO: Gerenciar Tags ───────────────────────────────────────
+    JMenuItem tagsItem = new JMenuItem("🏷️  Gerenciar Tags...");
+    tagsItem.addActionListener(e -> openTagDialog());
+    add(tagsItem);
+
+    addSeparator();
+
+    if (isVideoFile(file)) {
+        add(createCacheSubmenu());
         addSeparator();
-        // NOVO: Se for vídeo, adiciona opção de cache
-        if (isVideoFile(file)) {
-            JMenu cacheMenu = createCacheSubmenu();
-            add(cacheMenu);
-            addSeparator();
-        }
-
-        // Propriedades
-        JMenuItem propertiesItem = new JMenuItem("Propriedades");
-        propertiesItem.addActionListener(e -> showProperties());
-        add(propertiesItem);
     }
+
+    add(makeItem("Propriedades", null, e -> showProperties()));
+
+    addSeparator();
+
+    // NOVO: Toggle global de visibilidade das estrelas
+    JCheckBoxMenuItem toggleOverlay = new JCheckBoxMenuItem(
+            "⭐ Mostrar avaliação nos ícones");
+    toggleOverlay.setSelected(FileItemPanel.isShowRatingOverlay());
+    toggleOverlay.addActionListener(e -> toggleRatingOverlay(toggleOverlay.isSelected()));
+    add(toggleOverlay);
+}
+
+    // ── Rating submenu ──────────────────────────────────────────────
+    private JMenu createRatingSubmenu() {
+        JMenu menu = new JMenu("⭐ Avaliação");
+
+        // Marca a nota atual
+        int current = fileInfo.getRating();
+
+        String[] labels = {"Sem avaliação", "★", "★★", "★★★", "★★★★", "★★★★★"};
+        for (int stars = 0; stars <= 5; stars++) {
+            final int value = stars;
+            JMenuItem item = new JMenuItem(labels[stars]);
+            if (value == current) {
+                item.setFont(item.getFont().deriveFont(Font.BOLD));
+                item.setText("✓ " + labels[stars]);
+            }
+            item.addActionListener(e -> setRating(value));
+            menu.add(item);
+        }
+        return menu;
+    }
+
+//    private void setRating(int stars) {
+//        try {
+//            dbManager.setRating(fileInfo.getPath(), stars);
+//            // Atualiza fileInfo em memória para que o submenu reflita na próxima abertura
+//            fileInfo.setRating(stars);
+//        } catch (SQLException ex) {
+//            JOptionPane.showMessageDialog(parent,
+//                    "Erro ao salvar avaliação: " + ex.getMessage(),
+//                    "Erro", JOptionPane.ERROR_MESSAGE);
+//        }
+//    }
+
+    private void setRating(int stars) {
+        try {
+            dbManager.setRating(fileInfo.getPath(), stars);
+            fileInfo.setRating(stars);
+
+            // NOVO: atualiza o overlay visualmente sem reload
+            if (itemPanel != null) {
+                itemPanel.updateRatingOverlay(stars);
+            }
+        } catch (SQLException ex) {
+            JOptionPane.showMessageDialog(parent,
+                    "Erro ao salvar avaliação: " + ex.getMessage(),
+                    "Erro", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    // ── Tag dialog ──────────────────────────────────────────────────
+    private void openTagDialog() {
+        TagManagerDialog dialog =
+                new TagManagerDialog((Frame) SwingUtilities.getWindowAncestor(parent),
+                        fileInfo, dbManager);
+        dialog.setVisible(true);
+    }
+
+    // ── helpers ─────────────────────────────────────────────────────
+    private JMenuItem makeItem(String text, Icon icon, ActionListener al) {
+        JMenuItem item = new JMenuItem(text);
+        if (icon != null) item.setIcon(icon);
+        item.addActionListener(al);
+        return item;
+    }
+
+    private void toggleRatingOverlay(boolean visible) {
+        FileItemPanel.setShowRatingOverlay(visible);
+
+        // Propaga para todos os FileItemPanels visíveis na tela
+        propagateOverlayVisibility(parent);
+    }
+
+    /**
+     * Percorre a hierarquia de componentes a partir do ResultsPanel
+     * e atualiza todos os FileItemPanels encontrados.
+     */
+    private void propagateOverlayVisibility(Component origin) {
+        // Sobe até o JFrame para depois descer até o gridPanel
+        Container root = SwingUtilities.getAncestorOfClass(JFrame.class, origin);
+        if (root == null) return;
+        applyToAll(root);
+    }
+
+    private void applyToAll(Container container) {
+        for (Component c : container.getComponents()) {
+            if (c instanceof FileItemPanel fip) {
+                fip.applyOverlayVisibility();
+            } else if (c instanceof Container inner) {
+                applyToAll(inner);
+            }
+        }
+    }
+
+
 
     /**
      * NOVO: Cria submenu para opções de cache (apenas para vídeos)

@@ -4,7 +4,6 @@ import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
 
 /**
  * Diálogo para gerenciar o cache de thumbnails de vídeos

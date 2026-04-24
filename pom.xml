@@ -59,6 +59,23 @@
             <artifactId>pdfbox</artifactId>
             <version>3.0.6</version>
         </dependency>
+        <!-- https://mvnrepository.com/artifact/net.java.dev.jna/jna -->
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
+            <version>5.13.0</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/net.java.dev.jna/jna-platform -->
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna-platform</artifactId>
+            <version>5.13.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.vatbub</groupId>
+            <artifactId>mslinks</artifactId>
+            <version>1.0.6</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
@@ -114,5 +131,10 @@
             </plugin>
         </plugins>
     </build>
-
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
 </project>

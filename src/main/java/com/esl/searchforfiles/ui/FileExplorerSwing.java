@@ -6,13 +6,12 @@ import com.esl.searchforfiles.model.PaginationInfo;
 import com.esl.searchforfiles.service.FavoritesService;
 import com.esl.searchforfiles.service.SyncService;
 
+import javax.swing.*;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
-import javax.swing.*;
 import java.util.List;
-
 
 /**
  * Interface gráfica para o sistema de busca avançada
@@ -21,14 +20,13 @@ import java.util.List;
 public class FileExplorerSwing extends JFrame {
 
     private final SearchPanel searchPanel;
-    private FolderTreePanel treePanel;
-    private FavoritesPanel favoritesPanel; // NOVO
     private final ResultsPanel resultsPanel;
-    private JLabel statusLabel;
     private final SearchController controller;
     private final FavoritesService favoritesService; // NOVO
     private final PaginationPanel paginationPanel;
-
+    private FolderTreePanel treePanel;
+    private FavoritesPanel favoritesPanel; // NOVO
+    private JLabel statusLabel;
     private String selectedPath = "C:\\";
     private int currentPage = 1; // NOVO
     private String currentSortBy = "last_modified"; // NOVO
@@ -47,7 +45,6 @@ public class FileExplorerSwing extends JFrame {
         setLayout(new BorderLayout(10, 10));
 
 
-
         favoritesService = new FavoritesService();
 
         try {
@@ -63,7 +60,7 @@ public class FileExplorerSwing extends JFrame {
             throw new RuntimeException(e);
         }
 
-         // === PAINEL SUPERIOR ===
+        // === PAINEL SUPERIOR ===
         searchPanel = new SearchPanel();
         searchPanel.setSearchListener(this::onSearch);
         searchPanel.setIndexListener(this::onIndexRequest);
@@ -76,20 +73,41 @@ public class FileExplorerSwing extends JFrame {
         resultsPanel = new ResultsPanel();
         resultsPanel.setBackgroundColor(new Color(45, 45, 45));
 
+//        resultsPanel.setFileItemClickListener(new ResultsPanel.FileItemClickListener() {
+//            @Override
+//            public void onFileDoubleClick(File file) {
+//                try {
+//                    Desktop.getDesktop().open(file);
+//                } catch (IOException e) {
+//                    JOptionPane.showMessageDialog(FileExplorerSwing.this,
+//                            "Erro ao abrir: " + e.getMessage());
+//                }
+//            }
+//
+//
+//            @Override
+//            public void onFileRightClick(File file, FileInfo fileInfo, Component source, int x, int y) {
+//                FileContextMenu menu = new FileContextMenu(file, fileInfo, source, controller.getDbManager());
+//                menu.show(source, x, y);
+//            }
+//        });
         resultsPanel.setFileItemClickListener(new ResultsPanel.FileItemClickListener() {
+
             @Override
             public void onFileDoubleClick(File file) {
-                try {
-                    Desktop.getDesktop().open(file);
-                } catch (IOException e) {
+                try { Desktop.getDesktop().open(file); }
+                catch (IOException e) {
                     JOptionPane.showMessageDialog(FileExplorerSwing.this,
                             "Erro ao abrir: " + e.getMessage());
                 }
             }
 
             @Override
-            public void onFileRightClick(File file, FileInfo fileInfo, Component source, int x, int y) {
-                FileContextMenu menu = new FileContextMenu(file, fileInfo, source);
+            public void onFileRightClick(File file, FileInfo fileInfo,
+                                         Component source, int x, int y,
+                                         FileItemPanel itemPanel) { // NOVO parâmetro
+                FileContextMenu menu = new FileContextMenu(
+                        file, fileInfo, source, controller.getDbManager(), itemPanel); // NOVO
                 menu.show(source, x, y);
             }
         });
@@ -122,14 +140,6 @@ public class FileExplorerSwing extends JFrame {
         splitPane.setResizeWeight(0.2);
         add(splitPane, BorderLayout.CENTER);
 
-//        // === PAINEL INFERIOR ===
-//        JPanel statusPanel = new JPanel(new BorderLayout());
-//        statusPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-//        statusLabel = new JLabel("📁 Local de busca: C:\\ | Sistema pronto");
-//        statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-//        statusPanel.add(statusLabel, BorderLayout.WEST);
-//        add(statusPanel, BorderLayout.SOUTH);
-
         // === PAINEL INFERIOR ===
         JPanel statusPanel = createStatusPanel(); // MODIFICADO
         add(statusPanel, BorderLayout.SOUTH);
@@ -137,8 +147,8 @@ public class FileExplorerSwing extends JFrame {
         showWelcomeMessage();
 
         setVisible(true);
+        performCurrentSearch();
     }
-
 
     /**
      * Cria painel de status com indicador de auto-refresh
@@ -151,19 +161,6 @@ public class FileExplorerSwing extends JFrame {
         // Label principal de status
         statusLabel = new JLabel("📂 Local de busca: C:\\ | Sistema pronto");
         statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
-
-
-
-//        // NOVO: Indicador de auto-refresh (inicialmente invisível)
-//        autoRefreshIndicator = new JLabel();
-//        autoRefreshIndicator.setFont(new Font("SansSerif", Font.BOLD, 11));
-//        autoRefreshIndicator.setForeground(new Color(76, 175, 80)); // Verde
-//        autoRefreshIndicator.setVisible(false);
-//
-//        statusPanel.add(statusLabel, BorderLayout.WEST);
-//        statusPanel.add(autoRefreshIndicator, BorderLayout.EAST);
-//
-//        return statusPanel;
 
         // Painel de indicadores à direita
         JPanel indicatorsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
@@ -199,17 +196,7 @@ public class FileExplorerSwing extends JFrame {
         syncIndicator.setVisible(true);
     }
 
-//    /**
-//     * Esconde indicador de sincronização
-//     * NOVO MÉTODO
-//     */
-//    private void hideSyncIndicator() {
-//        Timer timer = new Timer(3000, e -> {
-//            syncIndicator.setVisible(false);
-//        });
-//        timer.setRepeats(false);
-//        timer.start();
-//    }
+
     /**
      * Esconde indicador com cor apropriada
      * MODIFICADO: Trata caso de pasta não indexada
@@ -227,50 +214,7 @@ public class FileExplorerSwing extends JFrame {
         timer.setRepeats(false);
         timer.start();
     }
-//    /**
-//     * Cria callback para sincronização
-//     * NOVO MÉTODO
-//     */
-//    private SearchController.SyncCallback createSyncCallback() {
-//        return new SearchController.SyncCallback() {
-//            @Override
-//            public void onSyncCompleted(SyncService.SyncResult result) {
-//                SwingUtilities.invokeLater(() -> {
-//                    if (result.hasChanges()) {
-//                        String message = String.format(
-//                                "✅ Sincronizado: +%d | ↻%d | -%d",
-//                                result.getAdded(),
-//                                result.getUpdated(),
-//                                result.getDeleted()
-//                        );
-//                        showSyncIndicator(message);
-//
-//                        // Atualiza status
-//                        String statusText = "📂 " + selectedPath + " | " + result.getSummary();
-//                        String monitoringStatus = controller.getMonitoringStatus();
-//                        if (!monitoringStatus.isEmpty()) {
-//                            statusText += " | " + monitoringStatus;
-//                        }
-//                        statusLabel.setText(statusText);
-//
-//                    } else {
-//                        showSyncIndicator("✅ Sincronizado");
-//                        updateStatusLabel();
-//                    }
-//
-//                    hideSyncIndicator();
-//                });
-//            }
-//
-//            @Override
-//            public void onSyncError(Exception e) {
-//                SwingUtilities.invokeLater(() -> {
-//                    showSyncIndicator("❌ Erro na sincronização");
-//                    hideSyncIndicator();
-//                });
-//            }
-//        };
-//    }
+
 
     /**
      * Cria callback para sincronização
@@ -375,7 +319,7 @@ public class FileExplorerSwing extends JFrame {
         treePanel.setSelectionListener(this::onFolderSelected);
 
         // Painel de favoritos
-        favoritesPanel = new FavoritesPanel(favoritesService);
+        favoritesPanel = new FavoritesPanel(favoritesService, this);
         favoritesPanel.setSelectionListener(this::onFavoriteSelected);
 
         // NOVO: Split pane vertical (Tree em cima, Favoritos embaixo)
@@ -391,23 +335,6 @@ public class FileExplorerSwing extends JFrame {
         return leftPanel;
     }
 
-//    /**
-//     * NOVO: Handler para seleção de favorito
-//     */
-//    private void onFavoriteSelected(File folder) {
-//        System.out.println(folder != null);
-//        System.out.println(folder.exists());
-//        System.out.println(folder.isDirectory());
-//        if (folder != null && folder.exists() && folder.isDirectory()) {
-//            selectedPath = folder.getAbsolutePath();
-//
-//            // NOVO: Atualiza monitoramento automaticamente
-//            controller.updateMonitoredFolder(selectedPath);
-//
-//            statusLabel.setText("⭐ Favorito selecionado: " + selectedPath);
-//            System.out.println("⭐ Favorito selecionado: " + selectedPath);
-//        }
-//    }
 
     /**
      * Handler para seleção de favorito
@@ -426,48 +353,74 @@ public class FileExplorerSwing extends JFrame {
         }
     }
 
-
     /**
      * Executa busca atual com paginação
      */
-    private void performCurrentSearch() {
-        String searchTerm = searchPanel.getSearchTerm();
-        String filter = searchPanel.getSelectedFilter();
-        String sortBy = searchPanel.getSortBy(); // NOVO
-        String sortOrder = searchPanel.getSortOrder(); // NOVO
-        int pageSize = paginationPanel.getPageSize();
-
-//        if (searchTerm.isEmpty()) {
-//            return;
-//        }
-
-        onSearchWithPagination(searchTerm, filter, sortBy, sortOrder, currentPage, pageSize);
-    }
+//    public void performCurrentSearch() {
+//        String searchTerm = searchPanel.getSearchTerm();
+//        String filter = searchPanel.getSelectedFilter();
+//        String sortBy = searchPanel.getSortBy(); // NOVO
+//        String sortOrder = searchPanel.getSortOrder(); // NOVO
+//        int pageSize = paginationPanel.getPageSize();
+//
+//        onSearchWithPagination(searchTerm, filter, sortBy, sortOrder, currentPage, pageSize);
+//    }
 
 
     /**
      * Handler de busca com ordenação
      * MODIFICADO: Recebe sortBy e sortOrder
      */
-    private void onSearch(String searchTerm, String filter, String sortBy, String sortOrder) {
-        currentPage = 1; // Reset para primeira página
-        currentSortBy = sortBy; // NOVO: Armazena ordenação
-        currentSortOrder = sortOrder; // NOVO: Armazena ordem
-
+//    private void onSearch(String searchTerm, String filter, String sortBy, String sortOrder) {
+//        currentPage = 1; // Reset para primeira página
+//        currentSortBy = sortBy; // NOVO: Armazena ordenação
+//        currentSortOrder = sortOrder; // NOVO: Armazena ordem
+//
+//        onSearchWithPagination(searchTerm, filter, sortBy, sortOrder,
+//                currentPage, paginationPanel.getPageSize());
+//    }
+    // Substitua onSearch() existente:
+    private void onSearch(String searchTerm, String filter,
+                          String sortBy, String sortOrder,
+                          int minRating, String tag) {          // NOVO
+        currentPage = 1;
+        currentSortBy = sortBy;
+        currentSortOrder = sortOrder;
         onSearchWithPagination(searchTerm, filter, sortBy, sortOrder,
-                currentPage, paginationPanel.getPageSize());
+                minRating, tag, currentPage, paginationPanel.getPageSize());
     }
 
-//    /**
-//     * Executa busca paginada com ordenação
-//     * MODIFICADO: Adiciona parâmetros de ordenação
-//     */
+    // Substitua performCurrentSearch():
+    public void performCurrentSearch() {
+        onSearchWithPagination(
+                searchPanel.getSearchTerm(),
+                searchPanel.getSelectedFilter(),
+                searchPanel.getSortBy(),
+                searchPanel.getSortOrder(),
+                searchPanel.getMinRating(),   // NOVO
+                searchPanel.getTagFilter(),   // NOVO
+                currentPage,
+                paginationPanel.getPageSize()
+        );
+    }
+
+    /**
+     * Executa busca paginada
+     * MODIFICADO: Mensagem diferenciada para busca vazia
+     */
 //    private void onSearchWithPagination(String searchTerm, String filter,
 //                                        String sortBy, String sortOrder,
 //                                        int page, int pageSize) {
 //
-//        resultsPanel.showMessage("🔍 Buscando: " + searchTerm + "...",
-//                ResultsPanel.MessageType.LOADING);
+//        // MODIFICADO: Mensagem de loading diferenciada
+//        String loadingMessage;
+//        if (searchTerm == null || searchTerm.trim().isEmpty()) {
+//            loadingMessage = "📂 Carregando todos os arquivos...";
+//        } else {
+//            loadingMessage = "🔍 Buscando: " + searchTerm + "...";
+//        }
+//
+//        resultsPanel.showMessage(loadingMessage, ResultsPanel.MessageType.LOADING);
 //
 //        paginationPanel.setEnabled(false);
 //
@@ -476,28 +429,51 @@ public class FileExplorerSwing extends JFrame {
 //                new SearchController.PaginatedSearchCallback() {
 //                    @Override
 //                    public void onSearchStarted() {
-//                        // Já mostrou loading
 //                    }
 //
 //                    @Override
 //                    public void onSearchCompleted(List<FileInfo> results, PaginationInfo pagination) {
 //                        if (results.isEmpty()) {
-//                            resultsPanel.showMessage("Nenhum arquivo encontrado para: " + searchTerm,
-//                                    ResultsPanel.MessageType.NO_RESULTS);
+//                            // MODIFICADO: Mensagem diferenciada para busca vazia
+//                            String emptyMessage;
+//                            if (searchTerm == null || searchTerm.trim().isEmpty()) {
+//                                emptyMessage = "📂 Pasta vazia ou não indexada\n\n" +
+//                                        "Não há arquivos nesta pasta ou ela não foi indexada ainda.";
+//                            } else {
+//                                emptyMessage = "Nenhum arquivo encontrado para: " + searchTerm;
+//                            }
+//
+//                            resultsPanel.showMessage(emptyMessage, ResultsPanel.MessageType.NO_RESULTS);
 //                            paginationPanel.setEnabled(false);
 //                        } else {
 //                            resultsPanel.showResults(results);
 //                            paginationPanel.updatePagination(pagination);
 //                        }
 //
-//                        // NOVO: Mostra critério de ordenação no status
 //                        String sortInfo = getSortDisplayName(sortBy) + " " +
 //                                (sortOrder.equals("ASC") ? "↑" : "↓");
 //
-//                        statusLabel.setText(String.format(
-//                                "✓ %s | Ordem: %s | Local: %s",
-//                                pagination, sortInfo, selectedPath
-//                        ));
+//                        String monitoringStatus = controller.getMonitoringStatus();
+//
+//                        // MODIFICADO: Status diferenciado para listagem vs busca
+//                        String statusText;
+//                        if (searchTerm == null || searchTerm.trim().isEmpty()) {
+//                            statusText = String.format(
+//                                    "📂 Listando: %s | Ordem: %s | Local: %s",
+//                                    pagination, sortInfo, selectedPath
+//                            );
+//                        } else {
+//                            statusText = String.format(
+//                                    "✅ %s | Ordem: %s | Local: %s",
+//                                    pagination, sortInfo, selectedPath
+//                            );
+//                        }
+//
+//                        if (!monitoringStatus.isEmpty()) {
+//                            statusText += " | " + monitoringStatus + " 🔄";
+//                        }
+//
+//                        statusLabel.setText(statusText);
 //                    }
 //
 //                    @Override
@@ -508,16 +484,11 @@ public class FileExplorerSwing extends JFrame {
 //                    }
 //                });
 //    }
-
-    /**
-     * Executa busca paginada
-     * MODIFICADO: Mensagem diferenciada para busca vazia
-     */
     private void onSearchWithPagination(String searchTerm, String filter,
                                         String sortBy, String sortOrder,
+                                        int minRating, String tag,        // NOVO
                                         int page, int pageSize) {
 
-        // MODIFICADO: Mensagem de loading diferenciada
         String loadingMessage;
         if (searchTerm == null || searchTerm.trim().isEmpty()) {
             loadingMessage = "📂 Carregando todos os arquivos...";
@@ -526,12 +497,15 @@ public class FileExplorerSwing extends JFrame {
         }
 
         resultsPanel.showMessage(loadingMessage, ResultsPanel.MessageType.LOADING);
-
         paginationPanel.setEnabled(false);
 
-        controller.performSearchWithPagination(searchTerm, filter, selectedPath,
-                sortBy, sortOrder, page, pageSize,
+        controller.performSearchWithPagination(
+                searchTerm, filter, selectedPath,
+                sortBy, sortOrder,
+                minRating, tag,                   // NOVO
+                page, pageSize,
                 new SearchController.PaginatedSearchCallback() {
+
                     @Override
                     public void onSearchStarted() {
                     }
@@ -539,15 +513,20 @@ public class FileExplorerSwing extends JFrame {
                     @Override
                     public void onSearchCompleted(List<FileInfo> results, PaginationInfo pagination) {
                         if (results.isEmpty()) {
-                            // MODIFICADO: Mensagem diferenciada para busca vazia
                             String emptyMessage;
                             if (searchTerm == null || searchTerm.trim().isEmpty()) {
                                 emptyMessage = "📂 Pasta vazia ou não indexada\n\n" +
                                         "Não há arquivos nesta pasta ou ela não foi indexada ainda.";
                             } else {
-                                emptyMessage = "Nenhum arquivo encontrado para: " + searchTerm;
+                                // NOVO: menciona os filtros ativos na mensagem de vazio
+                                StringBuilder sb = new StringBuilder("Nenhum arquivo encontrado");
+                                sb.append(" para: ").append(searchTerm);
+                                if (minRating > 0)
+                                    sb.append(" | Rating ≥ ").append(minRating).append("★");
+                                if (tag != null && !tag.isEmpty())
+                                    sb.append(" | Tag: \"").append(tag).append("\"");
+                                emptyMessage = sb.toString();
                             }
-
                             resultsPanel.showMessage(emptyMessage, ResultsPanel.MessageType.NO_RESULTS);
                             paginationPanel.setEnabled(false);
                         } else {
@@ -555,28 +534,29 @@ public class FileExplorerSwing extends JFrame {
                             paginationPanel.updatePagination(pagination);
                         }
 
-                        String sortInfo = getSortDisplayName(sortBy) + " " +
-                                (sortOrder.equals("ASC") ? "↑" : "↓");
+                        // NOVO: inclui rating e tag no texto de status
+                        String sortInfo = getSortDisplayName(sortBy) +
+                                " " + (sortOrder.equals("ASC") ? "↑" : "↓");
+
+                        StringBuilder filters = new StringBuilder();
+                        if (minRating > 0)
+                            filters.append(" | ").append("★".repeat(minRating)).append("+");
+                        if (tag != null && !tag.isEmpty())
+                            filters.append(" | 🏷️ ").append(tag);
 
                         String monitoringStatus = controller.getMonitoringStatus();
 
-                        // MODIFICADO: Status diferenciado para listagem vs busca
                         String statusText;
                         if (searchTerm == null || searchTerm.trim().isEmpty()) {
-                            statusText = String.format(
-                                    "📂 Listando: %s | Ordem: %s | Local: %s",
-                                    pagination, sortInfo, selectedPath
-                            );
+                            statusText = String.format("📂 Listando: %s | Ordem: %s%s | Local: %s",
+                                    pagination, sortInfo, filters, selectedPath);
                         } else {
-                            statusText = String.format(
-                                    "✅ %s | Ordem: %s | Local: %s",
-                                    pagination, sortInfo, selectedPath
-                            );
+                            statusText = String.format("✅ %s | Ordem: %s%s | Local: %s",
+                                    pagination, sortInfo, filters, selectedPath);
                         }
 
-                        if (!monitoringStatus.isEmpty()) {
+                        if (!monitoringStatus.isEmpty())
                             statusText += " | " + monitoringStatus + " 🔄";
-                        }
 
                         statusLabel.setText(statusText);
                     }
@@ -589,7 +569,6 @@ public class FileExplorerSwing extends JFrame {
                     }
                 });
     }
-
 
     /**
      * Converte nome do campo para exibição
@@ -605,6 +584,7 @@ public class FileExplorerSwing extends JFrame {
             default -> fieldName;
         };
     }
+
     private void onIndexRequest() {
         String message = String.format(
                 "Deseja indexar a pasta selecionada?\n\n" +
@@ -641,16 +621,6 @@ public class FileExplorerSwing extends JFrame {
                 });
     }
 
-//    private void onFolderSelected(File folder) {
-//        selectedPath = folder.getAbsolutePath();
-//
-//        // NOVO: Atualiza monitoramento automaticamente
-//        controller.updateMonitoredFolder(selectedPath);
-//
-//        updateStatusLabel();
-//        System.out.println("📁 Selecionado: " + selectedPath);
-//    }
-
     /**
      * Handler para seleção de pasta
      * MODIFICADO: Sincroniza automaticamente
@@ -665,7 +635,6 @@ public class FileExplorerSwing extends JFrame {
         updateStatusLabel();
         System.out.println("📂 Selecionado: " + selectedPath);
     }
-
 
 
     /**

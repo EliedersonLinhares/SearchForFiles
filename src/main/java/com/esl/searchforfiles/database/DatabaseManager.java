@@ -30,11 +30,104 @@ public class DatabaseManager {
             stmt.execute(DatabaseSchema.CREATE_FILE_INDEX_TABLE);
             stmt.execute(DatabaseSchema.CREATE_SEARCH_STATS_TABLE);
 
+            migrateDatabase();
+
             // Índices
             for (String index : DatabaseSchema.INDEXES) {
                 stmt.execute(index);
             }
         }
+    }
+
+    private void migrateDatabase() throws SQLException {
+        try (Statement stmt = conn.createStatement()) {
+            // Tenta adicionar a coluna; ignora se já existir
+            try {
+                stmt.execute("ALTER TABLE file_index ADD COLUMN rating INTEGER DEFAULT 0 CHECK(rating BETWEEN 0 AND 5)");
+            } catch (SQLException e) {
+                // Coluna já existe, ignora
+            }
+
+            stmt.execute(DatabaseSchema.CREATE_TAGS_TABLE);
+            stmt.execute(DatabaseSchema.CREATE_FILE_TAGS_TABLE);
+
+            // Índices úteis para as novas tabelas
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_rating ON file_index(rating)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_file_tags ON file_tags(file_path)");
+        }
+    }
+
+    // --- RATING ---
+
+    public void setRating(String path, int stars) throws SQLException {
+        if (stars < 0 || stars > 5) throw new IllegalArgumentException("Rating deve ser entre 0 e 5");
+        String sql = "UPDATE file_index SET rating = ? WHERE path = ?";
+        try (PreparedStatement p = conn.prepareStatement(sql)) {
+            p.setInt(1, stars);
+            p.setString(2, path);
+            p.executeUpdate();
+        }
+    }
+
+// --- TAGS ---
+
+    public void createTag(String tagName) throws SQLException {
+        String sql = "INSERT OR IGNORE INTO tags (name) VALUES (?)";
+        try (PreparedStatement p = conn.prepareStatement(sql)) {
+            p.setString(1, tagName.trim());
+            p.executeUpdate();
+        }
+    }
+
+    public void addTagToFile(String path, String tagName) throws SQLException {
+        createTag(tagName); // garante que a tag existe
+        String sql = """
+        INSERT OR IGNORE INTO file_tags (file_path, tag_id)
+        SELECT ?, id FROM tags WHERE name = ? COLLATE NOCASE
+    """;
+        try (PreparedStatement p = conn.prepareStatement(sql)) {
+            p.setString(1, path);
+            p.setString(2, tagName);
+            p.executeUpdate();
+        }
+    }
+
+    public void removeTagFromFile(String path, String tagName) throws SQLException {
+        String sql = """
+        DELETE FROM file_tags WHERE file_path = ?
+        AND tag_id = (SELECT id FROM tags WHERE name = ? COLLATE NOCASE)
+    """;
+        try (PreparedStatement p = conn.prepareStatement(sql)) {
+            p.setString(1, path);
+            p.setString(2, tagName);
+            p.executeUpdate();
+        }
+    }
+
+    public List<String> getTagsForFile(String path) throws SQLException {
+        String sql = """
+        SELECT t.name FROM tags t
+        JOIN file_tags ft ON ft.tag_id = t.id
+        WHERE ft.file_path = ?
+        ORDER BY t.name
+    """;
+        List<String> tags = new ArrayList<>();
+        try (PreparedStatement p = conn.prepareStatement(sql)) {
+            p.setString(1, path);
+            try (ResultSet rs = p.executeQuery()) {
+                while (rs.next()) tags.add(rs.getString("name"));
+            }
+        }
+        return tags;
+    }
+
+    public List<String> getAllTags() throws SQLException {
+        List<String> tags = new ArrayList<>();
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT name FROM tags ORDER BY name")) {
+            while (rs.next()) tags.add(rs.getString("name"));
+        }
+        return tags;
     }
 
     /**

@@ -17,17 +17,13 @@ public class ResultsPanel extends JPanel {
 
     private final JPanel gridPanel;
     private final JScrollPane scrollPane;
-    private FileItemClickListener clickListener;
-
-    // Armazena últimos resultados para re-renderizar ao redimensionar
-    private List<FileInfo> lastResults;
-
-    // Cor de fundo customizável
-    private Color backgroundColor = new Color(245, 245, 250); // Cinza azulado claro
-
-
     // NOVO: Gerenciador de cache de thumbnails
     private final ThumbnailCacheManager cacheManager;
+    private FileItemClickListener clickListener;
+    // Armazena últimos resultados para re-renderizar ao redimensionar
+    private List<FileInfo> lastResults;
+    // Cor de fundo customizável
+    private Color backgroundColor = new Color(245, 245, 250); // Cinza azulado claro
 
     public ResultsPanel() {
         setLayout(new BorderLayout());
@@ -50,6 +46,7 @@ public class ResultsPanel extends JPanel {
         // NOVO: Configura menu de contexto do cache
         setupCacheContextMenu();
     }
+
     /**
      * Configura listener para redimensionamento fluido
      * NOVO MÉTODO
@@ -124,11 +121,10 @@ public class ResultsPanel extends JPanel {
     }
 
 
-
-    /**
-     * Exibe resultados no grid
-     * MODIFICADO: Armazena resultados para re-renderização
-     */
+    //    /**
+//     * Exibe resultados no grid
+//     * MODIFICADO: Armazena resultados para re-renderização
+//     */
     public void showResults(List<FileInfo> results) {
         this.lastResults = results;
         renderGrid(results);
@@ -174,7 +170,8 @@ public class ResultsPanel extends JPanel {
             item.setBounds(x, y, dynamicWidth, itemHeight);
 
             if (clickListener != null) {
-                item.setClickListener(clickListener);
+                item.setClickListener(clickListener); // já existia
+                // O FileItemPanel precisa saber quem é ele mesmo — veja item 2e abaixo
             }
 
             gridPanel.add(item);
@@ -246,6 +243,15 @@ public class ResultsPanel extends JPanel {
 
         return panel;
     }
+
+    /**
+     * Obtém cor de fundo atual
+     * NOVO MÉTODO
+     */
+    public Color getBackgroundColor() {
+        return backgroundColor;
+    }
+
     /**
      * Define cor de fundo do painel
      * NOVO MÉTODO
@@ -265,14 +271,6 @@ public class ResultsPanel extends JPanel {
     }
 
     /**
-     * Obtém cor de fundo atual
-     * NOVO MÉTODO
-     */
-    public Color getBackgroundColor() {
-        return backgroundColor;
-    }
-
-    /**
      * Força re-renderização dos resultados atuais
      * NOVO MÉTODO: Útil para atualizar após mudanças de tema
      */
@@ -281,6 +279,7 @@ public class ResultsPanel extends JPanel {
             renderGrid(lastResults);
         }
     }
+
     public void setFileItemClickListener(FileItemClickListener listener) {
         this.clickListener = listener;
     }
@@ -289,8 +288,16 @@ public class ResultsPanel extends JPanel {
         WELCOME, LOADING, NO_RESULTS, ERROR
     }
 
+    //    public interface FileItemClickListener {
+//        void onFileDoubleClick(File file);
+//        void onFileRightClick(File file, FileInfo fileInfo, Component source, int x, int y);
+//    }
+// Interface atualizada:
     public interface FileItemClickListener {
         void onFileDoubleClick(File file);
-        void onFileRightClick(File file, FileInfo fileInfo, Component source, int x, int y);
+
+        void onFileRightClick(File file, FileInfo fileInfo,
+                              Component source, int x, int y,
+                              FileItemPanel itemPanel); // NOVO
     }
 }

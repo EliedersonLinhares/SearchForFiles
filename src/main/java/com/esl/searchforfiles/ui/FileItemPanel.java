@@ -35,10 +35,14 @@ import java.util.function.Supplier;
  */
 public class FileItemPanel extends JPanel {
 
-    private final File file;
+    private File displayFile;
+
+    private final File originalFile;  // Arquivo original (.lnk ou não)
+
     private final FileInfo fileInfo;
     private ResultsPanel.FileItemClickListener clickListener;
     private final ThumbnailCacheManager cacheManager;
+    private RatingOverlay ratingOverlay; // NOVO
 
     static final Map<String, ImageIcon> ICON_CACHE = new ConcurrentHashMap<>();
     // No topo da classe
@@ -49,8 +53,26 @@ public class FileItemPanel extends JPanel {
     private final Color normalColor = new Color(56, 56, 56);
     private final Color hoverColor = new Color(70, 70, 70);
 
+    private static boolean showRatingOverlay = true; // NOVO — controlado pelo menu de contexto
+
 public FileItemPanel(File file, FileInfo fileInfo, int width, int height) {
-    this.file = file;
+
+    this.originalFile = file;
+// VALIDAÇÃO CRÍTICA: Verifica se file não é null
+    if (file == null) {
+        throw new IllegalArgumentException("File não pode ser null!");
+    }
+    // Resolve atalho automaticamente
+    if (SimpleLinkResolver.isShortcut(file)) {
+        File target = SimpleLinkResolver.resolveShortcut(file);
+        this.displayFile = (target != null && target.exists()) ? target : file;
+
+        if (target != null) {
+            System.out.println("📎 " + file.getName() + " ➜ " + target.getName());
+        }
+    } else {
+        this.displayFile = file;
+    }
     this.fileInfo = fileInfo;
     this.cacheManager = FileItemPanel.getThumbnailCacheManager();
 
@@ -59,9 +81,22 @@ public FileItemPanel(File file, FileInfo fileInfo, int width, int height) {
     setAlignmentX(Component.CENTER_ALIGNMENT);
 
     // Ícone / Miniatura
-    JLabel iconLabel = createIconLabel(width, file);
-    iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
-    iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+//    JLabel iconLabel = createIconLabel(width, file);
+//    iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
+//    iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+    // Ícone / Miniatura
+    JComponent iconLabel = createIconLabel(width, file);  // JComponent em vez de JLabel
+    iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);  // mantém — é método de JComponent
+
+// setHorizontalAlignment não existe em JComponent — trate por tipo:
+    if (iconLabel instanceof JLabel lbl) {
+        lbl.setHorizontalAlignment(SwingConstants.CENTER);
+    } else {
+        // JLayeredPane: centraliza o conteúdo via alinhamento do próprio label interno,
+        // que já foi definido com CENTER dentro de createIconLabel()
+        iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+    }
 
     // Nome do arquivo
     JLabel nameLabel = new JLabel(shortName(file.getName(), 30));
@@ -89,16 +124,22 @@ public FileItemPanel(File file, FileInfo fileInfo, int width, int height) {
         }
 
         @Override
-        public void mousePressed(MouseEvent e) {
+        public void mouseReleased(MouseEvent e) {
             if (e.isPopupTrigger() && clickListener != null) {
-                clickListener.onFileRightClick(file, fileInfo, FileItemPanel.this, e.getX(), e.getY());
+                clickListener.onFileRightClick(
+                        file, fileInfo,
+                        FileItemPanel.this, e.getX(), e.getY(),
+                        FileItemPanel.this); // NOVO — passa a si mesmo
             }
         }
 
         @Override
-        public void mouseReleased(MouseEvent e) {
+        public void mousePressed(MouseEvent e) {
             if (e.isPopupTrigger() && clickListener != null) {
-                clickListener.onFileRightClick(file, fileInfo, FileItemPanel.this, e.getX(), e.getY());
+                clickListener.onFileRightClick(
+                        file, fileInfo,
+                        FileItemPanel.this, e.getX(), e.getY(),
+                        FileItemPanel.this); // NOVO
             }
         }
 
@@ -116,33 +157,122 @@ public FileItemPanel(File file, FileInfo fileInfo, int width, int height) {
     });
 }
 
-private JLabel createIconLabel(int width, File file) {
-    JLabel label = new JLabel();
-    label.setHorizontalAlignment(SwingConstants.CENTER);
+    public static boolean isShowRatingOverlay()           { return showRatingOverlay; }
+    public static void    setShowRatingOverlay(boolean v) { showRatingOverlay = v; }
+
+
+// ==============================================================
+// NOVO MÉTODO: Atualiza ícone do label
+// ==============================================================
+
+    private void updateIconLabel(JLabel iconLabel, File file, int width) {
+        int thumbSize = Math.min(width - 10, 128);
+
+        if (isImage(file)) {
+            loadThumbnailAsyncCached(file, thumbSize, Preset.MEDIO, iconLabel);
+        } else if (isVideo(file)) {
+            loadVideoThumbnailAsync(file, thumbSize, iconLabel);
+        } else if (isPdf(file)) {
+            loadPdfThumbnailAsync(file, thumbSize, iconLabel);
+        } else {
+            iconLabel.setIcon(getSystemIconCached(file, 128));
+        }
+    }
+//private JLabel createIconLabel(int width, File file) {
+//    JLabel label = new JLabel();
+//    label.setHorizontalAlignment(SwingConstants.CENTER);
+//
+//    int thumbSize = Math.min(width - 10, 128);
+//
+//    // USA displayFile em vez de file
+//    File fileToDisplay = this.displayFile;
+//
+//
+//    if (isImage(fileToDisplay)) {
+//        label.setIcon(getLoadingIcon());
+//        loadThumbnailAsyncCached(fileToDisplay, thumbSize, Preset.MEDIO, label);
+//        return label;
+//    }
+//    if (isVideo(fileToDisplay)) {
+//        label.setIcon(getLoadingIcon());
+//        loadVideoThumbnailAsync(fileToDisplay, thumbSize, label);
+//        return label;
+//    }
+//    if (isPdf(fileToDisplay)) {
+//        label.setIcon(getLoadingIcon());
+//        loadPdfThumbnailAsync(fileToDisplay, thumbSize, label);
+//        return label;
+//    }
+//
+//    // fallback: ícone do sistema
+//    int iconSize = 32;
+//    label.setIcon(getSystemIconCached(fileToDisplay, iconSize));
+//    return label;
+//}
+private JComponent createIconLabel(int width, File file) {
 
     int thumbSize = Math.min(width - 10, 128);
+    File fileToDisplay = this.displayFile;
 
-    if (isImage(file)) {
-        label.setIcon(getLoadingIcon());
-        loadThumbnailAsyncCached(file, thumbSize, Preset.MEDIO, label);
-        return label;
-    }
-    if (isVideo(file)) {
-        label.setIcon(getLoadingIcon());
-        loadVideoThumbnailAsync(file, thumbSize, label);
-        return label;
-    }
-    if (isPdf(file)) {
-        label.setIcon(getLoadingIcon());
-        loadPdfThumbnailAsync(file, thumbSize, label);
-        return label;
+    // Label do ícone/thumbnail (camada inferior)
+    JLabel iconLabel = new JLabel();
+    iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
+    iconLabel.setPreferredSize(new Dimension(width, thumbSize));
+
+    if (isImage(fileToDisplay)) {
+        iconLabel.setIcon(getLoadingIcon());
+        loadThumbnailAsyncCached(fileToDisplay, thumbSize, Preset.MEDIO, iconLabel);
+    } else if (isVideo(fileToDisplay)) {
+        iconLabel.setIcon(getLoadingIcon());
+        loadVideoThumbnailAsync(fileToDisplay, thumbSize, iconLabel);
+    } else if (isPdf(fileToDisplay)) {
+        iconLabel.setIcon(getLoadingIcon());
+        loadPdfThumbnailAsync(fileToDisplay, thumbSize, iconLabel);
+    } else {
+        iconLabel.setIcon(getSystemIconCached(fileToDisplay, 32));
     }
 
-    // fallback: ícone do sistema
-    int iconSize = 128;
-    label.setIcon(getSystemIconCached(file, iconSize));
-    return label;
+    // NOVO: Se não há rating, retorna o JLabel direto (sem overhead do JLayeredPane)
+    if (fileInfo.getRating() <= 0) {
+        return iconLabel;
+    }
+
+    // NOVO: JLayeredPane para sobrepor o overlay de estrelas
+    JLayeredPane layered = new JLayeredPane();
+    layered.setPreferredSize(new Dimension(width, thumbSize));
+    layered.setOpaque(false);
+
+    iconLabel.setBounds(0, 0, width, thumbSize);
+    layered.add(iconLabel, JLayeredPane.DEFAULT_LAYER);
+
+    // Overlay ocupa o mesmo espaço — o paintComponent decide onde desenhar
+    ratingOverlay = new RatingOverlay(fileInfo.getRating());
+    ratingOverlay.setBounds(0, 0, width, thumbSize);
+    ratingOverlay.setVisible(showRatingOverlay);
+    layered.add(ratingOverlay, JLayeredPane.PALETTE_LAYER);
+
+    return layered;
 }
+
+    /** Atualiza o overlay de estrelas sem recriar o painel inteiro. */
+    public void updateRatingOverlay(int newRating) {
+        fileInfo.setRating(newRating);
+        if (ratingOverlay != null) {
+            ratingOverlay.setRating(newRating);
+            ratingOverlay.setVisible(showRatingOverlay && newRating > 0);
+        }
+    }
+
+    /**
+     * Aplica a visibilidade global a este painel.
+     * Chamado quando o usuário liga/desliga pelo menu de contexto.
+     */
+    public void applyOverlayVisibility() {
+        if (ratingOverlay != null) {
+            ratingOverlay.setVisible(showRatingOverlay && fileInfo.getRating() > 0);
+        }
+    }
+
 
     // --- um ícone provisório "loading" gerado dinamicamente ---
 // cria um ImageIcon simples (quadrado) que você pode usar enquanto a thumbnail carrega.
@@ -509,6 +639,7 @@ private JLabel createIconLabel(int width, File file) {
             THUMBNAIL_EXECUTOR.shutdownNow();
             Thread.currentThread().interrupt();
         }
+
     }
 
     /**
@@ -568,10 +699,10 @@ private JLabel createIconLabel(int width, File file) {
     private String createTooltip() {
         return String.format(
                 "<html><b>%s</b><br>Tamanho: %.2f MB<br>Tipo: %s<br>Caminho: %s</html>",
-                file.getName(),
+                displayFile.getName(),
                 fileInfo.getSize() / (1024.0 * 1024.0),
                 fileInfo.getFileType(),
-                file.getParent()
+                displayFile.getParent()
         );
     }
     private Icon getSystemIconCached(File file, int size) {
@@ -581,6 +712,7 @@ private JLabel createIconLabel(int width, File file) {
             Icon sysIcon = FileSystemView.getFileSystemView().getSystemIcon(file);
             return (ImageIcon) resizeIcon(sysIcon, size);
         });
+
     }
     /**
      * Carrega thumbnail de IMAGEM de forma assíncrona
@@ -637,7 +769,7 @@ private JLabel createIconLabel(int width, File file) {
     }
 
     public File getFile() {
-        return file;
+        return displayFile;
     }
 
     public FileInfo getFileInfo() {

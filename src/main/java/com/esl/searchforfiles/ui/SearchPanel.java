@@ -17,6 +17,10 @@ public class SearchPanel extends JPanel {
     private final JButton searchButton;
     private final JButton indexButton;
 
+    // NOVO ▼
+    private final JComboBox<String> ratingFilterCombo;   // "Qualquer", "1+", "2+", …, "5"
+    private final JTextField        tagFilterField;       // texto livre de tag
+
     private SearchListener searchListener;
     private IndexListener indexListener;
 
@@ -63,6 +67,23 @@ public SearchPanel() {
     indexButton.setToolTipText("Indexar pasta selecionada");
     indexButton.addActionListener(e -> triggerIndex());
 
+    // NOVO: ComboBox de filtro por estrelas ─────────────────────
+    ratingFilterCombo = new JComboBox<>(new String[]{
+            "★ Qualquer", "★ 1+", "★★ 2+", "★★★ 3+", "★★★★ 4+", "★★★★★ 5"
+    });
+    ratingFilterCombo.setFont(new Font("SansSerif", Font.PLAIN, 12));
+    ratingFilterCombo.setToolTipText("Filtrar por avaliação mínima");
+    ratingFilterCombo.setPreferredSize(new Dimension(120, 25));
+    ratingFilterCombo.addActionListener(e -> triggerSearch());
+
+    // NOVO: Campo de texto para filtro por tag ──────────────────
+    tagFilterField = new JTextField();
+    tagFilterField.setFont(new Font("SansSerif", Font.PLAIN, 12));
+    tagFilterField.setToolTipText("Filtrar por tag (ex: ferias)");
+    tagFilterField.setPreferredSize(new Dimension(110, 25));
+    tagFilterField.addActionListener(e -> triggerSearch());
+
+
     // NOVO: Layout atualizado com controles de ordenação
     JPanel mainPanel = new JPanel(new BorderLayout(5, 5));
 
@@ -92,6 +113,15 @@ public SearchPanel() {
     centerPanel.add(filterLabel);
     centerPanel.add(filterBox);
 
+    // NOVO: bloco de estrelas + tag ─────────────────────────────
+    centerPanel.add(new JLabel(" | "));
+    centerPanel.add(new JLabel("Rating:"));
+    centerPanel.add(ratingFilterCombo);
+
+    centerPanel.add(new JLabel("Tag:"));
+    centerPanel.add(tagFilterField);
+    //
+
     mainPanel.add(centerPanel, BorderLayout.CENTER);
 
     // Painel direito: Botões
@@ -102,6 +132,33 @@ public SearchPanel() {
 
     add(mainPanel, BorderLayout.CENTER);
 }
+
+
+    // ── getters novos ──────────────────────────────────────────────
+
+    /** Retorna 0 se "Qualquer", caso contrário o valor mínimo de estrelas. */
+    public int getMinRating() {
+        int idx = ratingFilterCombo.getSelectedIndex();
+        return idx; // índice 0 = qualquer; 1 = 1+; … 5 = 5
+    }
+
+    /** Retorna a tag digitada, ou "" se vazia. */
+    public String getTagFilter() {
+        return tagFilterField.getText().trim();
+    }
+
+    // ── disparo de busca ──────────────────────────────────────────
+    public void triggerSearch() {
+        if (searchListener != null) {
+            searchListener.onSearch(
+                    getSearchTerm(), getSelectedFilter(),
+                    getSortBy(), getSortOrder(),
+                    getMinRating(), getTagFilter()   // NOVO
+            );
+        }
+    }
+
+
     // NOVO: Opções de ordenação
     public enum SortOption {
         NAME("Nome", "name"),
@@ -182,16 +239,16 @@ private JTextField createSearchField() {
     return field;
 }
 
-public void triggerSearch() {
-    if (searchListener != null) {
-        String term = getSearchTerm();
-        String filter = getSelectedFilter();
-        String sortBy = getSortBy();
-        String sortOrder = getSortOrder();
-
-        searchListener.onSearch(term, filter, sortBy, sortOrder);
-    }
-}
+//public void triggerSearch() {
+//    if (searchListener != null) {
+//        String term = getSearchTerm();
+//        String filter = getSelectedFilter();
+//        String sortBy = getSortBy();
+//        String sortOrder = getSortOrder();
+//
+//        searchListener.onSearch(term, filter, sortBy, sortOrder);
+//    }
+//}
     private void triggerIndex() {
         if (indexListener != null) {
             indexListener.onIndexRequest();
@@ -237,9 +294,16 @@ public void triggerSearch() {
      * Interface atualizada com parâmetros de ordenação
      * MODIFICADO
      */
+//    public interface SearchListener {
+//        void onSearch(String searchTerm, String filter, String sortBy, String sortOrder);
+//    }
+    // ── interface atualizada ──────────────────────────────────────
     public interface SearchListener {
-        void onSearch(String searchTerm, String filter, String sortBy, String sortOrder);
+        void onSearch(String searchTerm, String filter,
+                      String sortBy, String sortOrder,
+                      int minRating, String tag);      // NOVO
     }
+
     public interface IndexListener {
         void onIndexRequest();
     }

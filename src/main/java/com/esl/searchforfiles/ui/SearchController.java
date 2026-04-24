@@ -1,5 +1,6 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.database.DatabaseManager;
 import com.esl.searchforfiles.model.PaginationInfo;
 import com.esl.searchforfiles.service.MonitoringService;
 import com.esl.searchforfiles.service.SearchService;
@@ -72,69 +73,14 @@ public class SearchController {
         System.out.println("📡 Monitoramento automático ativado");
     }
 
+
+    public DatabaseManager getDbManager() { return searchSystem.getDatabaseManager(); }
+
+
+
     // ========================================================================
     // SINCRONIZAÇÃO AUTOMÁTICA (NOVO)
     // ========================================================================
-
-//    /**
-//     * Sincroniza pasta automaticamente ao selecionar
-//     * NOVO MÉTODO
-//     *
-//     * @param folderPath Pasta a sincronizar
-//     * @param callback Callback para notificar resultado
-//     */
-//    public void syncFolderIfNeeded(String folderPath, SyncCallback callback) {
-//        // Validações básicas
-//        if (folderPath == null || folderPath.trim().isEmpty()) {
-//            return;
-//        }
-//
-//        // Não sincroniza drives raiz
-//        if (isDriveRoot(folderPath)) {
-//            System.out.println("⚠️ Sincronização ignorada: drive raiz");
-//            return;
-//        }
-//
-//        // Executa sincronização em background
-//        SwingWorker<SyncService.SyncResult, Void> worker = new SwingWorker<>() {
-//            @Override
-//            protected SyncService.SyncResult doInBackground() throws Exception {
-//                // Verifica se precisa sincronizar (rápido)
-//                if (!syncService.needsSync(folderPath)) {
-//                    System.out.println("✅ Índice já sincronizado");
-//                    return new SyncService.SyncResult(folderPath);
-//                }
-//
-//                // Executa sincronização completa
-//                return syncService.synchronizeFolder(folderPath);
-//            }
-//
-//            @Override
-//            protected void done() {
-//                try {
-//                    SyncService.SyncResult result = get();
-//
-//                    if (callback != null) {
-//                        callback.onSyncCompleted(result);
-//                    }
-//
-//                    // Se houve mudanças E há busca ativa, atualiza
-//                    if (result.hasChanges() && lastCallback != null) {
-//                        System.out.println("🔄 Atualizando resultados após sincronização...");
-//                        refreshCurrentSearch();
-//                    }
-//
-//                } catch (Exception e) {
-//                    System.err.println("❌ Erro na sincronização: " + e.getMessage());
-//                    if (callback != null) {
-//                        callback.onSyncError(e);
-//                    }
-//                }
-//            }
-//        };
-//
-//        worker.execute();
-//    }
     /**
      * Sincroniza pasta se já foi indexada
      * MODIFICADO: Valida antes de sincronizar
@@ -286,96 +232,6 @@ public class SearchController {
         timer.setRepeats(false);
         timer.start();
     }
-
-
-    // ========================================================================
-    // MONITORAMENTO AUTOMÁTICO
-    // ========================================================================
-
-//    /**
-//     * Atualiza monitoramento automaticamente ao selecionar pasta
-//     */
-//    public void updateMonitoredFolder(String newPath) {
-//        if (newPath != null && newPath.equals(currentMonitoredPath)) {
-//            return;
-//        }
-//
-//        if (newPath == null || newPath.trim().isEmpty()) {
-//            stopCurrentMonitoring();
-//            return;
-//        }
-//
-//        if (isDriveRoot(newPath)) {
-//            System.out.println("⚠️ Drive raiz não será monitorado: " + newPath);
-//            stopCurrentMonitoring();
-//            return;
-//        }
-//
-//        Path folderPath = Paths.get(newPath);
-//        if (!Files.exists(folderPath) || !Files.isDirectory(folderPath)) {
-//            System.out.println("⚠️ Pasta inválida para monitoramento: " + newPath);
-//            stopCurrentMonitoring();
-//            return;
-//        }
-//
-//        long estimatedFiles = estimateFileCountFast(folderPath);
-//        if (estimatedFiles > MAX_FOLDER_SIZE) {
-//            System.out.println(String.format(
-//                    "⚠️ Pasta muito grande para monitoramento (%,d arquivos): %s",
-//                    estimatedFiles, newPath
-//            ));
-//            stopCurrentMonitoring();
-//            return;
-//        }
-//
-//        stopCurrentMonitoring();
-//        startMonitoringAsync(newPath);
-//    }
-//    /**
-//     * Atualiza monitoramento E sincroniza pasta
-//     * MODIFICADO: Adiciona sincronização antes de monitorar
-//     */
-//    public void updateMonitoredFolder(String newPath, SyncCallback syncCallback) {
-//        if (newPath != null && newPath.equals(currentMonitoredPath)) {
-//            return;
-//        }
-//
-//        if (newPath == null || newPath.trim().isEmpty()) {
-//            stopCurrentMonitoring();
-//            return;
-//        }
-//
-//        if (isDriveRoot(newPath)) {
-//            System.out.println("⚠️ Drive raiz não será monitorado: " + newPath);
-//            stopCurrentMonitoring();
-//            return;
-//        }
-//
-//        Path folderPath = Paths.get(newPath);
-//        if (!Files.exists(folderPath) || !Files.isDirectory(folderPath)) {
-//            System.out.println("⚠️ Pasta inválida: " + newPath);
-//            stopCurrentMonitoring();
-//            return;
-//        }
-//
-//        long estimatedFiles = estimateFileCountFast(folderPath);
-//        if (estimatedFiles > MAX_FOLDER_SIZE) {
-//            System.out.println(String.format(
-//                    "⚠️ Pasta muito grande (%,d arquivos): %s",
-//                    estimatedFiles, newPath
-//            ));
-//            stopCurrentMonitoring();
-//            return;
-//        }
-//
-//        stopCurrentMonitoring();
-//
-//        // NOVO: Sincroniza antes de monitorar
-//        syncFolderIfNeeded(newPath, syncCallback);
-//
-//        // Inicia monitoramento após sincronização
-//        startMonitoringAsync(newPath);
-//    }
 
     /**
      * Atualiza monitoramento com sincronização
@@ -553,96 +409,22 @@ public class SearchController {
         return monitoringService.isMonitoring();
     }
 
-
-
-
-//    /**
-//     * Busca com paginação e ordenação
-//     * MODIFICADO: Adiciona parâmetros de ordenação
-//     */
+    /**
+     * Busca com paginação
+     * MODIFICADO: Busca vazia mostra TODOS os arquivos da pasta
+     */
 //    public void performSearchWithPagination(String searchTerm, String filter, String selectedPath,
 //                                            String sortBy, String sortOrder,
 //                                            int page, int pageSize,
 //                                            PaginatedSearchCallback callback) {
 //
-//        if (searchTerm.isEmpty()) {
-//            JOptionPane.showMessageDialog(parentFrame,
-//                    "Digite um termo de busca!",
-//                    "Busca vazia", JOptionPane.WARNING_MESSAGE);
-//            return;
-//        }
-//
-//        String processedTerm = processSearchTerm(searchTerm);
-//
-//        // Cria critérios COM ordenação
-//        SearchCriteria criteria = new SearchCriteria()
-//                .withName(processedTerm)
-//                .inPath(selectedPath, true)
-//                .sortBy(sortBy, sortOrder); // NOVO: Define ordenação
-//
-//        if (!"TODOS".equals(filter)) {
-//            if ("FOLDER".equals(filter)) {
-//                criteria.withFileType(FileType.FOLDER);
-//            } else {
-//                criteria.withFileType(FileType.valueOf(filter));
-//            }
-//        }
-//
-//        this.lastCriteria = criteria;
-//        this.lastSelectedPath = selectedPath;
-//
-//        SwingWorker<SearchService.SearchResult, Void> worker = new SwingWorker<>() {
-//            @Override
-//            protected SearchService.SearchResult doInBackground() throws Exception {
-//                System.out.println(String.format(
-//                        "🔍 Busca: %s | Ordem: %s %s | Página: %d/%d | Tipo: %s | Pasta: %s",
-//                        searchTerm, sortBy, sortOrder, page, pageSize, filter, selectedPath
-//                ));
-//
-//                return searchSystem.getSearchService().advancedSearchWithPagination(
-//                        criteria, page, pageSize
-//                );
-//            }
-//
-//            @Override
-//            protected void done() {
-//                try {
-//                    SearchService.SearchResult result = get();
-//                    callback.onSearchCompleted(result.getResults(), result.getPagination());
-//
-//                    System.out.println("✓ " + result.getPagination() +
-//                            " (Ordenado por: " + sortBy + " " + sortOrder + ")");
-//
-//                } catch (Exception e) {
-//                    callback.onSearchError(e);
-//                    e.printStackTrace();
-//                }
-//            }
-//        };
-//
-//        callback.onSearchStarted();
-//        worker.execute();
-//    }
-//    // ========================================================================
-//    // MÉTODOS DE BUSCA
-//    // ========================================================================
-//
-//    public void performSearchWithPagination(String searchTerm, String filter, String selectedPath,
-//                                            String sortBy, String sortOrder,
-//                                            int page, int pageSize,
-//                                            PaginatedSearchCallback callback) {
-//
-//        if (searchTerm.isEmpty()) {
-//            JOptionPane.showMessageDialog(parentFrame,
-//                    "Digite um termo de busca!",
-//                    "Busca vazia", JOptionPane.WARNING_MESSAGE);
-//            return;
-//        }
+//        // MODIFICADO: Não valida mais se searchTerm está vazio
+//        // Termo vazio = mostra todos os arquivos
 //
 //        String processedTerm = processSearchTerm(searchTerm);
 //
 //        SearchCriteria criteria = new SearchCriteria()
-//                .withName(processedTerm)
+//                .withName(processedTerm)  // Se vazio, será "*" (todos)
 //                .inPath(selectedPath, true)
 //                .sortBy(sortBy, sortOrder);
 //
@@ -654,7 +436,6 @@ public class SearchController {
 //            }
 //        }
 //
-//        // MODIFICADO: Armazena todos os parâmetros para auto-refresh
 //        this.lastCriteria = criteria;
 //        this.lastSelectedPath = selectedPath;
 //        this.lastSearchTerm = searchTerm;
@@ -668,10 +449,18 @@ public class SearchController {
 //        SwingWorker<SearchService.SearchResult, Void> worker = new SwingWorker<>() {
 //            @Override
 //            protected SearchService.SearchResult doInBackground() throws Exception {
-//                System.out.println(String.format(
-//                        "🔍 Busca: %s | Ordem: %s %s | Página: %d/%d | Tipo: %s | Pasta: %s",
-//                        searchTerm, sortBy, sortOrder, page, pageSize, filter, selectedPath
-//                ));
+//                // Log diferenciado
+//                if (searchTerm == null || searchTerm.trim().isEmpty()) {
+//                    System.out.println(String.format(
+//                            "📂 Listando TODOS os arquivos | Ordem: %s %s | Página: %d/%d | Tipo: %s | Pasta: %s",
+//                            sortBy, sortOrder, page, pageSize, filter, selectedPath
+//                    ));
+//                } else {
+//                    System.out.println(String.format(
+//                            "🔍 Busca: %s | Ordem: %s %s | Página: %d/%d | Tipo: %s | Pasta: %s",
+//                            searchTerm, sortBy, sortOrder, page, pageSize, filter, selectedPath
+//                    ));
+//                }
 //
 //                return searchSystem.getSearchService().advancedSearchWithPagination(
 //                        criteria, page, pageSize
@@ -683,10 +472,6 @@ public class SearchController {
 //                try {
 //                    SearchService.SearchResult result = get();
 //                    callback.onSearchCompleted(result.getResults(), result.getPagination());
-//
-//                    System.out.println("✅ " + result.getPagination() +
-//                            " (Ordenado por: " + sortBy + " " + sortOrder + ")");
-//
 //                } catch (Exception e) {
 //                    callback.onSearchError(e);
 //                    e.printStackTrace();
@@ -697,78 +482,47 @@ public class SearchController {
 //        callback.onSearchStarted();
 //        worker.execute();
 //    }
+    public void performSearchWithPagination(
+            String searchTerm, String filter, String path,
+            String sortBy, String sortOrder,
+            int minRating, String tag,                // NOVO
+            int page, int pageSize,
+            PaginatedSearchCallback callback) {
 
-    /**
-     * Busca com paginação
-     * MODIFICADO: Busca vazia mostra TODOS os arquivos da pasta
-     */
-    public void performSearchWithPagination(String searchTerm, String filter, String selectedPath,
-                                            String sortBy, String sortOrder,
-                                            int page, int pageSize,
-                                            PaginatedSearchCallback callback) {
+        SwingWorker<SearchService.SearchResult, Void> worker =
+                new SwingWorker<>() {
+                    @Override
+                    protected SearchService.SearchResult doInBackground() throws Exception {
 
-        // MODIFICADO: Não valida mais se searchTerm está vazio
-        // Termo vazio = mostra todos os arquivos
+                        SearchCriteria criteria = new SearchCriteria()
+                                .withName(searchTerm.isEmpty() ? null : "*" + searchTerm + "*")
+                                .inPath(path, true)
+                                .sortBy(sortBy, sortOrder);
 
-        String processedTerm = processSearchTerm(searchTerm);
+                        if (!"TODOS".equals(filter))
+                            criteria.withFileType(FileType.valueOf(filter));
 
-        SearchCriteria criteria = new SearchCriteria()
-                .withName(processedTerm)  // Se vazio, será "*" (todos)
-                .inPath(selectedPath, true)
-                .sortBy(sortBy, sortOrder);
+                        if (minRating > 0)            // NOVO
+                            criteria.withMinRating(minRating);
 
-        if (!"TODOS".equals(filter)) {
-            if ("FOLDER".equals(filter)) {
-                criteria.withFileType(FileType.FOLDER);
-            } else {
-                criteria.withFileType(FileType.valueOf(filter));
-            }
-        }
+                        if (!tag.isEmpty())           // NOVO
+                            criteria.withTag(tag);
 
-        this.lastCriteria = criteria;
-        this.lastSelectedPath = selectedPath;
-        this.lastSearchTerm = searchTerm;
-        this.lastFilter = filter;
-        this.lastSortBy = sortBy;
-        this.lastSortOrder = sortOrder;
-        this.lastPage = page;
-        this.lastPageSize = pageSize;
-        this.lastCallback = callback;
+                        return searchSystem.getSearchService().advancedSearchWithPagination(criteria, page, pageSize);
+                    }
 
-        SwingWorker<SearchService.SearchResult, Void> worker = new SwingWorker<>() {
-            @Override
-            protected SearchService.SearchResult doInBackground() throws Exception {
-                // Log diferenciado
-                if (searchTerm == null || searchTerm.trim().isEmpty()) {
-                    System.out.println(String.format(
-                            "📂 Listando TODOS os arquivos | Ordem: %s %s | Página: %d/%d | Tipo: %s | Pasta: %s",
-                            sortBy, sortOrder, page, pageSize, filter, selectedPath
-                    ));
-                } else {
-                    System.out.println(String.format(
-                            "🔍 Busca: %s | Ordem: %s %s | Página: %d/%d | Tipo: %s | Pasta: %s",
-                            searchTerm, sortBy, sortOrder, page, pageSize, filter, selectedPath
-                    ));
-                }
-
-                return searchSystem.getSearchService().advancedSearchWithPagination(
-                        criteria, page, pageSize
-                );
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    SearchService.SearchResult result = get();
-                    callback.onSearchCompleted(result.getResults(), result.getPagination());
-                } catch (Exception e) {
-                    callback.onSearchError(e);
-                    e.printStackTrace();
-                }
-            }
-        };
-
-        callback.onSearchStarted();
+                    @Override
+                    protected void done() {
+                        try {
+                            SearchService.SearchResult result = get();
+                            SwingUtilities.invokeLater(() ->
+                                    callback.onSearchCompleted(
+                                            result.getResults(), result.getPagination()));
+                        } catch (Exception e) {
+                            SwingUtilities.invokeLater(() -> callback.onSearchError(e));
+                        }
+                    }
+                };
         worker.execute();
     }
 

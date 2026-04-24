@@ -1,5 +1,8 @@
 package com.esl.searchforfiles.model;
 
+import java.util.Collections;
+import java.util.List;
+
 public class FileInfo {
     private final String path;
     private final String name;
@@ -8,6 +11,8 @@ public class FileInfo {
     private final long size;
     private final long lastModified;
     private final boolean isDirectory;
+    private int          rating;        // 0–5
+    private List<String> tags;          // lazy: carregado sob demanda
 
     public FileInfo(String path, String name, String extension, FileType fileType,
                     long size, long lastModified, boolean isDirectory) {
@@ -28,6 +33,10 @@ public class FileInfo {
     public long getSize() { return size; }
     public long getLastModified() { return lastModified; }
     public boolean isDirectory() { return isDirectory; }
+    public int          getRating()            { return rating; }
+    public void         setRating(int r)       { this.rating = r; }
+    public List<String> getTags()              { return tags != null ? tags : Collections.emptyList(); }
+    public void         setTags(List<String> t){ this.tags = t; }
 
     @Override
     public String toString() {

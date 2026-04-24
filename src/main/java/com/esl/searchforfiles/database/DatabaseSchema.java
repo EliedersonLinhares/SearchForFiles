@@ -42,4 +42,23 @@ public class DatabaseSchema {
             "PRAGMA cache_size=10000",
             "PRAGMA temp_store=MEMORY"
     };
+
+    // Tabela de tags definidas pelo usuário
+    public static final String CREATE_TAGS_TABLE = """
+    CREATE TABLE IF NOT EXISTS tags (
+        id   INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT UNIQUE NOT NULL COLLATE NOCASE
+    )
+""";
+
+    // Tabela de relacionamento arquivo <-> tag
+    public static final String CREATE_FILE_TAGS_TABLE = """
+    CREATE TABLE IF NOT EXISTS file_tags (
+        file_path TEXT NOT NULL,
+        tag_id    INTEGER NOT NULL,
+        PRIMARY KEY (file_path, tag_id),
+        FOREIGN KEY (file_path) REFERENCES file_index(path) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id)    REFERENCES tags(id)          ON DELETE CASCADE
+    )
+""";
 }

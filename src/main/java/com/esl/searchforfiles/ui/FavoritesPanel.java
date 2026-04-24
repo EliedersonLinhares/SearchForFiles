@@ -17,9 +17,11 @@ public class FavoritesPanel extends JPanel {
     private final DefaultListModel<String> listModel;
     private final FavoritesService favoritesService;
     private FavoriteSelectionListener selectionListener;
+    private FileExplorerSwing fileExplorerSwing;
 
-    public FavoritesPanel(FavoritesService favoritesManager) {
+    public FavoritesPanel(FavoritesService favoritesManager, FileExplorerSwing fileExplorerSwing) {
         this.favoritesService = favoritesManager;
+        this.fileExplorerSwing = fileExplorerSwing;
 
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createTitledBorder("⭐ Favoritos"));
@@ -63,6 +65,7 @@ public class FavoritesPanel extends JPanel {
                         if (folder.exists() && folder.isDirectory()) {
                             selectionListener.onFavoriteSelected(folder);
                             System.out.println("⭐ Favorito clicado: " + selected);
+                            fileExplorerSwing.performCurrentSearch();
                         } else {
                             JOptionPane.showMessageDialog(FavoritesPanel.this,
                                     "Esta pasta não existe mais:\n" + selected,
