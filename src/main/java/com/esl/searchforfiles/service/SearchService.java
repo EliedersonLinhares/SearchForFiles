@@ -358,17 +358,6 @@ public class SearchService {
     /**
      * Extrai informações de arquivo de um ResultSet
      */
-//    private FileInfo extractFileInfo(ResultSet rs) throws SQLException {
-//        return new FileInfo(
-//                rs.getString("path"),
-//                rs.getString("name"),
-//                rs.getString("extension"),
-//                FileType.valueOf(rs.getString("file_type")),
-//                rs.getLong("size"),
-//                rs.getLong("last_modified"),
-//                rs.getBoolean("is_directory")
-//        );
-//    }
 
     private FileInfo extractFileInfo(ResultSet rs) throws SQLException {
         FileInfo fi = new FileInfo(

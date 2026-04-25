@@ -31,12 +31,149 @@ public class FileExplorerSwing extends JFrame {
     private int currentPage = 1; // NOVO
     private String currentSortBy = "last_modified"; // NOVO
     private String currentSortOrder = "DESC"; // NOVO
+    private SubFolderPanel subFolderPanel;           // NOVO
+    private boolean showSubfolderContents = true; // NOVO — controlado pelo menu
 
     // NOVO: Indicador de auto-refresh
     private JLabel autoRefreshIndicator;
 
     private JLabel syncIndicator; // NOVO
     private final NavigationHistory navigationHistory = new NavigationHistory();
+
+//    public FileExplorerSwing() {
+//        super("Advanced File Search - Interface Gráfica");
+//        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+//        setSize(1400, 800);
+//        setLocationRelativeTo(null);
+//        setLayout(new BorderLayout(10, 10));
+//
+//
+//        favoritesService = new FavoritesService();
+//
+//        try {
+//            controller = new SearchController(this);
+//
+//            // NOVO: Configura listener para auto-refresh
+//            controller.setFileSystemChangeListener(this::onFileSystemChanged);
+//
+//        } catch (SQLException e) {
+//            JOptionPane.showMessageDialog(this,
+//                    "Erro ao inicializar: " + e.getMessage(),
+//                    "Erro", JOptionPane.ERROR_MESSAGE);
+//            throw new RuntimeException(e);
+//        }
+//
+//        // === PAINEL SUPERIOR ===
+//        searchPanel = new SearchPanel();
+//        searchPanel.setSearchListener(this::onSearch);
+//        searchPanel.setIndexListener(this::onIndexRequest);
+//        add(searchPanel, BorderLayout.NORTH);
+//
+//        // === PAINEL ESQUERDO ===
+//        JPanel leftPanel = createLeftPanel();
+//
+//        // NOVO: SubFolderPanel à direita
+//        subFolderPanel = new SubFolderPanel();
+//        subFolderPanel.setFolderClickListener(folder ->
+//                navigateTo(folder.getAbsolutePath(), true));
+//
+//        // === PAINEL CENTRAL ===
+//        resultsPanel = new ResultsPanel();
+//        resultsPanel.setBackgroundColor(new Color(45, 45, 45));
+//
+//        resultsPanel.setFileItemClickListener(new ResultsPanel.FileItemClickListener() {
+//
+//            @Override
+//            public void onFileDoubleClick(File file) {
+//                if (file.isDirectory()) {
+//                    // NOVO: navega para dentro da pasta
+//                    navigateTo(file.getAbsolutePath(), true);
+//                } else {
+//                    try { Desktop.getDesktop().open(file); }
+//                    catch (IOException e) {
+//                        JOptionPane.showMessageDialog(FileExplorerSwing.this,
+//                                "Erro ao abrir: " + e.getMessage());
+//                    }
+//                }
+//            }
+//
+//            @Override
+//            public void onFileRightClick(File file, FileInfo fileInfo,
+//                                         Component source, int x, int y,
+//                                         FileItemPanel itemPanel) {
+//             FileContextMenu menu =   new FileContextMenu(
+//                        file, fileInfo, source, controller.getDbManager(), itemPanel,
+//                        path -> navigateTo(path, true),          // folderNavListener
+//                        showSubfolderContents,                   // NOVO estado atual
+//                        include -> {                             // NOVO toggle listener
+//                            showSubfolderContents = include;
+//                            currentPage = 1;
+//                            performCurrentSearch();
+//                        }
+//                );
+//                menu.show(source, x, y);
+//            }
+//        });
+//
+//        // NOVO: Painel de paginação
+//        paginationPanel = new PaginationPanel();
+//        paginationPanel.setPaginationListener(new PaginationPanel.PaginationListener() {
+//            @Override
+//            public void onPageChanged(int newPage) {
+//                currentPage = newPage;
+//                performCurrentSearch();
+//            }
+//
+//            @Override
+//            public void onPageSizeChanged(int newPageSize) {
+//                currentPage = 1; // Volta para primeira página
+//                performCurrentSearch();
+//            }
+//        });
+//
+//        searchPanel.setNavigationListener(new SearchPanel.NavigationListener() {
+//            @Override
+//            public void onBack() {
+//                String prev = navigationHistory.back();
+//                if (prev != null) navigateTo(prev, false); // false = não empurra no histórico
+//            }
+//
+//            @Override
+//            public void onForward() {
+//                String next = navigationHistory.forward();
+//                if (next != null) navigateTo(next, false);
+//            }
+//        });
+//
+//        // NOVO: Painel central com resultados e paginação
+//        JPanel centerPanel = new JPanel(new BorderLayout());
+//        centerPanel.add(resultsPanel, BorderLayout.CENTER);
+//        centerPanel.add(paginationPanel, BorderLayout.SOUTH);
+//
+//        // Split pane
+//        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+//                leftPanel, centerPanel);
+//        splitPane.setDividerLocation(300);
+//        splitPane.setResizeWeight(0.2);
+//        add(splitPane, BorderLayout.CENTER);
+//
+//        // === PAINEL INFERIOR ===
+//        JPanel statusPanel = createStatusPanel(); // MODIFICADO
+//        add(statusPanel, BorderLayout.SOUTH);
+//
+//        // NOVO: split direito — center + subfolders
+//        JSplitPane rightSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+//                centerPanel, subFolderPanel);
+//        rightSplit.setResizeWeight(1.0);   // ResultsPanel expande, SubFolderPanel fixo
+//        rightSplit.setDividerSize(4);
+//        rightSplit.setDividerLocation(0.80); // 80% para resultados, 20% para subpastas
+//        rightSplit.setContinuousLayout(true);
+//
+//        showWelcomeMessage();
+//
+//        setVisible(true);
+//        performCurrentSearch();
+//    }
 
     public FileExplorerSwing() {
         super("Advanced File Search - Interface Gráfica");
@@ -45,15 +182,11 @@ public class FileExplorerSwing extends JFrame {
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
-
         favoritesService = new FavoritesService();
 
         try {
             controller = new SearchController(this);
-
-            // NOVO: Configura listener para auto-refresh
             controller.setFileSystemChangeListener(this::onFileSystemChanged);
-
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this,
                     "Erro ao inicializar: " + e.getMessage(),
@@ -65,21 +198,30 @@ public class FileExplorerSwing extends JFrame {
         searchPanel = new SearchPanel();
         searchPanel.setSearchListener(this::onSearch);
         searchPanel.setIndexListener(this::onIndexRequest);
+        searchPanel.setNavigationListener(new SearchPanel.NavigationListener() {
+            @Override
+            public void onBack() {
+                String prev = navigationHistory.back();
+                if (prev != null) navigateTo(prev, false);
+            }
+            @Override
+            public void onForward() {
+                String next = navigationHistory.forward();
+                if (next != null) navigateTo(next, false);
+            }
+        });
         add(searchPanel, BorderLayout.NORTH);
 
         // === PAINEL ESQUERDO ===
         JPanel leftPanel = createLeftPanel();
 
-        // === PAINEL CENTRAL ===
+        // === PAINEL CENTRAL (resultados + paginação) ===
         resultsPanel = new ResultsPanel();
         resultsPanel.setBackgroundColor(new Color(45, 45, 45));
-
         resultsPanel.setFileItemClickListener(new ResultsPanel.FileItemClickListener() {
-
             @Override
             public void onFileDoubleClick(File file) {
                 if (file.isDirectory()) {
-                    // NOVO: navega para dentro da pasta
                     navigateTo(file.getAbsolutePath(), true);
                 } else {
                     try { Desktop.getDesktop().open(file); }
@@ -89,20 +231,24 @@ public class FileExplorerSwing extends JFrame {
                     }
                 }
             }
-
             @Override
             public void onFileRightClick(File file, FileInfo fileInfo,
                                          Component source, int x, int y,
                                          FileItemPanel itemPanel) {
                 FileContextMenu menu = new FileContextMenu(
                         file, fileInfo, source, controller.getDbManager(), itemPanel,
-                        path -> navigateTo(path, true));  // NOVO lambda
+                        path -> navigateTo(path, true),
+                        showSubfolderContents,
+                        include -> {
+                            showSubfolderContents = include;
+                            currentPage = 1;
+                            performCurrentSearch();
+                        }
+                );
                 menu.show(source, x, y);
             }
         });
 
-
-        // NOVO: Painel de paginação
         paginationPanel = new PaginationPanel();
         paginationPanel.setPaginationListener(new PaginationPanel.PaginationListener() {
             @Override
@@ -110,47 +256,53 @@ public class FileExplorerSwing extends JFrame {
                 currentPage = newPage;
                 performCurrentSearch();
             }
-
             @Override
             public void onPageSizeChanged(int newPageSize) {
-                currentPage = 1; // Volta para primeira página
+                currentPage = 1;
                 performCurrentSearch();
             }
         });
 
-        searchPanel.setNavigationListener(new SearchPanel.NavigationListener() {
-            @Override
-            public void onBack() {
-                String prev = navigationHistory.back();
-                if (prev != null) navigateTo(prev, false); // false = não empurra no histórico
-            }
-
-            @Override
-            public void onForward() {
-                String next = navigationHistory.forward();
-                if (next != null) navigateTo(next, false);
-            }
-        });
-
-        // NOVO: Painel central com resultados e paginação
         JPanel centerPanel = new JPanel(new BorderLayout());
-        centerPanel.add(resultsPanel, BorderLayout.CENTER);
+        centerPanel.add(resultsPanel,    BorderLayout.CENTER);
         centerPanel.add(paginationPanel, BorderLayout.SOUTH);
 
-        // Split pane
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
-                leftPanel, centerPanel);
-        splitPane.setDividerLocation(300);
-        splitPane.setResizeWeight(0.2);
-        add(splitPane, BorderLayout.CENTER);
+        // === PAINEL DIREITO (subpastas) ===
+        subFolderPanel = new SubFolderPanel();
+        subFolderPanel.setFolderClickListener(folder ->
+                navigateTo(folder.getAbsolutePath(), true));
+
+        // === SPLITS ===
+        // 1. rightSplit: centerPanel (resultados) + subFolderPanel
+        JSplitPane rightSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+                centerPanel, subFolderPanel);
+        rightSplit.setResizeWeight(1.0);      // resultados expande, subpastas fixo
+        rightSplit.setDividerSize(4);
+        rightSplit.setContinuousLayout(true);
+        // Divider location em pixels após o frame estar visível (veja abaixo)
+
+        // 2. mainSplit: leftPanel + rightSplit
+        JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+                leftPanel, rightSplit);
+        mainSplit.setDividerLocation(300);
+        mainSplit.setResizeWeight(0.0);
+
+        add(mainSplit, BorderLayout.CENTER);  // ← único add ao CENTER
 
         // === PAINEL INFERIOR ===
-        JPanel statusPanel = createStatusPanel(); // MODIFICADO
+        JPanel statusPanel = createStatusPanel();
         add(statusPanel, BorderLayout.SOUTH);
 
         showWelcomeMessage();
-
         setVisible(true);
+
+        // Define divider do rightSplit após o frame estar visível
+        // (só assim getWidth() tem valor real)
+        SwingUtilities.invokeLater(() -> {
+            int totalWidth = rightSplit.getWidth();
+            rightSplit.setDividerLocation((int) (totalWidth * 0.80));
+        });
+
         performCurrentSearch();
     }
 
@@ -163,18 +315,17 @@ public class FileExplorerSwing extends JFrame {
     private void navigateTo(String path, boolean pushHistory) {
         selectedPath = path;
 
-        if (pushHistory) {
-            navigationHistory.push(path);
-        }
+        if (pushHistory) navigationHistory.push(path);
 
-        // Atualiza breadcrumb e estado dos botões ◀ ▶
         searchPanel.updateNavigationState(navigationHistory);
-
-        // Sincroniza e busca
         showSyncIndicator("🔄 Verificando mudanças...");
         controller.updateMonitoredFolder(selectedPath, createSyncCallback());
 
         currentPage = 1;
+
+        // NOVO: atualiza SubFolderPanel
+        subFolderPanel.loadSubfolders(selectedPath, controller);
+
         performCurrentSearch();
     }
 
@@ -371,19 +522,36 @@ public class FileExplorerSwing extends JFrame {
         currentPage = 1;
         currentSortBy = sortBy;
         currentSortOrder = sortOrder;
-        onSearchWithPagination(searchTerm, filter, sortBy, sortOrder,
-                minRating, tag, currentPage, paginationPanel.getPageSize());
-    }
-
-    // Substitua performCurrentSearch():
-    public void performCurrentSearch() {
         onSearchWithPagination(
-                searchPanel.getSearchTerm(),
+                searchTerm,
                 searchPanel.getSelectedFilter(),
                 searchPanel.getSortBy(),
                 searchPanel.getSortOrder(),
-                searchPanel.getMinRating(),   // NOVO
-                searchPanel.getTagFilter(),   // NOVO
+                searchPanel.getMinRating(),
+                searchPanel.getTagFilter(),
+                showSubfolderContents,   // NOVO — passa flag de subpastas
+                currentPage,
+                paginationPanel.getPageSize()
+        );
+    }
+
+    public void performCurrentSearch() {
+        String searchTerm = searchPanel.getSearchTerm();
+
+        // NOVO: se há termo de busca ativo, esconde o SubFolderPanel
+        //       (busca textual é sempre recursiva por intenção do usuário)
+//        if (searchTerm != null && !searchTerm.isEmpty()) {
+//            subFolderPanel.hide();
+//        }
+
+        onSearchWithPagination(
+                searchTerm,
+                searchPanel.getSelectedFilter(),
+                searchPanel.getSortBy(),
+                searchPanel.getSortOrder(),
+                searchPanel.getMinRating(),
+                searchPanel.getTagFilter(),
+                showSubfolderContents,   // NOVO — passa flag de subpastas
                 currentPage,
                 paginationPanel.getPageSize()
         );
@@ -391,7 +559,7 @@ public class FileExplorerSwing extends JFrame {
 
     private void onSearchWithPagination(String searchTerm, String filter,
                                         String sortBy, String sortOrder,
-                                        int minRating, String tag,        // NOVO
+                                        int minRating, String tag,boolean includeSubfolders,
                                         int page, int pageSize) {
 
         String loadingMessage;
@@ -407,9 +575,10 @@ public class FileExplorerSwing extends JFrame {
         controller.performSearchWithPagination(
                 searchTerm, filter, selectedPath,
                 sortBy, sortOrder,
-                minRating, tag,                   // NOVO
+                minRating, tag,
+                includeSubfolders,   // NOVO
                 page, pageSize,
-                new SearchController.PaginatedSearchCallback() {
+                new SearchController.PaginatedSearchCallback()  {
 
                     @Override
                     public void onSearchStarted() {

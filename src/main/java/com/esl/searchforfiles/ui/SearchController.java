@@ -76,6 +76,9 @@ public class SearchController {
 
     public DatabaseManager getDbManager() { return searchSystem.getDatabaseManager(); }
 
+    public List<FileInfo> searchDirect(SearchCriteria criteria) throws Exception {
+        return searchSystem.getSearchService().advancedSearch(criteria);
+    }
 
 
     // ========================================================================
@@ -413,79 +416,11 @@ public class SearchController {
      * Busca com paginação
      * MODIFICADO: Busca vazia mostra TODOS os arquivos da pasta
      */
-//    public void performSearchWithPagination(String searchTerm, String filter, String selectedPath,
-//                                            String sortBy, String sortOrder,
-//                                            int page, int pageSize,
-//                                            PaginatedSearchCallback callback) {
-//
-//        // MODIFICADO: Não valida mais se searchTerm está vazio
-//        // Termo vazio = mostra todos os arquivos
-//
-//        String processedTerm = processSearchTerm(searchTerm);
-//
-//        SearchCriteria criteria = new SearchCriteria()
-//                .withName(processedTerm)  // Se vazio, será "*" (todos)
-//                .inPath(selectedPath, true)
-//                .sortBy(sortBy, sortOrder);
-//
-//        if (!"TODOS".equals(filter)) {
-//            if ("FOLDER".equals(filter)) {
-//                criteria.withFileType(FileType.FOLDER);
-//            } else {
-//                criteria.withFileType(FileType.valueOf(filter));
-//            }
-//        }
-//
-//        this.lastCriteria = criteria;
-//        this.lastSelectedPath = selectedPath;
-//        this.lastSearchTerm = searchTerm;
-//        this.lastFilter = filter;
-//        this.lastSortBy = sortBy;
-//        this.lastSortOrder = sortOrder;
-//        this.lastPage = page;
-//        this.lastPageSize = pageSize;
-//        this.lastCallback = callback;
-//
-//        SwingWorker<SearchService.SearchResult, Void> worker = new SwingWorker<>() {
-//            @Override
-//            protected SearchService.SearchResult doInBackground() throws Exception {
-//                // Log diferenciado
-//                if (searchTerm == null || searchTerm.trim().isEmpty()) {
-//                    System.out.println(String.format(
-//                            "📂 Listando TODOS os arquivos | Ordem: %s %s | Página: %d/%d | Tipo: %s | Pasta: %s",
-//                            sortBy, sortOrder, page, pageSize, filter, selectedPath
-//                    ));
-//                } else {
-//                    System.out.println(String.format(
-//                            "🔍 Busca: %s | Ordem: %s %s | Página: %d/%d | Tipo: %s | Pasta: %s",
-//                            searchTerm, sortBy, sortOrder, page, pageSize, filter, selectedPath
-//                    ));
-//                }
-//
-//                return searchSystem.getSearchService().advancedSearchWithPagination(
-//                        criteria, page, pageSize
-//                );
-//            }
-//
-//            @Override
-//            protected void done() {
-//                try {
-//                    SearchService.SearchResult result = get();
-//                    callback.onSearchCompleted(result.getResults(), result.getPagination());
-//                } catch (Exception e) {
-//                    callback.onSearchError(e);
-//                    e.printStackTrace();
-//                }
-//            }
-//        };
-//
-//        callback.onSearchStarted();
-//        worker.execute();
-//    }
     public void performSearchWithPagination(
             String searchTerm, String filter, String path,
             String sortBy, String sortOrder,
-            int minRating, String tag,                // NOVO
+            int minRating, String tag,
+            boolean includeSubfolders,   // NOVO
             int page, int pageSize,
             PaginatedSearchCallback callback) {
 
@@ -496,7 +431,7 @@ public class SearchController {
 
                         SearchCriteria criteria = new SearchCriteria()
                                 .withName(searchTerm.isEmpty() ? null : "*" + searchTerm + "*")
-                                .inPath(path, true)
+                                .inPath(path, includeSubfolders)
                                 .sortBy(sortBy, sortOrder);
 
                         if (!"TODOS".equals(filter))

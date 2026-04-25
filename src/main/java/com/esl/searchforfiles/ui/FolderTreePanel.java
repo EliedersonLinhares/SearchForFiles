@@ -79,7 +79,6 @@ public class FolderTreePanel extends JPanel {
                 }
             }
         });
-
         // Listener para expandir (lazy loading)
         folderTree.addTreeWillExpandListener(new TreeWillExpandListener() {
             @Override

@@ -24,9 +24,13 @@ public class FileContextMenu extends JPopupMenu {
     private final DatabaseManager dbManager;          // NOVO
     private final FileItemPanel itemPanel; // NOVO
     private final FolderNavigationListener folderNavListener;
+    private final SubfolderToggleListener subfolderToggleListener;
+    private boolean currentIncludeSubfolders;
 
     public FileContextMenu(File file, FileInfo fileInfo, Component parent, DatabaseManager dbManager,
-                           FileItemPanel itemPanel, FolderNavigationListener folderNavListener) {
+                           FileItemPanel itemPanel, FolderNavigationListener folderNavListener,
+                            boolean currentIncludeSubfolders,          // NOVO
+                           SubfolderToggleListener subfolderToggleListener ) {
         this.file = file;
         this.fileInfo = fileInfo;
         this.parent = parent;
@@ -34,6 +38,8 @@ public class FileContextMenu extends JPopupMenu {
         this.itemPanel = itemPanel;
         this.folderNavListener = folderNavListener;
         this.cacheManager = FileItemPanel.getThumbnailCacheManager();
+        this.subfolderToggleListener  = subfolderToggleListener;
+        this.currentIncludeSubfolders = currentIncludeSubfolders;
 
         createMenuItems();
     }
@@ -79,6 +85,15 @@ public class FileContextMenu extends JPopupMenu {
         }
 
         add(makeItem("Propriedades", null, e -> showProperties()));
+
+        JCheckBoxMenuItem subfolderItem = new JCheckBoxMenuItem(
+                "📂 Mostrar conteúdo de subpastas");
+        subfolderItem.setSelected(currentIncludeSubfolders);
+        subfolderItem.addActionListener(e -> {
+            if (subfolderToggleListener != null)
+                subfolderToggleListener.onToggle(subfolderItem.isSelected());
+        });
+        add(subfolderItem);
 
         addSeparator();
         JCheckBoxMenuItem toggleOverlay = new JCheckBoxMenuItem("⭐ Mostrar avaliação nos ícones");
@@ -342,6 +357,9 @@ public class FileContextMenu extends JPopupMenu {
 
     public interface FolderNavigationListener {
         void onNavigateTo(String path);
+    }
+    public interface SubfolderToggleListener {
+        void onToggle(boolean includeSubfolders);
     }
 
 }
