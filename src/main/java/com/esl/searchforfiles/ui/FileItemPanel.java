@@ -81,11 +81,6 @@ public FileItemPanel(File file, FileInfo fileInfo, int width, int height) {
     setAlignmentX(Component.CENTER_ALIGNMENT);
 
     // Ícone / Miniatura
-//    JLabel iconLabel = createIconLabel(width, file);
-//    iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
-//    iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-    // Ícone / Miniatura
     JComponent iconLabel = createIconLabel(width, file);  // JComponent em vez de JLabel
     iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);  // mantém — é método de JComponent
 
@@ -146,13 +141,20 @@ public FileItemPanel(File file, FileInfo fileInfo, int width, int height) {
         @Override
         public void mouseEntered(MouseEvent e) {
             setBackground(hoverColor);
-            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            // NOVO: cursor e borda diferenciados para pastas navegáveis
+            if (fileInfo.isDirectory()) {
+                setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+                setBorder(BorderFactory.createLineBorder(new Color(33, 150, 243), 1));
+            } else {
+                setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            }
         }
 
         @Override
         public void mouseExited(MouseEvent e) {
             setBackground(normalColor);
             setCursor(Cursor.getDefaultCursor());
+            setBorder(BorderFactory.createEmptyBorder()); // remove borda
         }
     });
 }

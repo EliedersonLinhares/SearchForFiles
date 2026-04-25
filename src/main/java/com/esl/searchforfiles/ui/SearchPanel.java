@@ -20,6 +20,10 @@ public class SearchPanel extends JPanel {
     // NOVO ▼
     private final JComboBox<String> ratingFilterCombo;   // "Qualquer", "1+", "2+", …, "5"
     private final JTextField        tagFilterField;       // texto livre de tag
+    private final JButton  backButton;
+    private final JButton  forwardButton;
+    private final JLabel   breadcrumbLabel;   // mostra o caminho atual
+    private NavigationListener navigationListener;
 
     private SearchListener searchListener;
     private IndexListener indexListener;
@@ -30,6 +34,34 @@ public SearchPanel() {
 
     // Campo de busca
     searchField = createSearchField();
+
+    // NOVO: botões de navegação ─────────────────────────────────
+    backButton = new JButton("◀");
+    backButton.setFont(new Font("SansSerif", Font.BOLD, 13));
+    backButton.setToolTipText("Voltar (Alt+←)");
+    backButton.setEnabled(false);
+    backButton.setPreferredSize(new Dimension(36, 25));
+    backButton.addActionListener(e -> {
+        if (navigationListener != null) navigationListener.onBack();
+    });
+
+    forwardButton = new JButton("▶");
+    forwardButton.setFont(new Font("SansSerif", Font.BOLD, 13));
+    forwardButton.setToolTipText("Avançar (Alt+→)");
+    forwardButton.setEnabled(false);
+    forwardButton.setPreferredSize(new Dimension(36, 25));
+    forwardButton.addActionListener(e -> {
+        if (navigationListener != null) navigationListener.onForward();
+    });
+
+    // Breadcrumb — mostra pasta atual abaixo dos controles
+    breadcrumbLabel = new JLabel(" ");
+    breadcrumbLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+    breadcrumbLabel.setForeground(new Color(150, 150, 150));
+    breadcrumbLabel.setBorder(BorderFactory.createEmptyBorder(2, 4, 0, 0));
+
+    // Atalhos de teclado Alt+← e Alt+→
+    registerKeyboardShortcuts();
 
     // NOVO: ComboBox de ordenação por
     sortByCombo = new JComboBox<>(SortOption.values());
@@ -90,8 +122,15 @@ public SearchPanel() {
     // Painel central: Campo de busca + Ordenação + Filtro
     JPanel centerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
 
+    // Botões de nav primeiro
+    centerPanel.add(backButton);
+    centerPanel.add(forwardButton);
+    centerPanel.add(new JSeparator(SwingConstants.VERTICAL) {{
+        setPreferredSize(new Dimension(2, 22));
+    }});
+
     // Campo de busca com largura fixa
-    searchField.setPreferredSize(new Dimension(500, 25));
+    searchField.setPreferredSize(new Dimension(360, 25));
     centerPanel.add(searchField);
 
     // Separador visual
@@ -133,8 +172,62 @@ public SearchPanel() {
     add(mainPanel, BorderLayout.CENTER);
 }
 
+    // ── API pública nova ──────────────────────────────────────────
 
-    // ── getters novos ──────────────────────────────────────────────
+    /** Atualiza estado visual dos botões e do breadcrumb. */
+    public void updateNavigationState(NavigationHistory history) {
+        backButton.setEnabled(history.canGoBack());
+        forwardButton.setEnabled(history.canGoForward());
+        updateBreadcrumb(history.getCurrent());
+    }
+
+    /** Atualiza só o breadcrumb (ex: ao selecionar pela árvore). */
+    public void updateBreadcrumb(String path) {
+        if (path == null) { breadcrumbLabel.setText(" "); return; }
+
+        // Monta breadcrumb estilo "C: › Users › Fotos › Férias"
+        String[] parts = path.replace("\\", "/").split("/");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < parts.length; i++) {
+            if (!parts[i].isEmpty()) {
+                if (sb.length() > 0) sb.append(" › ");
+                sb.append(parts[i].replace(":", ":"));
+            }
+        }
+        breadcrumbLabel.setText(sb.length() > 0 ? sb.toString() : path);
+        breadcrumbLabel.setToolTipText(path);
+    }
+
+    public void setNavigationListener(NavigationListener l) { this.navigationListener = l; }
+
+    // ── Atalhos de teclado ────────────────────────────────────────
+    private void registerKeyboardShortcuts() {
+        KeyStroke back    = KeyStroke.getKeyStroke(KeyEvent.VK_LEFT,  InputEvent.ALT_DOWN_MASK);
+        KeyStroke forward = KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, InputEvent.ALT_DOWN_MASK);
+
+        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(back,    "nav.back");
+        getInputMap(WHEN_IN_FOCUSED_WINDOW).put(forward, "nav.forward");
+
+        getActionMap().put("nav.back",    new AbstractAction() {
+            @Override public void actionPerformed(ActionEvent e) {
+                if (backButton.isEnabled() && navigationListener != null)
+                    navigationListener.onBack();
+            }
+        });
+        getActionMap().put("nav.forward", new AbstractAction() {
+            @Override public void actionPerformed(ActionEvent e) {
+                if (forwardButton.isEnabled() && navigationListener != null)
+                    navigationListener.onForward();
+            }
+        });
+    }
+
+    // ── Interface ─────────────────────────────────────────────────
+    public interface NavigationListener {
+        void onBack();
+        void onForward();
+    }
+
 
     /** Retorna 0 se "Qualquer", caso contrário o valor mínimo de estrelas. */
     public int getMinRating() {

@@ -23,75 +23,69 @@ public class FileContextMenu extends JPopupMenu {
     private final ThumbnailCacheManager cacheManager;
     private final DatabaseManager dbManager;          // NOVO
     private final FileItemPanel itemPanel; // NOVO
+    private final FolderNavigationListener folderNavListener;
 
-    public FileContextMenu(File file, FileInfo fileInfo, Component parent, DatabaseManager dbManager, FileItemPanel itemPanel) {
+    public FileContextMenu(File file, FileInfo fileInfo, Component parent, DatabaseManager dbManager,
+                           FileItemPanel itemPanel, FolderNavigationListener folderNavListener) {
         this.file = file;
         this.fileInfo = fileInfo;
         this.parent = parent;
         this.dbManager = dbManager;
         this.itemPanel = itemPanel;
+        this.folderNavListener = folderNavListener;
         this.cacheManager = FileItemPanel.getThumbnailCacheManager();
 
         createMenuItems();
     }
 
-//    private void createMenuItems() {
-//        // Abrir
-//        JMenuItem openItem = new JMenuItem("Abrir");
-//        openItem.setIcon(UIManager.getIcon("FileView.fileIcon"));
-//        openItem.addActionListener(e -> openFile());
-//        add(openItem);
-//
-//        // Abrir pasta
-//        JMenuItem openFolderItem = new JMenuItem("Abrir pasta");
-//        openFolderItem.setIcon(UIManager.getIcon("FileView.directoryIcon"));
-//        openFolderItem.addActionListener(e -> openFolder());
-//        add(openFolderItem);
-//
-//        addSeparator();
-//        // NOVO: Se for vídeo, adiciona opção de cache
-//        if (isVideoFile(file)) {
-//            JMenu cacheMenu = createCacheSubmenu();
-//            add(cacheMenu);
-//            addSeparator();
-//        }
-//
-//        // Propriedades
-//        JMenuItem propertiesItem = new JMenuItem("Propriedades");
-//        propertiesItem.addActionListener(e -> showProperties());
-//        add(propertiesItem);
-//    }
-private void createMenuItems() {
-    add(makeItem("Abrir", UIManager.getIcon("FileView.fileIcon"), e -> openFile()));
-    add(makeItem("Abrir pasta", UIManager.getIcon("FileView.directoryIcon"), e -> openFolder()));
-    addSeparator();
+    private void createMenuItems() {
+        if (fileInfo.isDirectory()) {
+            // Para PASTAS: "Entrar" como ação principal
+            JMenuItem enterItem = new JMenuItem("📂 Entrar na pasta");
+            enterItem.setFont(enterItem.getFont().deriveFont(Font.BOLD)); // destaque
+            enterItem.addActionListener(e -> {
+                if (folderNavListener != null)
+                    folderNavListener.onNavigateTo(file.getAbsolutePath());
+            });
+            add(enterItem);
+        } else {
+            // Para ARQUIVOS: "Abrir" como ação principal (comportamento original)
+            JMenuItem openItem = new JMenuItem("Abrir");
+            openItem.setIcon(UIManager.getIcon("FileView.fileIcon"));
+            openItem.addActionListener(e -> openFile());
+            add(openItem);
+        }
 
-    // NOVO: Submenu de avaliação ─────────────────────────────────
-    add(createRatingSubmenu());
+        // "Abrir no Explorer" sempre disponível
+        JMenuItem openExplorerItem = new JMenuItem("🗂️  Abrir no Explorer");
+        openExplorerItem.setIcon(UIManager.getIcon("FileView.directoryIcon"));
+        openExplorerItem.addActionListener(e -> openFolder());
+        add(openExplorerItem);
 
-    // NOVO: Gerenciar Tags ───────────────────────────────────────
-    JMenuItem tagsItem = new JMenuItem("🏷️  Gerenciar Tags...");
-    tagsItem.addActionListener(e -> openTagDialog());
-    add(tagsItem);
-
-    addSeparator();
-
-    if (isVideoFile(file)) {
-        add(createCacheSubmenu());
         addSeparator();
+
+        // Avaliação e Tags (apenas para arquivos, não faz sentido em pastas)
+        if (!fileInfo.isDirectory()) {
+            add(createRatingSubmenu());
+            JMenuItem tagsItem = new JMenuItem("🏷️  Gerenciar Tags...");
+            tagsItem.addActionListener(e -> openTagDialog());
+            add(tagsItem);
+            addSeparator();
+
+            if (isVideoFile(file)) {
+                add(createCacheSubmenu());
+                addSeparator();
+            }
+        }
+
+        add(makeItem("Propriedades", null, e -> showProperties()));
+
+        addSeparator();
+        JCheckBoxMenuItem toggleOverlay = new JCheckBoxMenuItem("⭐ Mostrar avaliação nos ícones");
+        toggleOverlay.setSelected(FileItemPanel.isShowRatingOverlay());
+        toggleOverlay.addActionListener(e -> toggleRatingOverlay(toggleOverlay.isSelected()));
+        add(toggleOverlay);
     }
-
-    add(makeItem("Propriedades", null, e -> showProperties()));
-
-    addSeparator();
-
-    // NOVO: Toggle global de visibilidade das estrelas
-    JCheckBoxMenuItem toggleOverlay = new JCheckBoxMenuItem(
-            "⭐ Mostrar avaliação nos ícones");
-    toggleOverlay.setSelected(FileItemPanel.isShowRatingOverlay());
-    toggleOverlay.addActionListener(e -> toggleRatingOverlay(toggleOverlay.isSelected()));
-    add(toggleOverlay);
-}
 
     // ── Rating submenu ──────────────────────────────────────────────
     private JMenu createRatingSubmenu() {
@@ -113,18 +107,6 @@ private void createMenuItems() {
         }
         return menu;
     }
-
-//    private void setRating(int stars) {
-//        try {
-//            dbManager.setRating(fileInfo.getPath(), stars);
-//            // Atualiza fileInfo em memória para que o submenu reflita na próxima abertura
-//            fileInfo.setRating(stars);
-//        } catch (SQLException ex) {
-//            JOptionPane.showMessageDialog(parent,
-//                    "Erro ao salvar avaliação: " + ex.getMessage(),
-//                    "Erro", JOptionPane.ERROR_MESSAGE);
-//        }
-//    }
 
     private void setRating(int stars) {
         try {
@@ -185,9 +167,6 @@ private void createMenuItems() {
             }
         }
     }
-
-
-
     /**
      * NOVO: Cria submenu para opções de cache (apenas para vídeos)
      */
@@ -360,4 +339,9 @@ private void createMenuItems() {
                 "Propriedades - " + fileInfo.getName(),
                 JOptionPane.INFORMATION_MESSAGE);
     }
+
+    public interface FolderNavigationListener {
+        void onNavigateTo(String path);
+    }
+
 }
