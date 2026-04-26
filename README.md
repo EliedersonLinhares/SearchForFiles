@@ -23,6 +23,8 @@ focus on media(image, audio and video)
 - ✅ Add filters and ordering possibilities when you search an archive
 - ✅ Add real time monitoring and update arquives when start the program
 - ✅ Add Star an Tags
+- ✅ Add SubFolder Panel to navigate folders inside
+- ✅ Add thumbnails size chose
 
 ## 🚀 Features to be implemented
 - ℹ️ Better UI design

@@ -1,5 +1,7 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.others.ThumbnailSize;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -27,6 +29,9 @@ public class SearchPanel extends JPanel {
 
     private SearchListener searchListener;
     private IndexListener indexListener;
+
+    private final JComboBox<ThumbnailSize> thumbSizeCombo; // NOVO
+    private ThumbnailSizeListener thumbSizeListener;       // NOVO
 
 public SearchPanel() {
     setLayout(new BorderLayout(5, 5));
@@ -78,6 +83,18 @@ public SearchPanel() {
     sortOrderCombo.setToolTipText("Ordem de classificação");
     sortOrderCombo.setPreferredSize(new Dimension(120, 25));
     sortOrderCombo.addActionListener(e -> triggerSearch());
+
+    thumbSizeCombo = new JComboBox<>(ThumbnailSize.values());
+    thumbSizeCombo.setSelectedItem(ThumbnailSize.MEDIO);
+    thumbSizeCombo.setFont(new Font("SansSerif", Font.PLAIN, 12));
+    thumbSizeCombo.setToolTipText("Tamanho das miniaturas");
+    thumbSizeCombo.setPreferredSize(new Dimension(130, 25));
+    thumbSizeCombo.addActionListener(e -> {
+        if (thumbSizeListener != null)
+            thumbSizeListener.onSizeChanged(getSelectedThumbnailSize());
+        // NÃO dispara triggerSearch() — só muda o visual, não a busca
+    });
+
 
     // ComboBox de filtro por tipo
     filterBox = new JComboBox<>(new String[]{
@@ -160,6 +177,9 @@ public SearchPanel() {
     centerPanel.add(new JLabel("Tag:"));
     centerPanel.add(tagFilterField);
     //
+    centerPanel.add(new JLabel(" | "));
+    centerPanel.add(new JLabel("Ícones:"));
+    centerPanel.add(thumbSizeCombo);
 
     mainPanel.add(centerPanel, BorderLayout.CENTER);
 
@@ -222,6 +242,18 @@ public SearchPanel() {
         });
     }
 
+    public ThumbnailSize getSelectedThumbnailSize() {
+        return (ThumbnailSize) thumbSizeCombo.getSelectedItem();
+    }
+
+    public void setThumbnailSizeListener(ThumbnailSizeListener l) {
+        this.thumbSizeListener = l;
+    }
+
+    public interface ThumbnailSizeListener {
+        void onSizeChanged(ThumbnailSize size);
+    }
+
     // ── Interface ─────────────────────────────────────────────────
     public interface NavigationListener {
         void onBack();
@@ -246,7 +278,7 @@ public SearchPanel() {
             searchListener.onSearch(
                     getSearchTerm(), getSelectedFilter(),
                     getSortBy(), getSortOrder(),
-                    getMinRating(), getTagFilter()   // NOVO
+                    getMinRating(), getTagFilter()
             );
         }
     }
@@ -306,7 +338,6 @@ private JTextField createSearchField() {
     JTextField field = new JTextField();
     field.setFont(new Font("SansSerif", Font.PLAIN, 14));
     field.setText("Digite o nome do arquivo (ex: foto, *.pdf, relatorio*)");
-    field.setForeground(Color.WHITE);
 
     // Placeholder behavior
     field.addFocusListener(new FocusAdapter() {
@@ -314,7 +345,6 @@ private JTextField createSearchField() {
         public void focusGained(FocusEvent e) {
             if (field.getText().equals("Digite o nome do arquivo (ex: foto, *.pdf, relatorio*)")) {
                 field.setText("");
-                field.setForeground(Color.WHITE);
             }
         }
 
@@ -322,7 +352,6 @@ private JTextField createSearchField() {
         public void focusLost(FocusEvent e) {
             if (field.getText().isEmpty()) {
                 field.setText("Digite o nome do arquivo (ex: foto, *.pdf, relatorio*)");
-                field.setForeground(Color.GRAY);
             }
         }
     });
@@ -331,17 +360,6 @@ private JTextField createSearchField() {
 
     return field;
 }
-
-//public void triggerSearch() {
-//    if (searchListener != null) {
-//        String term = getSearchTerm();
-//        String filter = getSelectedFilter();
-//        String sortBy = getSortBy();
-//        String sortOrder = getSortOrder();
-//
-//        searchListener.onSearch(term, filter, sortBy, sortOrder);
-//    }
-//}
     private void triggerIndex() {
         if (indexListener != null) {
             indexListener.onIndexRequest();

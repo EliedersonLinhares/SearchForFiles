@@ -2,6 +2,7 @@ package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.model.FileInfo;
+import com.esl.searchforfiles.others.ThumbnailSize;
 
 import javax.swing.*;
 import java.awt.*;
@@ -24,6 +25,7 @@ public class ResultsPanel extends JPanel {
     private List<FileInfo> lastResults;
     // Cor de fundo customizável
     private Color backgroundColor = new Color(245, 245, 250); // Cinza azulado claro
+    private ThumbnailSize currentThumbSize = ThumbnailSize.MEDIO; // NOVO
 
     public ResultsPanel() {
         setLayout(new BorderLayout());
@@ -120,6 +122,15 @@ public class ResultsPanel extends JPanel {
         });
     }
 
+    public void setThumbnailSize(ThumbnailSize size) {
+        this.currentThumbSize = size;
+        // Limpa cache de ícones para forçar re-render no novo tamanho
+        FileItemPanel.ICON_CACHE.clear();
+        if (lastResults != null && !lastResults.isEmpty()) {
+            renderGrid(lastResults);
+        }
+    }
+
 
     //    /**
 //     * Exibe resultados no grid
@@ -130,69 +141,115 @@ public class ResultsPanel extends JPanel {
         renderGrid(results);
     }
 
-    /**
-     * Renderiza o grid de resultados
-     * NOVO MÉTODO: Separado para facilitar re-renderização
-     */
-    private void renderGrid(List<FileInfo> results) {
-        gridPanel.removeAll();
-        gridPanel.setLayout(null);
-        gridPanel.setBackground(backgroundColor);
+//    /**
+//     * Renderiza o grid de resultados
+//     * NOVO MÉTODO: Separado para facilitar re-renderização
+//     */
+//    private void renderGrid(List<FileInfo> results) {
+//        gridPanel.removeAll();
+//        gridPanel.setLayout(null);
+//        gridPanel.setBackground(backgroundColor);
+//
+//        int panelWidth = scrollPane.getViewport().getWidth();
+//        if (panelWidth <= 0) {
+//            panelWidth = getWidth();
+//        }
+//
+//        // Se ainda não tem largura válida, tenta novamente depois
+//        if (panelWidth <= 100) {
+//            SwingUtilities.invokeLater(() -> renderGrid(results));
+//            return;
+//        }
+//
+//        int spacing = 15;
+//        int minItemWidth = 130;
+//        int itemHeight = 160;
+//
+//        // Calcula quantos itens cabem por linha
+//        int itemsPerRow = Math.max(1, (panelWidth - spacing) / (minItemWidth + spacing));
+//        int dynamicWidth = (panelWidth - (itemsPerRow + 1) * spacing) / itemsPerRow;
+//
+//        int x = spacing;
+//        int y = spacing;
+//        int count = 0;
+//
+//        for (FileInfo fileInfo : results) {
+//            File file = new File(fileInfo.getPath());
+//            if (!file.exists()) continue;
+//
+//            FileItemPanel item = new FileItemPanel(file, fileInfo, dynamicWidth, itemHeight);
+//            item.setBounds(x, y, dynamicWidth, itemHeight);
+//
+//            if (clickListener != null) {
+//                item.setClickListener(clickListener); // já existia
+//                // O FileItemPanel precisa saber quem é ele mesmo — veja item 2e abaixo
+//            }
+//
+//            gridPanel.add(item);
+//
+//            count++;
+//            if (count % itemsPerRow == 0) {
+//                x = spacing;
+//                y += itemHeight + spacing;
+//            } else {
+//                x += dynamicWidth + spacing;
+//            }
+//        }
+//
+//        // Calcula altura total necessária
+//        int totalRows = (int) Math.ceil((double) count / itemsPerRow);
+//        int totalHeight = spacing + (totalRows * (itemHeight + spacing));
+//
+//        gridPanel.setPreferredSize(new Dimension(panelWidth, totalHeight));
+//        gridPanel.revalidate();
+//        gridPanel.repaint();
+//    }
+private void renderGrid(List<FileInfo> results) {
+    gridPanel.removeAll();
+    gridPanel.setLayout(null);
+    gridPanel.setBackground(backgroundColor);
 
-        int panelWidth = scrollPane.getViewport().getWidth();
-        if (panelWidth <= 0) {
-            panelWidth = getWidth();
-        }
-
-        // Se ainda não tem largura válida, tenta novamente depois
-        if (panelWidth <= 100) {
-            SwingUtilities.invokeLater(() -> renderGrid(results));
-            return;
-        }
-
-        int spacing = 15;
-        int minItemWidth = 130;
-        int itemHeight = 160;
-
-        // Calcula quantos itens cabem por linha
-        int itemsPerRow = Math.max(1, (panelWidth - spacing) / (minItemWidth + spacing));
-        int dynamicWidth = (panelWidth - (itemsPerRow + 1) * spacing) / itemsPerRow;
-
-        int x = spacing;
-        int y = spacing;
-        int count = 0;
-
-        for (FileInfo fileInfo : results) {
-            File file = new File(fileInfo.getPath());
-            if (!file.exists()) continue;
-
-            FileItemPanel item = new FileItemPanel(file, fileInfo, dynamicWidth, itemHeight);
-            item.setBounds(x, y, dynamicWidth, itemHeight);
-
-            if (clickListener != null) {
-                item.setClickListener(clickListener); // já existia
-                // O FileItemPanel precisa saber quem é ele mesmo — veja item 2e abaixo
-            }
-
-            gridPanel.add(item);
-
-            count++;
-            if (count % itemsPerRow == 0) {
-                x = spacing;
-                y += itemHeight + spacing;
-            } else {
-                x += dynamicWidth + spacing;
-            }
-        }
-
-        // Calcula altura total necessária
-        int totalRows = (int) Math.ceil((double) count / itemsPerRow);
-        int totalHeight = spacing + (totalRows * (itemHeight + spacing));
-
-        gridPanel.setPreferredSize(new Dimension(panelWidth, totalHeight));
-        gridPanel.revalidate();
-        gridPanel.repaint();
+    int panelWidth = scrollPane.getViewport().getWidth();
+    if (panelWidth <= 0) panelWidth = getWidth();
+    if (panelWidth <= 100) {
+        SwingUtilities.invokeLater(() -> renderGrid(results));
+        return;
     }
+
+    int spacing    = 12;
+    // MODIFICADO: usa largura do card baseada no ThumbnailSize
+    int cardWidth  = currentThumbSize.thumbPx + 20;  // margem lateral
+    int cardHeight = currentThumbSize.cardHeight;
+
+    int itemsPerRow = Math.max(1, (panelWidth - spacing) / (cardWidth + spacing));
+    int dynamicWidth = (panelWidth - (itemsPerRow + 1) * spacing) / itemsPerRow;
+
+    int x = spacing, y = spacing, count = 0;
+
+    for (FileInfo fileInfo : results) {
+        File file = new File(fileInfo.getPath());
+        if (!file.exists()) continue;
+
+        // MODIFICADO: passa thumbSize para o FileItemPanel
+        FileItemPanel item = new FileItemPanel(
+                file, fileInfo, dynamicWidth, cardHeight,
+                currentThumbSize.thumbPx);  // NOVO parâmetro
+        item.setBounds(x, y, dynamicWidth, cardHeight);
+
+        if (clickListener != null) item.setClickListener(clickListener);
+        gridPanel.add(item);
+
+        count++;
+        if (count % itemsPerRow == 0) { x = spacing; y += cardHeight + spacing; }
+        else                          { x += dynamicWidth + spacing; }
+    }
+
+    int totalRows   = (int) Math.ceil((double) count / itemsPerRow);
+    int totalHeight = spacing + totalRows * (cardHeight + spacing);
+    gridPanel.setPreferredSize(new Dimension(panelWidth, totalHeight));
+    gridPanel.revalidate();
+    gridPanel.repaint();
+}
 
     /**
      * Exibe mensagem centralizada

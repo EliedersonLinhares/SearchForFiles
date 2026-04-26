@@ -1,15 +1,12 @@
 package com.esl.searchforfiles.ui;
 
 import mslinks.ShellLink;
-import mslinks.ShellLinkException;
 
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.*;
 
 /**

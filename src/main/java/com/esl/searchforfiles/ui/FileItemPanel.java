@@ -54,10 +54,12 @@ public class FileItemPanel extends JPanel {
     private final Color hoverColor = new Color(70, 70, 70);
 
     private static boolean showRatingOverlay = true; // NOVO — controlado pelo menu de contexto
+    private final int thumbSize;
 
-public FileItemPanel(File file, FileInfo fileInfo, int width, int height) {
+public FileItemPanel(File file, FileInfo fileInfo, int width, int height, int thumbSize) {
 
     this.originalFile = file;
+    this.thumbSize = thumbSize;
 // VALIDAÇÃO CRÍTICA: Verifica se file não é null
     if (file == null) {
         throw new IllegalArgumentException("File não pode ser null!");
@@ -162,6 +164,106 @@ public FileItemPanel(File file, FileInfo fileInfo, int width, int height) {
     public static boolean isShowRatingOverlay()           { return showRatingOverlay; }
     public static void    setShowRatingOverlay(boolean v) { showRatingOverlay = v; }
 
+    /**
+     * Escala a imagem mantendo proporção, centralizando no espaço
+     * disponível com fundo neutro (igual ao Windows Explorer).
+     * Substitui scaleWithPreset() para o caso de exibição no grid.
+     */
+//    private BufferedImage fitInsideSquare(BufferedImage src, int boxSize) {
+//        if (src == null) return null;
+//
+//        int srcW = src.getWidth();
+//        int srcH = src.getHeight();
+//
+//        // Calcula escala mantendo proporção
+//        double scale = Math.min((double) boxSize / srcW, (double) boxSize / srcH);
+//        int dstW = Math.max(1, (int) (srcW * scale));
+//        int dstH = Math.max(1, (int) (srcH * scale));
+//
+//        // Canvas quadrado com fundo escuro (neutro para qualquer imagem)
+//        BufferedImage canvas = new BufferedImage(boxSize, boxSize, BufferedImage.TYPE_INT_ARGB);
+//        Graphics2D g2 = canvas.createGraphics();
+//
+//        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+//                RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+//        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+//                RenderingHints.VALUE_ANTIALIAS_ON);
+//        g2.setRenderingHint(RenderingHints.KEY_RENDERING,
+//                RenderingHints.VALUE_RENDER_QUALITY);
+//
+//        // Fundo: mesma cor do card para integração visual
+//        g2.setColor(new Color(56, 56, 56, 0)); // transparente
+//        g2.fillRect(0, 0, boxSize, boxSize);
+//
+//        // Centraliza a imagem no canvas
+//        int offsetX = (boxSize - dstW) / 2;
+//        int offsetY = (boxSize - dstH) / 2;
+//        g2.drawImage(src, offsetX, offsetY, dstW, dstH, null);
+//        g2.dispose();
+//
+//        return canvas;
+//    }
+
+    /**
+     * fitInsideSquare() — sem alteração, agora recebe imagem já proporcional
+     * e só centraliza no canvas quadrado do card.
+     */
+    private BufferedImage fitInsideSquare(BufferedImage src, int boxSize) {
+        if (src == null) return null;
+
+        int srcW = src.getWidth();
+        int srcH = src.getHeight();
+
+        // A imagem já vem proporcional — só recalcula caso o boxSize seja diferente
+        double scale = Math.min((double) boxSize / srcW, (double) boxSize / srcH);
+        int dstW = Math.max(1, (int) (srcW * scale));
+        int dstH = Math.max(1, (int) (srcH * scale));
+
+        // Canvas quadrado transparente
+        BufferedImage canvas = new BufferedImage(boxSize, boxSize, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = canvas.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON);
+
+        // Centraliza
+        int offsetX = (boxSize - dstW) / 2;
+        int offsetY = (boxSize - dstH) / 2;
+        g2.drawImage(src, offsetX, offsetY, dstW, dstH, null);
+        g2.dispose();
+
+        return canvas;
+    }
+
+    /**
+     * Versão para ícone do sistema (já é Icon, não BufferedImage).
+     * Centraliza no espaço sem esticar.
+     */
+    private ImageIcon fitIconInsideSquare(Icon icon, int boxSize) {
+        if (icon == null) return null;
+
+        int iw = icon.getIconWidth();
+        int ih = icon.getIconHeight();
+
+        BufferedImage canvas = new BufferedImage(boxSize, boxSize, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = canvas.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        // Escala mantendo proporção
+        double scale = Math.min((double) boxSize / iw, (double) boxSize / ih);
+        int dstW = Math.max(1, (int)(iw * scale));
+        int dstH = Math.max(1, (int)(ih * scale));
+        int ox   = (boxSize - dstW) / 2;
+        int oy   = (boxSize - dstH) / 2;
+
+        // Desenha o ícone escalado e centralizado
+        Image scaled = ((ImageIcon) resizeIcon(icon, Math.max(dstW, dstH))).getImage();
+        g2.drawImage(scaled, ox, oy, dstW, dstH, null);
+        g2.dispose();
+
+        return new ImageIcon(canvas);
+    }
 
 // ==============================================================
 // NOVO MÉTODO: Atualiza ícone do label
@@ -180,81 +282,189 @@ public FileItemPanel(File file, FileInfo fileInfo, int width, int height) {
             iconLabel.setIcon(getSystemIconCached(file, 128));
         }
     }
-//private JLabel createIconLabel(int width, File file) {
-//    JLabel label = new JLabel();
-//    label.setHorizontalAlignment(SwingConstants.CENTER);
+//private JComponent createIconLabel(int width, File file) {
 //
 //    int thumbSize = Math.min(width - 10, 128);
-//
-//    // USA displayFile em vez de file
 //    File fileToDisplay = this.displayFile;
 //
+//    // Label do ícone/thumbnail (camada inferior)
+//    JLabel iconLabel = new JLabel();
+//    iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
+//    iconLabel.setPreferredSize(new Dimension(width, thumbSize));
 //
 //    if (isImage(fileToDisplay)) {
-//        label.setIcon(getLoadingIcon());
-//        loadThumbnailAsyncCached(fileToDisplay, thumbSize, Preset.MEDIO, label);
-//        return label;
-//    }
-//    if (isVideo(fileToDisplay)) {
-//        label.setIcon(getLoadingIcon());
-//        loadVideoThumbnailAsync(fileToDisplay, thumbSize, label);
-//        return label;
-//    }
-//    if (isPdf(fileToDisplay)) {
-//        label.setIcon(getLoadingIcon());
-//        loadPdfThumbnailAsync(fileToDisplay, thumbSize, label);
-//        return label;
+//        iconLabel.setIcon(getLoadingIcon());
+//        loadThumbnailAsyncCached(fileToDisplay, thumbSize, Preset.MEDIO, iconLabel);
+//    } else if (isVideo(fileToDisplay)) {
+//        iconLabel.setIcon(getLoadingIcon());
+//        loadVideoThumbnailAsync(fileToDisplay, thumbSize, iconLabel);
+//    } else if (isPdf(fileToDisplay)) {
+//        iconLabel.setIcon(getLoadingIcon());
+//        loadPdfThumbnailAsync(fileToDisplay, thumbSize, iconLabel);
+//    } else {
+//        iconLabel.setIcon(getSystemIconCached(fileToDisplay, 32));
 //    }
 //
-//    // fallback: ícone do sistema
-//    int iconSize = 32;
-//    label.setIcon(getSystemIconCached(fileToDisplay, iconSize));
-//    return label;
+//    // NOVO: Se não há rating, retorna o JLabel direto (sem overhead do JLayeredPane)
+//    if (fileInfo.getRating() <= 0) {
+//        return iconLabel;
+//    }
+//
+//    // NOVO: JLayeredPane para sobrepor o overlay de estrelas
+//    JLayeredPane layered = new JLayeredPane();
+//    layered.setPreferredSize(new Dimension(width, thumbSize));
+//    layered.setOpaque(false);
+//
+//    iconLabel.setBounds(0, 0, width, thumbSize);
+//    layered.add(iconLabel, JLayeredPane.DEFAULT_LAYER);
+//
+//    // Overlay ocupa o mesmo espaço — o paintComponent decide onde desenhar
+//    ratingOverlay = new RatingOverlay(fileInfo.getRating());
+//    ratingOverlay.setBounds(0, 0, width, thumbSize);
+//    ratingOverlay.setVisible(showRatingOverlay);
+//    layered.add(ratingOverlay, JLayeredPane.PALETTE_LAYER);
+//
+//    return layered;
 //}
-private JComponent createIconLabel(int width, File file) {
 
-    int thumbSize = Math.min(width - 10, 128);
-    File fileToDisplay = this.displayFile;
+    // ── Atualize createIconLabel() para usar fitInsideSquare ─────────
+    // Substitua as chamadas a scaleWithPreset() e getSystemIconCached()
+    // dentro dos workers pelos novos métodos:
 
-    // Label do ícone/thumbnail (camada inferior)
-    JLabel iconLabel = new JLabel();
-    iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
-    iconLabel.setPreferredSize(new Dimension(width, thumbSize));
+    private JComponent createIconLabel(int width, File file) {
+        // MODIFICADO: usa o thumbSize recebido do construtor
+        int boxSize = this.thumbSize;
+        File fileToDisplay = this.displayFile;
 
-    if (isImage(fileToDisplay)) {
-        iconLabel.setIcon(getLoadingIcon());
-        loadThumbnailAsyncCached(fileToDisplay, thumbSize, Preset.MEDIO, iconLabel);
-    } else if (isVideo(fileToDisplay)) {
-        iconLabel.setIcon(getLoadingIcon());
-        loadVideoThumbnailAsync(fileToDisplay, thumbSize, iconLabel);
-    } else if (isPdf(fileToDisplay)) {
-        iconLabel.setIcon(getLoadingIcon());
-        loadPdfThumbnailAsync(fileToDisplay, thumbSize, iconLabel);
-    } else {
-        iconLabel.setIcon(getSystemIconCached(fileToDisplay, 32));
+        JLabel iconLabel = new JLabel();
+        iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        iconLabel.setVerticalAlignment(SwingConstants.CENTER);
+        iconLabel.setPreferredSize(new Dimension(boxSize, boxSize));
+
+        if      (isImage(fileToDisplay))  loadThumbnailFit(fileToDisplay, boxSize, iconLabel);
+        else if (isVideo(fileToDisplay))  loadVideoThumbnailFit(fileToDisplay, boxSize, iconLabel);
+        else if (isPdf(fileToDisplay))    loadPdfThumbnailFit(fileToDisplay, boxSize, iconLabel);
+        else {
+            Icon sys = FileSystemView.getFileSystemView().getSystemIcon(fileToDisplay);
+            iconLabel.setIcon(fitIconInsideSquare(sys, boxSize));
+        }
+
+        if (fileInfo.getRating() <= 0) return iconLabel;
+
+        JLayeredPane layered = new JLayeredPane();
+        layered.setPreferredSize(new Dimension(boxSize, boxSize));
+        layered.setOpaque(false);
+        iconLabel.setBounds(0, 0, boxSize, boxSize);
+        layered.add(iconLabel, JLayeredPane.DEFAULT_LAYER);
+        ratingOverlay = new RatingOverlay(fileInfo.getRating());
+        ratingOverlay.setBounds(0, 0, boxSize, boxSize);
+        ratingOverlay.setVisible(showRatingOverlay);
+        layered.add(ratingOverlay, JLayeredPane.PALETTE_LAYER);
+        return layered;
     }
 
-    // NOVO: Se não há rating, retorna o JLabel direto (sem overhead do JLayeredPane)
-    if (fileInfo.getRating() <= 0) {
-        return iconLabel;
+    /** Carrega imagem e aplica fitInsideSquare em vez de scaleWithPreset. */
+    private void loadThumbnailFit(File file, int boxSize, JLabel target) {
+        String key = "fit_" + file.getAbsolutePath() + "_" + boxSize;
+        ImageIcon cached = ICON_CACHE.get(key);
+        if (cached != null) { target.setIcon(cached); return; }
+
+        new SwingWorker<ImageIcon, Void>() {
+            @Override protected ImageIcon doInBackground() throws Exception {
+                BufferedImage raw = loadThumbnail(file, boxSize, Preset.MEDIO);
+                if (raw == null) return null;
+                BufferedImage fitted = fitInsideSquare(raw, boxSize);
+                ImageIcon icon = new ImageIcon(fitted);
+                ICON_CACHE.put(key, icon);
+                return icon;
+            }
+            @Override protected void done() {
+                try {
+                    ImageIcon ic = get();
+                    SwingUtilities.invokeLater(() ->
+                            target.setIcon(ic != null ? ic
+                                    : fitIconInsideSquare(
+                                    FileSystemView.getFileSystemView().getSystemIcon(file), boxSize)));
+                } catch (Exception e) {
+                    SwingUtilities.invokeLater(() ->
+                            target.setIcon(fitIconInsideSquare(
+                                    FileSystemView.getFileSystemView().getSystemIcon(file), boxSize)));
+                }
+            }
+        }.execute();
     }
 
-    // NOVO: JLayeredPane para sobrepor o overlay de estrelas
-    JLayeredPane layered = new JLayeredPane();
-    layered.setPreferredSize(new Dimension(width, thumbSize));
-    layered.setOpaque(false);
+    /** Vídeo: aplica fitInsideSquare após extrair o frame. */
+    private void loadVideoThumbnailFit(File file, int boxSize, JLabel target) {
+        String key = "vidfit_" + file.getAbsolutePath() + "_" + boxSize;
+        ImageIcon cached = ICON_CACHE.get(key);
+        if (cached != null) { target.setIcon(cached); return; }
 
-    iconLabel.setBounds(0, 0, width, thumbSize);
-    layered.add(iconLabel, JLayeredPane.DEFAULT_LAYER);
+        if (THUMBNAIL_CACHE.isProcessing(file, boxSize)) return;
 
-    // Overlay ocupa o mesmo espaço — o paintComponent decide onde desenhar
-    ratingOverlay = new RatingOverlay(fileInfo.getRating());
-    ratingOverlay.setBounds(0, 0, width, thumbSize);
-    ratingOverlay.setVisible(showRatingOverlay);
-    layered.add(ratingOverlay, JLayeredPane.PALETTE_LAYER);
+        BufferedImage disk = THUMBNAIL_CACHE.loadCachedThumbnail(file, boxSize);
+        if (disk != null) {
+            ImageIcon ic = new ImageIcon(fitInsideSquare(disk, boxSize));
+            ICON_CACHE.put(key, ic);
+            target.setIcon(ic);
+            return;
+        }
 
-    return layered;
-}
+        THUMBNAIL_CACHE.markAsProcessing(file, boxSize);
+        THUMBNAIL_EXECUTOR.submit(() -> {
+            try {
+                BufferedImage raw = extractVideoThumbnail(file, boxSize);
+                if (raw != null) {
+                    BufferedImage fitted = fitInsideSquare(raw, boxSize);
+                    THUMBNAIL_CACHE.saveThumbnailToCache(file, boxSize, fitted);
+                    ImageIcon ic = new ImageIcon(fitted);
+                    ICON_CACHE.put(key, ic);
+                    SwingUtilities.invokeLater(() -> target.setIcon(ic));
+                } else {
+                    SwingUtilities.invokeLater(() -> target.setIcon(
+                            fitIconInsideSquare(
+                                    FileSystemView.getFileSystemView().getSystemIcon(file), boxSize)));
+                }
+            } catch (Exception e) {
+                SwingUtilities.invokeLater(() -> target.setIcon(
+                        fitIconInsideSquare(
+                                FileSystemView.getFileSystemView().getSystemIcon(file), boxSize)));
+            } finally {
+                THUMBNAIL_CACHE.unmarkAsProcessing(file, boxSize);
+            }
+        });
+    }
+
+    /** PDF: aplica fitInsideSquare após renderizar a página. */
+    private void loadPdfThumbnailFit(File file, int boxSize, JLabel target) {
+        String key = "pdffit_" + file.getAbsolutePath() + "_" + boxSize;
+        ImageIcon cached = ICON_CACHE.get(key);
+        if (cached != null) { target.setIcon(cached); return; }
+
+        new SwingWorker<ImageIcon, Void>() {
+            @Override protected ImageIcon doInBackground() throws Exception {
+                BufferedImage raw = extractPdfThumbnail(file, boxSize);
+                if (raw == null) return null;
+                BufferedImage fitted = fitInsideSquare(raw, boxSize);
+                ImageIcon ic = new ImageIcon(fitted);
+                ICON_CACHE.put(key, ic);
+                return ic;
+            }
+            @Override protected void done() {
+                try {
+                    ImageIcon ic = get();
+                    SwingUtilities.invokeLater(() ->
+                            target.setIcon(ic != null ? ic
+                                    : fitIconInsideSquare(
+                                    FileSystemView.getFileSystemView().getSystemIcon(file), boxSize)));
+                } catch (Exception e) {
+                    SwingUtilities.invokeLater(() ->
+                            target.setIcon(fitIconInsideSquare(
+                                    FileSystemView.getFileSystemView().getSystemIcon(file), boxSize)));
+                }
+            }
+        }.execute();
+    }
 
     /** Atualiza o overlay de estrelas sem recriar o painel inteiro. */
     public void updateRatingOverlay(int newRating) {
@@ -381,7 +591,57 @@ private JComponent createIconLabel(int width, File file) {
         ALTA_QUALIDADE
     }
 
-    private BufferedImage loadThumbnail(File file, int targetSize, Preset preset) throws IOException {
+//    private BufferedImage loadThumbnail(File file, int targetSize, Preset preset) throws IOException {
+//        try (ImageInputStream in = ImageIO.createImageInputStream(file)) {
+//            if (in == null) return null;
+//
+//            Iterator<ImageReader> readers = ImageIO.getImageReaders(in);
+//            if (!readers.hasNext()) return null;
+//
+//            ImageReader reader = readers.next();
+//            reader.setInput(in);
+//
+//            int width = reader.getWidth(0);
+//            int height = reader.getHeight(0);
+//
+//            // --- define o nível de subsampling ---
+//            int subsample;
+//            switch (preset) {
+//                case RAPIDO:
+//                    subsample = Math.max(2, Math.min(width, height) / (targetSize * 2));
+//                    break;
+//
+//                case MEDIO:
+//                    subsample = Math.max(1, Math.min(width, height) / (targetSize * 1));
+//                    break;
+//
+//                case ALTA_QUALIDADE:
+//                    subsample = 1; // quase sem perda
+//                    break;
+//
+//                default:
+//                    subsample = 1;
+//            }
+//
+//            ImageReadParam param = reader.getDefaultReadParam();
+//            param.setSourceSubsampling(subsample, subsample, 0, 0);
+//
+//            BufferedImage lowRes = reader.read(0, param);
+//            reader.dispose();
+//
+//            // Ajusta a imagem final
+//            return scaleWithPreset(lowRes, targetSize, preset);
+//        }
+//    }
+
+    /**
+     * Carrega a imagem em baixa resolução e retorna com proporção original.
+     * NÃO força quadrado — deixa fitInsideSquare() fazer o encaixe.
+     * Substitui o loadThumbnail() anterior.
+     */
+    private BufferedImage loadThumbnail(File file, int targetSize, Preset preset)
+            throws IOException {
+
         try (ImageInputStream in = ImageIO.createImageInputStream(file)) {
             if (in == null) return null;
 
@@ -391,27 +651,15 @@ private JComponent createIconLabel(int width, File file) {
             ImageReader reader = readers.next();
             reader.setInput(in);
 
-            int width = reader.getWidth(0);
-            int height = reader.getHeight(0);
+            int origW = reader.getWidth(0);
+            int origH = reader.getHeight(0);
 
-            // --- define o nível de subsampling ---
-            int subsample;
-            switch (preset) {
-                case RAPIDO:
-                    subsample = Math.max(2, Math.min(width, height) / (targetSize * 2));
-                    break;
-
-                case MEDIO:
-                    subsample = Math.max(1, Math.min(width, height) / (targetSize * 1));
-                    break;
-
-                case ALTA_QUALIDADE:
-                    subsample = 1; // quase sem perda
-                    break;
-
-                default:
-                    subsample = 1;
-            }
+            // Subsampling proporcional ao preset (igual ao original)
+            int subsample = switch (preset) {
+                case RAPIDO        -> Math.max(2, Math.min(origW, origH) / (targetSize * 2));
+                case MEDIO         -> Math.max(1, Math.min(origW, origH) / targetSize);
+                case ALTA_QUALIDADE -> 1;
+            };
 
             ImageReadParam param = reader.getDefaultReadParam();
             param.setSourceSubsampling(subsample, subsample, 0, 0);
@@ -419,10 +667,39 @@ private JComponent createIconLabel(int width, File file) {
             BufferedImage lowRes = reader.read(0, param);
             reader.dispose();
 
-            // Ajusta a imagem final
-            return scaleWithPreset(lowRes, targetSize, preset);
+            // MODIFICADO: escala mantendo proporção em vez de forçar quadrado
+            return scaleProportional(lowRes, targetSize);
         }
     }
+
+    /**
+     * Escala a imagem para que o lado maior caiba em maxSize,
+     * mantendo a proporção original. Substitui scaleWithPreset().
+     */
+    private BufferedImage scaleProportional(BufferedImage src, int maxSize) {
+        if (src == null) return null;
+
+        int srcW = src.getWidth();
+        int srcH = src.getHeight();
+
+        // Escala pelo lado maior
+        double scale = (double) maxSize / Math.max(srcW, srcH);
+        int dstW = Math.max(1, (int) (srcW * scale));
+        int dstH = Math.max(1, (int) (srcH * scale));
+
+        BufferedImage dst = new BufferedImage(dstW, dstH, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2 = dst.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING,
+                RenderingHints.VALUE_RENDER_QUALITY);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.drawImage(src, 0, 0, dstW, dstH, null);
+        g2.dispose();
+        return dst;
+    }
+
     private BufferedImage scaleWithPreset(BufferedImage src, int size, Preset preset) {
         BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2 = img.createGraphics();

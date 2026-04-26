@@ -27,7 +27,7 @@ public class FileExplorerSwing extends JFrame {
     private FolderTreePanel treePanel;
     private FavoritesPanel favoritesPanel; // NOVO
     private JLabel statusLabel;
-    private String selectedPath = "C:\\";
+    private String selectedPath = "C:\\Users\\ESL\\Downloads";
     private int currentPage = 1; // NOVO
     private String currentSortBy = "last_modified"; // NOVO
     private String currentSortOrder = "DESC"; // NOVO
@@ -39,141 +39,6 @@ public class FileExplorerSwing extends JFrame {
 
     private JLabel syncIndicator; // NOVO
     private final NavigationHistory navigationHistory = new NavigationHistory();
-
-//    public FileExplorerSwing() {
-//        super("Advanced File Search - Interface Gráfica");
-//        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-//        setSize(1400, 800);
-//        setLocationRelativeTo(null);
-//        setLayout(new BorderLayout(10, 10));
-//
-//
-//        favoritesService = new FavoritesService();
-//
-//        try {
-//            controller = new SearchController(this);
-//
-//            // NOVO: Configura listener para auto-refresh
-//            controller.setFileSystemChangeListener(this::onFileSystemChanged);
-//
-//        } catch (SQLException e) {
-//            JOptionPane.showMessageDialog(this,
-//                    "Erro ao inicializar: " + e.getMessage(),
-//                    "Erro", JOptionPane.ERROR_MESSAGE);
-//            throw new RuntimeException(e);
-//        }
-//
-//        // === PAINEL SUPERIOR ===
-//        searchPanel = new SearchPanel();
-//        searchPanel.setSearchListener(this::onSearch);
-//        searchPanel.setIndexListener(this::onIndexRequest);
-//        add(searchPanel, BorderLayout.NORTH);
-//
-//        // === PAINEL ESQUERDO ===
-//        JPanel leftPanel = createLeftPanel();
-//
-//        // NOVO: SubFolderPanel à direita
-//        subFolderPanel = new SubFolderPanel();
-//        subFolderPanel.setFolderClickListener(folder ->
-//                navigateTo(folder.getAbsolutePath(), true));
-//
-//        // === PAINEL CENTRAL ===
-//        resultsPanel = new ResultsPanel();
-//        resultsPanel.setBackgroundColor(new Color(45, 45, 45));
-//
-//        resultsPanel.setFileItemClickListener(new ResultsPanel.FileItemClickListener() {
-//
-//            @Override
-//            public void onFileDoubleClick(File file) {
-//                if (file.isDirectory()) {
-//                    // NOVO: navega para dentro da pasta
-//                    navigateTo(file.getAbsolutePath(), true);
-//                } else {
-//                    try { Desktop.getDesktop().open(file); }
-//                    catch (IOException e) {
-//                        JOptionPane.showMessageDialog(FileExplorerSwing.this,
-//                                "Erro ao abrir: " + e.getMessage());
-//                    }
-//                }
-//            }
-//
-//            @Override
-//            public void onFileRightClick(File file, FileInfo fileInfo,
-//                                         Component source, int x, int y,
-//                                         FileItemPanel itemPanel) {
-//             FileContextMenu menu =   new FileContextMenu(
-//                        file, fileInfo, source, controller.getDbManager(), itemPanel,
-//                        path -> navigateTo(path, true),          // folderNavListener
-//                        showSubfolderContents,                   // NOVO estado atual
-//                        include -> {                             // NOVO toggle listener
-//                            showSubfolderContents = include;
-//                            currentPage = 1;
-//                            performCurrentSearch();
-//                        }
-//                );
-//                menu.show(source, x, y);
-//            }
-//        });
-//
-//        // NOVO: Painel de paginação
-//        paginationPanel = new PaginationPanel();
-//        paginationPanel.setPaginationListener(new PaginationPanel.PaginationListener() {
-//            @Override
-//            public void onPageChanged(int newPage) {
-//                currentPage = newPage;
-//                performCurrentSearch();
-//            }
-//
-//            @Override
-//            public void onPageSizeChanged(int newPageSize) {
-//                currentPage = 1; // Volta para primeira página
-//                performCurrentSearch();
-//            }
-//        });
-//
-//        searchPanel.setNavigationListener(new SearchPanel.NavigationListener() {
-//            @Override
-//            public void onBack() {
-//                String prev = navigationHistory.back();
-//                if (prev != null) navigateTo(prev, false); // false = não empurra no histórico
-//            }
-//
-//            @Override
-//            public void onForward() {
-//                String next = navigationHistory.forward();
-//                if (next != null) navigateTo(next, false);
-//            }
-//        });
-//
-//        // NOVO: Painel central com resultados e paginação
-//        JPanel centerPanel = new JPanel(new BorderLayout());
-//        centerPanel.add(resultsPanel, BorderLayout.CENTER);
-//        centerPanel.add(paginationPanel, BorderLayout.SOUTH);
-//
-//        // Split pane
-//        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
-//                leftPanel, centerPanel);
-//        splitPane.setDividerLocation(300);
-//        splitPane.setResizeWeight(0.2);
-//        add(splitPane, BorderLayout.CENTER);
-//
-//        // === PAINEL INFERIOR ===
-//        JPanel statusPanel = createStatusPanel(); // MODIFICADO
-//        add(statusPanel, BorderLayout.SOUTH);
-//
-//        // NOVO: split direito — center + subfolders
-//        JSplitPane rightSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
-//                centerPanel, subFolderPanel);
-//        rightSplit.setResizeWeight(1.0);   // ResultsPanel expande, SubFolderPanel fixo
-//        rightSplit.setDividerSize(4);
-//        rightSplit.setDividerLocation(0.80); // 80% para resultados, 20% para subpastas
-//        rightSplit.setContinuousLayout(true);
-//
-//        showWelcomeMessage();
-//
-//        setVisible(true);
-//        performCurrentSearch();
-//    }
 
     public FileExplorerSwing() {
         super("Advanced File Search - Interface Gráfica");
@@ -196,6 +61,8 @@ public class FileExplorerSwing extends JFrame {
 
         // === PAINEL SUPERIOR ===
         searchPanel = new SearchPanel();
+        resultsPanel = new ResultsPanel();
+        FileItemPanel.ICON_CACHE.clear(); // força recarregamento sem distorção
         searchPanel.setSearchListener(this::onSearch);
         searchPanel.setIndexListener(this::onIndexRequest);
         searchPanel.setNavigationListener(new SearchPanel.NavigationListener() {
@@ -210,13 +77,15 @@ public class FileExplorerSwing extends JFrame {
                 if (next != null) navigateTo(next, false);
             }
         });
+        searchPanel.setThumbnailSizeListener(size ->
+                resultsPanel.setThumbnailSize(size));
         add(searchPanel, BorderLayout.NORTH);
 
         // === PAINEL ESQUERDO ===
         JPanel leftPanel = createLeftPanel();
 
         // === PAINEL CENTRAL (resultados + paginação) ===
-        resultsPanel = new ResultsPanel();
+
         resultsPanel.setBackgroundColor(new Color(45, 45, 45));
         resultsPanel.setFileItemClickListener(new ResultsPanel.FileItemClickListener() {
             @Override
@@ -225,10 +94,11 @@ public class FileExplorerSwing extends JFrame {
                     navigateTo(file.getAbsolutePath(), true);
                 } else {
                     try { Desktop.getDesktop().open(file); }
-                    catch (IOException e) {
+                    catch (IOException | IllegalArgumentException e) {
                         JOptionPane.showMessageDialog(FileExplorerSwing.this,
                                 "Erro ao abrir: " + e.getMessage());
                     }
+
                 }
             }
             @Override
@@ -303,7 +173,11 @@ public class FileExplorerSwing extends JFrame {
             rightSplit.setDividerLocation((int) (totalWidth * 0.80));
         });
 
-        performCurrentSearch();
+       // performCurrentSearch();
+        // MODIFICADO: em vez de performCurrentSearch() direto,
+        // passa pelo navigateTo() para que a sincronização aconteça
+        // antes de exibir os resultados
+        navigateTo(selectedPath, true);  // selectedPath = "C:\" por padrão
     }
 
     /**
@@ -312,6 +186,24 @@ public class FileExplorerSwing extends JFrame {
      * @param pushHistory true  = navegação normal (empurra no histórico)
      *                    false = movimento pelo histórico (back/forward)
      */
+//    private void navigateTo(String path, boolean pushHistory) {
+//        selectedPath = path;
+//
+//        if (pushHistory) navigationHistory.push(path);
+//
+//        searchPanel.updateNavigationState(navigationHistory);
+//        showSyncIndicator("🔄 Verificando mudanças...");
+//        controller.updateMonitoredFolder(selectedPath, createSyncCallback());
+//
+//        currentPage = 1;
+//
+//        // NOVO: atualiza SubFolderPanel
+//        subFolderPanel.loadSubfolders(selectedPath, controller);
+//
+//        performCurrentSearch();
+//    }
+
+
     private void navigateTo(String path, boolean pushHistory) {
         selectedPath = path;
 
@@ -319,15 +211,20 @@ public class FileExplorerSwing extends JFrame {
 
         searchPanel.updateNavigationState(navigationHistory);
         showSyncIndicator("🔄 Verificando mudanças...");
-        controller.updateMonitoredFolder(selectedPath, createSyncCallback());
 
-        currentPage = 1;
-
-        // NOVO: atualiza SubFolderPanel
+        // Subpastas carregam independentemente
         subFolderPanel.loadSubfolders(selectedPath, controller);
 
+        // CORREÇÃO: busca executa imediatamente com o que há no índice,
+        // sem esperar a sync terminar
+        currentPage = 1;
         performCurrentSearch();
+
+        // Sync roda em paralelo e atualiza os resultados sozinha
+        // via refreshCurrentSearch() que já existe no SearchController
+        controller.updateMonitoredFolder(path, createSyncCallback());
     }
+
 
 
     /**
@@ -540,9 +437,9 @@ public class FileExplorerSwing extends JFrame {
 
         // NOVO: se há termo de busca ativo, esconde o SubFolderPanel
         //       (busca textual é sempre recursiva por intenção do usuário)
-//        if (searchTerm != null && !searchTerm.isEmpty()) {
-//            subFolderPanel.hide();
-//        }
+        if (searchTerm != null && !searchTerm.isEmpty()) {
+            subFolderPanel.hide();
+        }
 
         onSearchWithPagination(
                 searchTerm,

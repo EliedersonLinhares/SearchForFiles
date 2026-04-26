@@ -91,34 +91,97 @@ public class SearchController {
      * @param folderPath Pasta a sincronizar
      * @param callback Callback para notificar resultado
      */
+
+// CORREÇÃO: garante que refreshCurrentSearch() é chamado
+// mesmo quando a pasta não está indexada (para não travar a UI)
+//    public void syncFolderIfNeeded(String folderPath, SyncCallback callback) {
+//        if (folderPath == null || folderPath.trim().isEmpty()) {
+//            return;
+//        }
+//
+//        if (isDriveRoot(folderPath)) {
+//            System.out.println("⚠️ Sincronização ignorada: drive raiz");
+//            return;
+//        }
+//
+//        SwingWorker<SyncService.SyncResult, Void> worker = new SwingWorker<>() {
+//            @Override
+//            protected SyncService.SyncResult doInBackground() throws Exception {
+//                // VALIDAÇÃO CRÍTICA: Verifica se pasta foi indexada
+//                if (!syncService.isFolderIndexed(folderPath)) {
+//                    System.out.println("⚠️ Pasta não indexada, sincronização ignorada");
+//                    SyncService.SyncResult result = new SyncService.SyncResult(folderPath);
+//                    result.setNotIndexed(true);
+//                    return result;
+//                }
+//
+//                // Verifica se precisa sincronizar
+//                if (!syncService.needsSync(folderPath)) {
+//                    System.out.println("✅ Índice já sincronizado");
+//                    return new SyncService.SyncResult(folderPath);
+//                }
+//
+//                // Executa sincronização
+//                return syncService.synchronizeFolder(folderPath);
+//            }
+//
+//            @Override
+//            protected void done() {
+//                try {
+//                    SyncService.SyncResult result = get();
+//
+//                    if (callback != null) {
+//                        callback.onSyncCompleted(result);
+//                    }
+//
+//                    // Se houve mudanças E há busca ativa, atualiza
+//                    if (result.hasChanges() && lastCallback != null) {
+//                        System.out.println("🔄 Atualizando resultados após sincronização...");
+//                        refreshCurrentSearch();
+//                    }
+//
+//                } catch (Exception e) {
+//                    System.err.println("❌ Erro na sincronização: " + e.getMessage());
+//                    if (callback != null) {
+//                        callback.onSyncError(e);
+//                    }
+//                }
+//            }
+//        };
+//
+//        worker.execute();
+//    }
+
     public void syncFolderIfNeeded(String folderPath, SyncCallback callback) {
         if (folderPath == null || folderPath.trim().isEmpty()) {
+            if (callback != null)
+                callback.onSyncCompleted(new SyncService.SyncResult(folderPath));
             return;
         }
 
         if (isDriveRoot(folderPath)) {
             System.out.println("⚠️ Sincronização ignorada: drive raiz");
+            if (callback != null) {
+                SyncService.SyncResult r = new SyncService.SyncResult(folderPath);
+                r.setNotIndexed(true);
+                callback.onSyncCompleted(r);
+            }
             return;
         }
 
         SwingWorker<SyncService.SyncResult, Void> worker = new SwingWorker<>() {
             @Override
             protected SyncService.SyncResult doInBackground() throws Exception {
-                // VALIDAÇÃO CRÍTICA: Verifica se pasta foi indexada
                 if (!syncService.isFolderIndexed(folderPath)) {
-                    System.out.println("⚠️ Pasta não indexada, sincronização ignorada");
                     SyncService.SyncResult result = new SyncService.SyncResult(folderPath);
                     result.setNotIndexed(true);
                     return result;
                 }
 
-                // Verifica se precisa sincronizar
                 if (!syncService.needsSync(folderPath)) {
-                    System.out.println("✅ Índice já sincronizado");
                     return new SyncService.SyncResult(folderPath);
                 }
 
-                // Executa sincronização
                 return syncService.synchronizeFolder(folderPath);
             }
 
@@ -127,11 +190,11 @@ public class SearchController {
                 try {
                     SyncService.SyncResult result = get();
 
-                    if (callback != null) {
+                    // SEMPRE notifica o callback, independente do resultado
+                    if (callback != null)
                         callback.onSyncCompleted(result);
-                    }
 
-                    // Se houve mudanças E há busca ativa, atualiza
+                    // Se houve mudanças, atualiza resultados via refreshCurrentSearch
                     if (result.hasChanges() && lastCallback != null) {
                         System.out.println("🔄 Atualizando resultados após sincronização...");
                         refreshCurrentSearch();
@@ -139,16 +202,12 @@ public class SearchController {
 
                 } catch (Exception e) {
                     System.err.println("❌ Erro na sincronização: " + e.getMessage());
-                    if (callback != null) {
-                        callback.onSyncError(e);
-                    }
+                    if (callback != null) callback.onSyncError(e);
                 }
             }
         };
-
         worker.execute();
     }
-
 
 
     // ========================================================================
@@ -171,10 +230,11 @@ public class SearchController {
      */
     public void refreshCurrentSearch() {
         // Só atualiza se há uma busca anterior ativa
-        if (lastCallback == null || lastSearchTerm == null || lastSearchTerm.isEmpty()) {
+        if (lastCallback == null) {
             System.out.println("⚠️ Nenhuma busca ativa para atualizar");
             return;
         }
+
 
         System.out.println("🔄 Auto-refresh: Atualizando resultados...");
 
@@ -300,12 +360,6 @@ public class SearchController {
             }
         });
     }
-
-
-    /**
-     * Inicia monitoramento de forma assíncrona (não bloqueia UI)
-     */
-
     /**
      * Inicia monitoramento de forma assíncrona
      */
@@ -420,44 +474,55 @@ public class SearchController {
             String searchTerm, String filter, String path,
             String sortBy, String sortOrder,
             int minRating, String tag,
-            boolean includeSubfolders,   // NOVO
+            boolean includeSubfolders,
             int page, int pageSize,
             PaginatedSearchCallback callback) {
 
-        SwingWorker<SearchService.SearchResult, Void> worker =
-                new SwingWorker<>() {
-                    @Override
-                    protected SearchService.SearchResult doInBackground() throws Exception {
+        SwingWorker<SearchService.SearchResult, Void> worker = new SwingWorker<>() {
+            @Override
+            protected SearchService.SearchResult doInBackground() throws Exception {
 
-                        SearchCriteria criteria = new SearchCriteria()
-                                .withName(searchTerm.isEmpty() ? null : "*" + searchTerm + "*")
-                                .inPath(path, includeSubfolders)
-                                .sortBy(sortBy, sortOrder);
+                SearchCriteria criteria = new SearchCriteria()
+                        .withName(searchTerm == null || searchTerm.isEmpty()
+                                ? null : "*" + searchTerm + "*")
+                        .inPath(path, includeSubfolders)
+                        .sortBy(sortBy, sortOrder);
 
-                        if (!"TODOS".equals(filter))
-                            criteria.withFileType(FileType.valueOf(filter));
+                if (!"TODOS".equals(filter))
+                    criteria.withFileType(FileType.valueOf(filter));
+                if (minRating > 0)
+                    criteria.withMinRating(minRating);
+                if (tag != null && !tag.isEmpty())
+                    criteria.withTag(tag);
 
-                        if (minRating > 0)            // NOVO
-                            criteria.withMinRating(minRating);
+                // ── CORREÇÃO: salva estado para o refreshCurrentSearch() ──
+                lastCriteria      = criteria;
+                lastSelectedPath  = path;
+                lastSearchTerm    = searchTerm != null ? searchTerm : "";
+                lastFilter        = filter;
+                lastSortBy        = sortBy;
+                lastSortOrder     = sortOrder;
+                lastPage          = page;
+                lastPageSize      = pageSize;
+                lastCallback      = callback;
+                // ─────────────────────────────────────────────────────────
 
-                        if (!tag.isEmpty())           // NOVO
-                            criteria.withTag(tag);
+                return searchSystem.getSearchService()
+                        .advancedSearchWithPagination(criteria, page, pageSize);
+            }
 
-                        return searchSystem.getSearchService().advancedSearchWithPagination(criteria, page, pageSize);
-                    }
-
-                    @Override
-                    protected void done() {
-                        try {
-                            SearchService.SearchResult result = get();
-                            SwingUtilities.invokeLater(() ->
-                                    callback.onSearchCompleted(
-                                            result.getResults(), result.getPagination()));
-                        } catch (Exception e) {
-                            SwingUtilities.invokeLater(() -> callback.onSearchError(e));
-                        }
-                    }
-                };
+            @Override
+            protected void done() {
+                try {
+                    SearchService.SearchResult result = get();
+                    SwingUtilities.invokeLater(() ->
+                            callback.onSearchCompleted(
+                                    result.getResults(), result.getPagination()));
+                } catch (Exception e) {
+                    SwingUtilities.invokeLater(() -> callback.onSearchError(e));
+                }
+            }
+        };
         worker.execute();
     }
 
