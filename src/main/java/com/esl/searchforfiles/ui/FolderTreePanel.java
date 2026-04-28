@@ -3,15 +3,19 @@ package com.esl.searchforfiles.ui;
 import com.esl.searchforfiles.service.FavoritesService;
 
 import javax.swing.*;
-import javax.swing.event.*;
+import javax.swing.event.TreeExpansionEvent;
+import javax.swing.event.TreeWillExpandListener;
 import javax.swing.filechooser.FileSystemView;
-import javax.swing.tree.*;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeCellRenderer;
+import javax.swing.tree.DefaultTreeModel;
+import javax.swing.tree.TreePath;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 
 /**
  * Painel com JTree para navegação de drives e pastas
@@ -21,10 +25,13 @@ public class FolderTreePanel extends JPanel {
     private final JTree folderTree;
     private final DefaultMutableTreeNode rootNode;
     private final FavoritesService favoritesService;
+    private final FileExplorerSwing fileExplorerSwing;
     private FolderSelectionListener selectionListener;
+    private File selectedFile;
 
-    public FolderTreePanel(FavoritesService favoritesService) {
+    public FolderTreePanel(FavoritesService favoritesService, FileExplorerSwing fileExplorerSwing) {
         this.favoritesService = favoritesService;
+        this.fileExplorerSwing = fileExplorerSwing;
 
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createTitledBorder("📁 Navegação"));
@@ -125,6 +132,13 @@ public class FolderTreePanel extends JPanel {
             if (selectedNode != null && selectedNode.getUserObject() instanceof File) {
                 File selectedFile = (File) selectedNode.getUserObject();
 
+                if (fileExplorerSwing.isDriveRoot(selectedFile.getAbsolutePath())) {
+                    JOptionPane.showMessageDialog(this,
+                            "Drive raiz não pode ser adicionado aos favoritos!\n" + "Somente pastas.",
+                            "Aviso", JOptionPane.INFORMATION_MESSAGE);
+                    return;
+                }
+
                 if (favoritesService.isFavorite(selectedFile.getAbsolutePath())) {
                     JOptionPane.showMessageDialog(this,
                             "Esta pasta já está nos favoritos!",
@@ -157,13 +171,37 @@ public class FolderTreePanel extends JPanel {
             }
         });
 
+
+        JMenuItem defaultFolderItem = new JMenuItem("Definir como pasta padrão");
+        defaultFolderItem.addActionListener(e -> defaultFolderListener());
+
+
+        menu.add(defaultFolderItem);
         menu.add(addFavoriteItem);
         menu.addSeparator();
         menu.add(openItem);
 
         return menu;
     }
-    
+
+    private void defaultFolderListener() {
+        DefaultMutableTreeNode selectedNode =
+                (DefaultMutableTreeNode) folderTree.getLastSelectedPathComponent();
+        if (selectedNode != null && selectedNode.getUserObject() instanceof File) {
+            selectedFile = (File) selectedNode.getUserObject();
+
+            if (!fileExplorerSwing.isDriveRoot(selectedFile.getAbsolutePath())) {
+                fileExplorerSwing.getConfigManager().saveDefaulFolder(selectedFile.getAbsolutePath());
+                System.out.println("Diretorio padrão salvo: " + selectedFile.getAbsolutePath());
+
+            } else {
+                JOptionPane.showMessageDialog(this, "Diretório padrão não pode ser raiz",
+                        "Erro", JOptionPane.ERROR_MESSAGE);
+                System.out.println("Diretorio padrão não pode ser raiz");
+            }
+        }
+    }
+
     private void populateDrives() {
         rootNode.removeAllChildren();
 

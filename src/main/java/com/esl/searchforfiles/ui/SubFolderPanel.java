@@ -16,14 +16,14 @@ import java.util.List;
 
 public class SubFolderPanel extends JPanel {
 
-    private static final Color BG_COLOR      = new Color(45, 45, 45);
-    private static final Color HOVER_COLOR   = new Color(60, 60, 60);
-    private static final Color HEADER_COLOR  = new Color(33, 150, 243);
-    private static final FileSystemView FSV  = FileSystemView.getFileSystemView();
+    private static final Color BG_COLOR = new Color(45, 45, 45);
+    private static final Color HOVER_COLOR = new Color(60, 60, 60);
+    private static final Color HEADER_COLOR = new Color(33, 150, 243);
+    private static final FileSystemView FSV = FileSystemView.getFileSystemView();
 
-    private final JPanel      listPanel;
+    private final JPanel listPanel;
     private final JScrollPane scrollPane;
-    private final JLabel      titleLabel;
+    private final JLabel titleLabel;
     private FolderClickListener clickListener;
 
     public SubFolderPanel() {
@@ -85,7 +85,7 @@ public class SubFolderPanel extends JPanel {
                     // Filtra a própria pasta pai
                     folders = folders.stream()
                             .filter(f -> !f.getPath().equalsIgnoreCase(parentPath))
-                            .collect(java.util.stream.Collectors.toList());
+                            .toList();
 
                     if (folders.isEmpty()) {
                         SwingUtilities.invokeLater(() -> {
@@ -118,7 +118,9 @@ public class SubFolderPanel extends JPanel {
         worker.execute();
     }
 
-    /** Esconde o painel (ex: ao fazer uma busca textual). */
+    /**
+     * Esconde o painel (ex: ao fazer uma busca textual).
+     */
     public void hide() {
         if (!isVisible()) return;
         SwingUtilities.invokeLater(() -> {
@@ -128,7 +130,9 @@ public class SubFolderPanel extends JPanel {
         });
     }
 
-    public void setFolderClickListener(FolderClickListener l) { this.clickListener = l; }
+    public void setFolderClickListener(FolderClickListener l) {
+        this.clickListener = l;
+    }
 
     // ── Renderização ──────────────────────────────────────────────
 
@@ -155,38 +159,61 @@ public class SubFolderPanel extends JPanel {
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
         row.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        // Ícone do sistema
         JLabel iconLabel = new JLabel();
         iconLabel.setIcon(resizeIcon(FSV.getSystemIcon(file), 16));
         iconLabel.setOpaque(false);
+        // NOVO: propaga cursor para filhos
+        iconLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        // Nome da pasta
         String displayName = fi.getName().isEmpty() ? fi.getPath() : fi.getName();
         JLabel nameLabel = new JLabel(displayName);
         nameLabel.setForeground(Color.WHITE);
         nameLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         nameLabel.setToolTipText(fi.getPath());
+        // NOVO: propaga cursor para filhos
+        nameLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        row.add(iconLabel,  BorderLayout.WEST);
-        row.add(nameLabel,  BorderLayout.CENTER);
+        row.add(iconLabel, BorderLayout.WEST);
+        row.add(nameLabel, BorderLayout.CENTER);
 
-        // Hover
-        row.addMouseListener(new MouseAdapter() {
-            @Override public void mouseEntered(MouseEvent e) {
+        // NOVO: listener extraído para ser reutilizado em todos os componentes
+        MouseAdapter rowListener = new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
                 row.setBackground(HOVER_COLOR);
                 iconLabel.setBackground(HOVER_COLOR);
                 nameLabel.setBackground(HOVER_COLOR);
             }
-            @Override public void mouseExited(MouseEvent e) {
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                // CORREÇÃO: só remove hover se o cursor saiu do row inteiro,
+                // não apenas de um filho para outro filho
+                Component dest = SwingUtilities.getDeepestComponentAt(
+                        row.getParent(),
+                        e.getXOnScreen() - row.getParent().getLocationOnScreen().x,
+                        e.getYOnScreen() - row.getParent().getLocationOnScreen().y
+                );
+                // Se o destino ainda é o row ou um filho dele, não remove o hover
+                if (dest != null && (dest == row || SwingUtilities.isDescendingFrom(dest, row))) {
+                    return;
+                }
                 row.setBackground(BG_COLOR);
                 iconLabel.setBackground(BG_COLOR);
                 nameLabel.setBackground(BG_COLOR);
             }
-            @Override public void mouseClicked(MouseEvent e) {
+
+            @Override
+            public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 1 && clickListener != null)
                     clickListener.onFolderClicked(file);
             }
-        });
+        };
+
+        // NOVO: aplica o listener no row E em todos os filhos
+        row.addMouseListener(rowListener);
+        iconLabel.addMouseListener(rowListener);
+        nameLabel.addMouseListener(rowListener);
 
         return row;
     }

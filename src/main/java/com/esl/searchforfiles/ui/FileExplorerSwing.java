@@ -1,8 +1,10 @@
 package com.esl.searchforfiles.ui;
 
 
+import com.esl.searchforfiles.configuration.ConfigManager;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.PaginationInfo;
+import com.esl.searchforfiles.others.ThumbnailSize;
 import com.esl.searchforfiles.service.FavoritesService;
 import com.esl.searchforfiles.service.SyncService;
 
@@ -24,21 +26,20 @@ public class FileExplorerSwing extends JFrame {
     private final SearchController controller;
     private final FavoritesService favoritesService; // NOVO
     private final PaginationPanel paginationPanel;
+    private final NavigationHistory navigationHistory = new NavigationHistory();
     private FolderTreePanel treePanel;
     private FavoritesPanel favoritesPanel; // NOVO
+    private ConfigManager configManager;
     private JLabel statusLabel;
-    private String selectedPath = "C:\\Users\\ESL\\Downloads";
+    private String selectedPath = "C:\\";
     private int currentPage = 1; // NOVO
     private String currentSortBy = "last_modified"; // NOVO
     private String currentSortOrder = "DESC"; // NOVO
     private SubFolderPanel subFolderPanel;           // NOVO
-    private boolean showSubfolderContents = true; // NOVO — controlado pelo menu
-
+    private boolean showSubfolderContents = false; // NOVO — controlado pelo menu
     // NOVO: Indicador de auto-refresh
     private JLabel autoRefreshIndicator;
-
     private JLabel syncIndicator; // NOVO
-    private final NavigationHistory navigationHistory = new NavigationHistory();
 
     public FileExplorerSwing() {
         super("Advanced File Search - Interface Gráfica");
@@ -48,6 +49,8 @@ public class FileExplorerSwing extends JFrame {
         setLayout(new BorderLayout(10, 10));
 
         favoritesService = new FavoritesService();
+        configManager = new ConfigManager();
+        setSelectedPath(configManager.getSavedDefaultFolder());
 
         try {
             controller = new SearchController(this);
@@ -60,8 +63,8 @@ public class FileExplorerSwing extends JFrame {
         }
 
         // === PAINEL SUPERIOR ===
-        searchPanel = new SearchPanel();
-        resultsPanel = new ResultsPanel();
+        searchPanel = new SearchPanel(this);
+        resultsPanel = new ResultsPanel(this);
         FileItemPanel.ICON_CACHE.clear(); // força recarregamento sem distorção
         searchPanel.setSearchListener(this::onSearch);
         searchPanel.setIndexListener(this::onIndexRequest);
@@ -71,6 +74,7 @@ public class FileExplorerSwing extends JFrame {
                 String prev = navigationHistory.back();
                 if (prev != null) navigateTo(prev, false);
             }
+
             @Override
             public void onForward() {
                 String next = navigationHistory.forward();
@@ -93,14 +97,16 @@ public class FileExplorerSwing extends JFrame {
                 if (file.isDirectory()) {
                     navigateTo(file.getAbsolutePath(), true);
                 } else {
-                    try { Desktop.getDesktop().open(file); }
-                    catch (IOException | IllegalArgumentException e) {
+                    try {
+                        Desktop.getDesktop().open(file);
+                    } catch (IOException | IllegalArgumentException e) {
                         JOptionPane.showMessageDialog(FileExplorerSwing.this,
                                 "Erro ao abrir: " + e.getMessage());
                     }
 
                 }
             }
+
             @Override
             public void onFileRightClick(File file, FileInfo fileInfo,
                                          Component source, int x, int y,
@@ -113,7 +119,7 @@ public class FileExplorerSwing extends JFrame {
                             showSubfolderContents = include;
                             currentPage = 1;
                             performCurrentSearch();
-                        }
+                        }, FileExplorerSwing.this
                 );
                 menu.show(source, x, y);
             }
@@ -126,6 +132,7 @@ public class FileExplorerSwing extends JFrame {
                 currentPage = newPage;
                 performCurrentSearch();
             }
+
             @Override
             public void onPageSizeChanged(int newPageSize) {
                 currentPage = 1;
@@ -134,7 +141,7 @@ public class FileExplorerSwing extends JFrame {
         });
 
         JPanel centerPanel = new JPanel(new BorderLayout());
-        centerPanel.add(resultsPanel,    BorderLayout.CENTER);
+        centerPanel.add(resultsPanel, BorderLayout.CENTER);
         centerPanel.add(paginationPanel, BorderLayout.SOUTH);
 
         // === PAINEL DIREITO (subpastas) ===
@@ -162,6 +169,7 @@ public class FileExplorerSwing extends JFrame {
         // === PAINEL INFERIOR ===
         JPanel statusPanel = createStatusPanel();
         add(statusPanel, BorderLayout.SOUTH);
+        resultsPanel.setThumbnailSize(ThumbnailSize.fromLabel(getConfigManager().getSavedThumbnailsSize()));
 
         showWelcomeMessage();
         setVisible(true);
@@ -173,37 +181,32 @@ public class FileExplorerSwing extends JFrame {
             rightSplit.setDividerLocation((int) (totalWidth * 0.80));
         });
 
-       // performCurrentSearch();
         // MODIFICADO: em vez de performCurrentSearch() direto,
         // passa pelo navigateTo() para que a sincronização aconteça
         // antes de exibir os resultados
         navigateTo(selectedPath, true);  // selectedPath = "C:\" por padrão
+
+    }
+
+    public String getSelectedPath() {
+        return selectedPath;
+    }
+
+    public void setSelectedPath(String selectedPath) {
+        this.selectedPath = selectedPath;
+    }
+
+    public ConfigManager getConfigManager() {
+        return configManager;
     }
 
     /**
      * Navega para o caminho informado.
+     *
      * @param path        Caminho de destino
      * @param pushHistory true  = navegação normal (empurra no histórico)
      *                    false = movimento pelo histórico (back/forward)
      */
-//    private void navigateTo(String path, boolean pushHistory) {
-//        selectedPath = path;
-//
-//        if (pushHistory) navigationHistory.push(path);
-//
-//        searchPanel.updateNavigationState(navigationHistory);
-//        showSyncIndicator("🔄 Verificando mudanças...");
-//        controller.updateMonitoredFolder(selectedPath, createSyncCallback());
-//
-//        currentPage = 1;
-//
-//        // NOVO: atualiza SubFolderPanel
-//        subFolderPanel.loadSubfolders(selectedPath, controller);
-//
-//        performCurrentSearch();
-//    }
-
-
     private void navigateTo(String path, boolean pushHistory) {
         selectedPath = path;
 
@@ -224,7 +227,6 @@ public class FileExplorerSwing extends JFrame {
         // via refreshCurrentSearch() que já existe no SearchController
         controller.updateMonitoredFolder(path, createSyncCallback());
     }
-
 
 
     /**
@@ -262,7 +264,6 @@ public class FileExplorerSwing extends JFrame {
 
         return statusPanel;
     }
-
 
     /**
      * Mostra indicador de sincronização
@@ -392,7 +393,7 @@ public class FileExplorerSwing extends JFrame {
         JPanel leftPanel = new JPanel(new BorderLayout(0, 5));
 
         // Tree de pastas
-        treePanel = new FolderTreePanel(favoritesService);
+        treePanel = new FolderTreePanel(favoritesService, this);
         treePanel.setSelectionListener(this::onFolderSelected);
 
         // Painel de favoritos
@@ -444,9 +445,9 @@ public class FileExplorerSwing extends JFrame {
         onSearchWithPagination(
                 searchTerm,
                 searchPanel.getSelectedFilter(),
-                searchPanel.getSortBy(),
+                configManager.getSavedSortBy(),
                 searchPanel.getSortOrder(),
-                searchPanel.getMinRating(),
+                configManager.getSavedStarRating(),
                 searchPanel.getTagFilter(),
                 showSubfolderContents,   // NOVO — passa flag de subpastas
                 currentPage,
@@ -456,7 +457,7 @@ public class FileExplorerSwing extends JFrame {
 
     private void onSearchWithPagination(String searchTerm, String filter,
                                         String sortBy, String sortOrder,
-                                        int minRating, String tag,boolean includeSubfolders,
+                                        int minRating, String tag, boolean includeSubfolders,
                                         int page, int pageSize) {
 
         String loadingMessage;
@@ -475,7 +476,7 @@ public class FileExplorerSwing extends JFrame {
                 minRating, tag,
                 includeSubfolders,   // NOVO
                 page, pageSize,
-                new SearchController.PaginatedSearchCallback()  {
+                new SearchController.PaginatedSearchCallback() {
 
                     @Override
                     public void onSearchStarted() {
@@ -492,8 +493,7 @@ public class FileExplorerSwing extends JFrame {
                         if (filtered.isEmpty()) {
                             String emptyMessage;
                             if (searchTerm == null || searchTerm.trim().isEmpty()) {
-                                emptyMessage = "📂 Pasta vazia ou não indexada\n\n" +
-                                        "Não há arquivos nesta pasta ou ela não foi indexada ainda.";
+                                emptyMessage = "📂 Nenhum arquivo corresponde aos critérios de busca";
                             } else {
                                 // NOVO: menciona os filtros ativos na mensagem de vazio
                                 StringBuilder sb = new StringBuilder("Nenhum arquivo encontrado");
@@ -509,6 +509,10 @@ public class FileExplorerSwing extends JFrame {
                         } else {
                             resultsPanel.showResults(filtered);
                             paginationPanel.updatePagination(pagination);
+
+                            // NOVO: garante foco no painel de resultados
+                            // para que as teclas funcionem imediatamente
+                            SwingUtilities.invokeLater(resultsPanel::requestFocusInWindow);
                         }
 
                         // NOVO: inclui rating e tag no texto de status
@@ -643,6 +647,21 @@ public class FileExplorerSwing extends JFrame {
         );
     }
 
+    /**
+     * Verifica se o caminho é uma raiz de drive
+     */
+    public boolean isDriveRoot(String path) {
+        if (path == null || path.isEmpty()) {
+            return false;
+        }
+
+        String normalized = path.trim().toUpperCase();
+
+        // Padrões de drive raiz: C:\, C:/, C:
+        return normalized.matches("^[A-Z]:\\\\?$") ||
+                normalized.matches("^[A-Z]:/?$");
+    }
+
     @Override
     public void dispose() {
         try {
@@ -650,6 +669,7 @@ public class FileExplorerSwing extends JFrame {
         } catch (SQLException e) {
             System.err.println("Erro ao fechar: " + e.getMessage());
         }
+        resultsPanel.dispose();
         super.dispose();
     }
 

@@ -18,4 +18,13 @@ public enum ThumbnailSize {
     }
 
     @Override public String toString() { return label; }
+
+    public static ThumbnailSize fromLabel(String label) {
+        for (ThumbnailSize size : values()) {
+            if (size.label.equalsIgnoreCase(label)) {
+                return size;
+            }
+        }
+        return MEDIO; // valor padrão se não encontrar
+    }
 }

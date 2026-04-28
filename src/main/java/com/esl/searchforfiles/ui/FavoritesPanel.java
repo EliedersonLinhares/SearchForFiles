@@ -5,7 +5,8 @@ import com.esl.searchforfiles.service.FavoritesService;
 import javax.swing.*;
 import javax.swing.filechooser.FileSystemView;
 import java.awt.*;
-import java.awt.event.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
 import java.util.List;
 
@@ -150,6 +151,16 @@ public class FavoritesPanel extends JPanel {
     private JPopupMenu createContextMenu() {
         JPopupMenu menu = new JPopupMenu();
 
+
+        JMenuItem defaultFolderItem = new JMenuItem("Definir como pasta padrão");
+        defaultFolderItem.addActionListener(e -> {
+            String selected = favoritesList.getSelectedValue();
+            if (selected != null && !selected.equals("(Nenhum favorito)")) {
+                fileExplorerSwing.getConfigManager().saveDefaulFolder(selected);
+                System.out.println("Diretorio padrão salvo: " + selected);
+            }
+        });
+
         JMenuItem openItem = new JMenuItem("Abrir no Explorer");
         openItem.addActionListener(e -> {
             String selected = favoritesList.getSelectedValue();
@@ -179,6 +190,7 @@ public class FavoritesPanel extends JPanel {
             }
         });
 
+        menu.add(defaultFolderItem);
         menu.add(openItem);
         menu.addSeparator();
         menu.add(removeItem);
@@ -217,7 +229,7 @@ public class FavoritesPanel extends JPanel {
      * Renderizador customizado para células
      */
     private static class FavoritesCellRenderer extends DefaultListCellRenderer {
-        private final FileSystemView fsv = FileSystemView.getFileSystemView();
+    private final FileSystemView fsv = FileSystemView.getFileSystemView();
 
         @Override
         public Component getListCellRendererComponent(JList<?> list, Object value,

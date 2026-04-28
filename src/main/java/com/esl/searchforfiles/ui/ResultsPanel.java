@@ -8,6 +8,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -20,18 +21,35 @@ public class ResultsPanel extends JPanel {
     private final JScrollPane scrollPane;
     // NOVO: Gerenciador de cache de thumbnails
     private final ThumbnailCacheManager cacheManager;
+    private final FileExplorerSwing fileExplorerSwing;
     private FileItemClickListener clickListener;
     // Armazena últimos resultados para re-renderizar ao redimensionar
     private List<FileInfo> lastResults;
     // Cor de fundo customizável
     private Color backgroundColor = new Color(245, 245, 250); // Cinza azulado claro
     private ThumbnailSize currentThumbSize = ThumbnailSize.MEDIO; // NOVO
+    private int selectedIndex = -1;  // índice do item selecionado no grid
+    private List<FileItemPanel> currentItems = new ArrayList<>(); // refs aos panels
 
-    public ResultsPanel() {
+    private KeyEventDispatcher keyDispatcher;
+
+    public ResultsPanel(FileExplorerSwing fileExplorerSwing) {
+        this.fileExplorerSwing = fileExplorerSwing;
         setLayout(new BorderLayout());
         setBorder(BorderFactory.createTitledBorder("\uD83D\uDDBC Resultados"));
-        gridPanel = new JPanel(null); // Layout manual
+
+        gridPanel = new JPanel(null) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                // Limpa toda a área antes de redesenhar os filhos
+                g.setColor(getBackground());
+                g.fillRect(0, 0, getWidth(), getHeight());
+                super.paintComponent(g);
+            }
+        };
+        gridPanel.setOpaque(true);           // IMPORTANTE: deve ser opaco
         gridPanel.setBackground(backgroundColor);
+        gridPanel.setFocusable(true);
 
         // NOVO: Inicializa o gerenciador de cache
         this.cacheManager = FileItemPanel.getThumbnailCacheManager();
@@ -47,6 +65,153 @@ public class ResultsPanel extends JPanel {
 
         // NOVO: Configura menu de contexto do cache
         setupCacheContextMenu();
+
+        setupKeyboardScroll();
+    }
+
+    public FileExplorerSwing getFileExplorerSwing() {
+        return fileExplorerSwing;
+    }
+
+
+    public void setupKeyboardScroll() {
+        JScrollBar vBar = scrollPane.getVerticalScrollBar();
+        int unit = 60;
+        int block = 300;
+
+        keyDispatcher = e -> {
+            // Só processa KEY_PRESSED
+            if (e.getID() != KeyEvent.KEY_PRESSED) return false;
+
+            // Se o foco está num campo de texto, não intercepta nenhuma tecla
+            Component focused = KeyboardFocusManager
+                    .getCurrentKeyboardFocusManager().getFocusOwner();
+
+            // Teclas de navegação de item só são bloqueadas por JTextField
+            boolean isTextField = focused instanceof JTextField
+                    || focused instanceof JTextArea;
+
+            // ← → sempre requerem que o foco NÃO esteja num campo de texto
+            if (isTextField) {
+                // Deixa todas as teclas passarem quando digitando
+                return false;
+            }
+
+            int key = e.getKeyCode();
+
+            switch (key) {
+
+                // ── Navegação entre itens ─────────────────────────────
+                case KeyEvent.VK_LEFT -> {
+                    if (currentItems.isEmpty()) return false;
+                    moveSelection(selectedIndex < 0 ? 0 : -1);
+                    return true;
+                }
+                case KeyEvent.VK_RIGHT -> {
+                    if (currentItems.isEmpty()) return false;
+                    moveSelection(selectedIndex < 0 ? 0 : +1);
+                    return true;
+                }
+
+                // ── ↑ ↓: move item se há seleção, senão faz scroll ───
+                case KeyEvent.VK_UP -> {
+                    if (!currentItems.isEmpty() && selectedIndex >= 0) {
+                        moveSelection(-getItemsPerRow());
+                    } else {
+                        vBar.setValue(Math.max(vBar.getMinimum(),
+                                vBar.getValue() - unit));
+                    }
+                    return true;
+                }
+                case KeyEvent.VK_DOWN -> {
+                    if (!currentItems.isEmpty() && selectedIndex >= 0) {
+                        moveSelection(+getItemsPerRow());
+                    } else {
+                        vBar.setValue(Math.min(
+                                vBar.getMaximum() - vBar.getVisibleAmount(),
+                                vBar.getValue() + unit));
+                    }
+                    return true;
+                }
+
+                // ── Scroll de bloco ───────────────────────────────────
+                case KeyEvent.VK_PAGE_UP -> {
+                    vBar.setValue(Math.max(vBar.getMinimum(),
+                            vBar.getValue() - block));
+                    return true;
+                }
+                case KeyEvent.VK_PAGE_DOWN -> {
+                    vBar.setValue(Math.min(
+                            vBar.getMaximum() - vBar.getVisibleAmount(),
+                            vBar.getValue() + block));
+                    return true;
+                }
+
+                // ── Ir ao topo / final ────────────────────────────────
+                case KeyEvent.VK_HOME -> {
+                    vBar.setValue(vBar.getMinimum());
+                    return true;
+                }
+                case KeyEvent.VK_END -> {
+                    vBar.setValue(vBar.getMaximum() - vBar.getVisibleAmount());
+                    return true;
+                }
+
+                // ── Enter abre item selecionado ───────────────────────
+                case KeyEvent.VK_ENTER -> {
+                    if (selectedIndex >= 0 && selectedIndex < currentItems.size()) {
+                        FileItemPanel item = currentItems.get(selectedIndex);
+                        if (clickListener != null)
+                            clickListener.onFileDoubleClick(item.getFile());
+                        return true;
+                    }
+                    return false; // sem seleção: Enter chega ao searchField
+                }
+
+                // ── Escape limpa seleção ──────────────────────────────
+                case KeyEvent.VK_ESCAPE -> {
+                    if (selectedIndex >= 0 && selectedIndex < currentItems.size()) {
+                        currentItems.get(selectedIndex).setSelected(false);
+                        selectedIndex = -1;
+                        return true;
+                    }
+                    return false;
+                }
+            }
+
+            return false;
+        };
+
+        KeyboardFocusManager.getCurrentKeyboardFocusManager()
+                .addKeyEventDispatcher(keyDispatcher);
+    }
+
+
+    public void dispose() {
+        if (keyDispatcher != null) {
+            KeyboardFocusManager.getCurrentKeyboardFocusManager()
+                    .removeKeyEventDispatcher(keyDispatcher);
+            keyDispatcher = null;
+        }
+    }
+
+    /**
+     * Move a seleção delta posições, respeitando os limites.
+     */
+    private void moveSelection(int delta) {
+        if (currentItems.isEmpty()) return;
+        int next = selectedIndex < 0 ? 0
+                : Math.max(0, Math.min(currentItems.size() - 1, selectedIndex + delta));
+        selectItem(next);
+    }
+
+    /**
+     * Calcula quantos itens cabem por linha com base no tamanho atual.
+     */
+    private int getItemsPerRow() {
+        int panelWidth = scrollPane.getViewport().getWidth();
+        int cardWidth = currentThumbSize.thumbPx + 20;
+        return Math.max(1, (panelWidth - 12) / (cardWidth + 12));
     }
 
     /**
@@ -141,115 +306,115 @@ public class ResultsPanel extends JPanel {
         renderGrid(results);
     }
 
-//    /**
-//     * Renderiza o grid de resultados
-//     * NOVO MÉTODO: Separado para facilitar re-renderização
-//     */
-//    private void renderGrid(List<FileInfo> results) {
-//        gridPanel.removeAll();
-//        gridPanel.setLayout(null);
-//        gridPanel.setBackground(backgroundColor);
-//
-//        int panelWidth = scrollPane.getViewport().getWidth();
-//        if (panelWidth <= 0) {
-//            panelWidth = getWidth();
-//        }
-//
-//        // Se ainda não tem largura válida, tenta novamente depois
-//        if (panelWidth <= 100) {
-//            SwingUtilities.invokeLater(() -> renderGrid(results));
-//            return;
-//        }
-//
-//        int spacing = 15;
-//        int minItemWidth = 130;
-//        int itemHeight = 160;
-//
-//        // Calcula quantos itens cabem por linha
-//        int itemsPerRow = Math.max(1, (panelWidth - spacing) / (minItemWidth + spacing));
-//        int dynamicWidth = (panelWidth - (itemsPerRow + 1) * spacing) / itemsPerRow;
-//
-//        int x = spacing;
-//        int y = spacing;
-//        int count = 0;
-//
-//        for (FileInfo fileInfo : results) {
-//            File file = new File(fileInfo.getPath());
-//            if (!file.exists()) continue;
-//
-//            FileItemPanel item = new FileItemPanel(file, fileInfo, dynamicWidth, itemHeight);
-//            item.setBounds(x, y, dynamicWidth, itemHeight);
-//
-//            if (clickListener != null) {
-//                item.setClickListener(clickListener); // já existia
-//                // O FileItemPanel precisa saber quem é ele mesmo — veja item 2e abaixo
-//            }
-//
-//            gridPanel.add(item);
-//
-//            count++;
-//            if (count % itemsPerRow == 0) {
-//                x = spacing;
-//                y += itemHeight + spacing;
-//            } else {
-//                x += dynamicWidth + spacing;
-//            }
-//        }
-//
-//        // Calcula altura total necessária
-//        int totalRows = (int) Math.ceil((double) count / itemsPerRow);
-//        int totalHeight = spacing + (totalRows * (itemHeight + spacing));
-//
-//        gridPanel.setPreferredSize(new Dimension(panelWidth, totalHeight));
-//        gridPanel.revalidate();
-//        gridPanel.repaint();
-//    }
-private void renderGrid(List<FileInfo> results) {
-    gridPanel.removeAll();
-    gridPanel.setLayout(null);
-    gridPanel.setBackground(backgroundColor);
+    private void renderGrid(List<FileInfo> results) {
+        gridPanel.removeAll();
+        gridPanel.setLayout(null);
+        gridPanel.setBackground(backgroundColor);
 
-    int panelWidth = scrollPane.getViewport().getWidth();
-    if (panelWidth <= 0) panelWidth = getWidth();
-    if (panelWidth <= 100) {
-        SwingUtilities.invokeLater(() -> renderGrid(results));
-        return;
+        currentItems.clear();   // NOVO: limpa lista de itens
+        selectedIndex = -1;     // NOVO: reseta seleção
+
+        int panelWidth = scrollPane.getViewport().getWidth();
+        if (panelWidth <= 0) panelWidth = getWidth();
+        if (panelWidth <= 100) {
+            SwingUtilities.invokeLater(() -> renderGrid(results));
+            return;
+        }
+
+        int spacing = 12;
+        int cardWidth = currentThumbSize.thumbPx + 20;
+        int cardHeight = currentThumbSize.cardHeight;
+
+        int itemsPerRow = Math.max(1, (panelWidth - spacing) / (cardWidth + spacing));
+        int dynamicWidth = (panelWidth - (itemsPerRow + 1) * spacing) / itemsPerRow;
+
+        int x = spacing, y = spacing, count = 0;
+
+        for (FileInfo fileInfo : results) {
+            File file = new File(fileInfo.getPath());
+            if (!file.exists()) continue;
+
+            FileItemPanel item = new FileItemPanel(
+                    file, fileInfo, dynamicWidth, cardHeight,
+                    currentThumbSize.thumbPx, this);
+            item.setBounds(x, y, dynamicWidth, cardHeight);
+
+            if (clickListener != null) item.setClickListener(clickListener);
+
+            // NOVO: clique simples seleciona o item
+            final int idx = count;
+            item.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    if (!e.isPopupTrigger())
+                        selectItem(idx);
+                }
+            });
+
+            gridPanel.add(item);
+            currentItems.add(item);   // NOVO
+
+            count++;
+            if (count % itemsPerRow == 0) {
+                x = spacing;
+                y += cardHeight + spacing;
+            } else {
+                x += dynamicWidth + spacing;
+            }
+        }
+
+        int totalRows = (int) Math.ceil((double) count / itemsPerRow);
+        int totalHeight = spacing + totalRows * (cardHeight + spacing);
+        gridPanel.setPreferredSize(new Dimension(panelWidth, totalHeight));
+        gridPanel.revalidate();
+        gridPanel.repaint();
+
+        // NOVO: requisita foco após renderizar
+        // invokeLater garante que o layout já terminou antes de pedir foco
+        SwingUtilities.invokeLater(gridPanel::requestFocusInWindow);
     }
 
-    int spacing    = 12;
-    // MODIFICADO: usa largura do card baseada no ThumbnailSize
-    int cardWidth  = currentThumbSize.thumbPx + 20;  // margem lateral
-    int cardHeight = currentThumbSize.cardHeight;
 
-    int itemsPerRow = Math.max(1, (panelWidth - spacing) / (cardWidth + spacing));
-    int dynamicWidth = (panelWidth - (itemsPerRow + 1) * spacing) / itemsPerRow;
+    // ── Método de seleção ─────────────────────────────────────────────
+    private void selectItem(int index) {
+        if (index < 0 || index >= currentItems.size()) return;
 
-    int x = spacing, y = spacing, count = 0;
+        // Desmarca anterior
+        if (selectedIndex >= 0 && selectedIndex < currentItems.size())
+            currentItems.get(selectedIndex).setSelected(false);
 
-    for (FileInfo fileInfo : results) {
-        File file = new File(fileInfo.getPath());
-        if (!file.exists()) continue;
+        selectedIndex = index;
+        currentItems.get(selectedIndex).setSelected(true);
 
-        // MODIFICADO: passa thumbSize para o FileItemPanel
-        FileItemPanel item = new FileItemPanel(
-                file, fileInfo, dynamicWidth, cardHeight,
-                currentThumbSize.thumbPx);  // NOVO parâmetro
-        item.setBounds(x, y, dynamicWidth, cardHeight);
-
-        if (clickListener != null) item.setClickListener(clickListener);
-        gridPanel.add(item);
-
-        count++;
-        if (count % itemsPerRow == 0) { x = spacing; y += cardHeight + spacing; }
-        else                          { x += dynamicWidth + spacing; }
+        // Garante visibilidade do item selecionado no scroll
+        scrollToItem(currentItems.get(selectedIndex));
     }
 
-    int totalRows   = (int) Math.ceil((double) count / itemsPerRow);
-    int totalHeight = spacing + totalRows * (cardHeight + spacing);
-    gridPanel.setPreferredSize(new Dimension(panelWidth, totalHeight));
-    gridPanel.revalidate();
-    gridPanel.repaint();
-}
+    private void scrollToItem(FileItemPanel item) {
+        Rectangle bounds = item.getBounds();
+
+        // Expande a região visível com uma margem ao redor do item
+        // para garantir que a borda de seleção (2px) fique totalmente visível
+        Rectangle expanded = new Rectangle(
+                bounds.x - 4,
+                bounds.y - 4,
+                bounds.width + 8,
+                bounds.height + 8
+        );
+
+        gridPanel.scrollRectToVisible(expanded);
+
+        // NOVO: aguarda o scroll terminar antes de repintar
+        // invokeLater coloca o repaint no fim da fila de eventos,
+        // depois que o viewport já atualizou sua posição
+        SwingUtilities.invokeLater(() -> {
+            gridPanel.repaint();
+
+            // Segunda passagem para garantir limpeza total
+            // (necessário quando o scroll é grande)
+            SwingUtilities.invokeLater(() -> gridPanel.repaint());
+        });
+    }
 
     /**
      * Exibe mensagem centralizada
@@ -345,11 +510,6 @@ private void renderGrid(List<FileInfo> results) {
         WELCOME, LOADING, NO_RESULTS, ERROR
     }
 
-    //    public interface FileItemClickListener {
-//        void onFileDoubleClick(File file);
-//        void onFileRightClick(File file, FileInfo fileInfo, Component source, int x, int y);
-//    }
-// Interface atualizada:
     public interface FileItemClickListener {
         void onFileDoubleClick(File file);
 

@@ -26,17 +26,20 @@ public class FileContextMenu extends JPopupMenu {
     private final FolderNavigationListener folderNavListener;
     private final SubfolderToggleListener subfolderToggleListener;
     private boolean currentIncludeSubfolders;
+    private final FileExplorerSwing fileExplorerSwing;
 
     public FileContextMenu(File file, FileInfo fileInfo, Component parent, DatabaseManager dbManager,
                            FileItemPanel itemPanel, FolderNavigationListener folderNavListener,
-                            boolean currentIncludeSubfolders,          // NOVO
-                           SubfolderToggleListener subfolderToggleListener ) {
+                           boolean currentIncludeSubfolders,          // NOVO
+                           SubfolderToggleListener subfolderToggleListener, FileExplorerSwing fileExplorerSwing
+    ) {
         this.file = file;
         this.fileInfo = fileInfo;
         this.parent = parent;
         this.dbManager = dbManager;
         this.itemPanel = itemPanel;
         this.folderNavListener = folderNavListener;
+        this.fileExplorerSwing = fileExplorerSwing;
         this.cacheManager = FileItemPanel.getThumbnailCacheManager();
         this.subfolderToggleListener  = subfolderToggleListener;
         this.currentIncludeSubfolders = currentIncludeSubfolders;
@@ -89,16 +92,22 @@ public class FileContextMenu extends JPopupMenu {
         JCheckBoxMenuItem subfolderItem = new JCheckBoxMenuItem(
                 "📂 Mostrar conteúdo de subpastas");
         subfolderItem.setSelected(currentIncludeSubfolders);
+        subfolderItem.setSelected(fileExplorerSwing.getConfigManager().getSavedSubfolderItems());
         subfolderItem.addActionListener(e -> {
-            if (subfolderToggleListener != null)
+            if (subfolderToggleListener != null){
                 subfolderToggleListener.onToggle(subfolderItem.isSelected());
+            }
+            fileExplorerSwing.getConfigManager().saveSubfolderItems(subfolderItem.isSelected());
         });
         add(subfolderItem);
 
         addSeparator();
         JCheckBoxMenuItem toggleOverlay = new JCheckBoxMenuItem("⭐ Mostrar avaliação nos ícones");
-        toggleOverlay.setSelected(FileItemPanel.isShowRatingOverlay());
-        toggleOverlay.addActionListener(e -> toggleRatingOverlay(toggleOverlay.isSelected()));
+        toggleOverlay.setSelected(fileExplorerSwing.getConfigManager().getSavedShowStarRating());
+        toggleOverlay.addActionListener(e -> {
+            toggleRatingOverlay(toggleOverlay.isSelected());
+            fileExplorerSwing.getConfigManager().saveShowStarRating(toggleOverlay.isSelected());
+        });
         add(toggleOverlay);
     }
 
@@ -129,9 +138,9 @@ public class FileContextMenu extends JPopupMenu {
             fileInfo.setRating(stars);
 
             // NOVO: atualiza o overlay visualmente sem reload
-            if (itemPanel != null) {
+
                 itemPanel.updateRatingOverlay(stars);
-            }
+
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(parent,
                     "Erro ao salvar avaliação: " + ex.getMessage(),
