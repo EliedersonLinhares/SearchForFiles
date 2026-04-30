@@ -3,6 +3,7 @@ package com.esl.searchforfiles.ui;
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.database.DatabaseManager;
 import com.esl.searchforfiles.model.FileInfo;
+import com.esl.searchforfiles.service.FavoritesService;
 
 import javax.swing.*;
 import java.awt.*;
@@ -27,11 +28,12 @@ public class FileContextMenu extends JPopupMenu {
     private final SubfolderToggleListener subfolderToggleListener;
     private boolean currentIncludeSubfolders;
     private final FileExplorerSwing fileExplorerSwing;
+    private final FavoritesService favoritesService;
 
     public FileContextMenu(File file, FileInfo fileInfo, Component parent, DatabaseManager dbManager,
                            FileItemPanel itemPanel, FolderNavigationListener folderNavListener,
                            boolean currentIncludeSubfolders,          // NOVO
-                           SubfolderToggleListener subfolderToggleListener, FileExplorerSwing fileExplorerSwing
+                           SubfolderToggleListener subfolderToggleListener, FileExplorerSwing fileExplorerSwing, FavoritesService favoritesService
     ) {
         this.file = file;
         this.fileInfo = fileInfo;
@@ -40,6 +42,7 @@ public class FileContextMenu extends JPopupMenu {
         this.itemPanel = itemPanel;
         this.folderNavListener = folderNavListener;
         this.fileExplorerSwing = fileExplorerSwing;
+        this.favoritesService = favoritesService;
         this.cacheManager = FileItemPanel.getThumbnailCacheManager();
         this.subfolderToggleListener  = subfolderToggleListener;
         this.currentIncludeSubfolders = currentIncludeSubfolders;
@@ -48,6 +51,7 @@ public class FileContextMenu extends JPopupMenu {
     }
 
     private void createMenuItems() {
+
         if (fileInfo.isDirectory()) {
             // Para PASTAS: "Entrar" como ação principal
             JMenuItem enterItem = new JMenuItem("📂 Entrar na pasta");
@@ -87,8 +91,29 @@ public class FileContextMenu extends JPopupMenu {
             }
         }
 
+        if(fileInfo.isDirectory()) {
+            JMenuItem favoriteItem = new JMenuItem("⭐ Adicionar aos Favoritos");
+            favoriteItem.addActionListener( e -> {
+            if (favoritesService.isFavorite(file.getAbsolutePath())) {
+                JOptionPane.showMessageDialog(this,
+                        "Esta pasta já está nos favoritos!",
+                        "Aviso", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+
+            if (favoritesService.addFavorite(file.getAbsolutePath())) {
+                JOptionPane.showMessageDialog(this,
+                        "Pasta adicionada aos favoritos!\n\n" + file.getAbsolutePath(),
+                        "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+            }
+            });
+            add(favoriteItem);
+        }
+
         add(makeItem("Propriedades", null, e -> showProperties()));
 
+
+        //opçao para mostrar contudo de subpastas
         JCheckBoxMenuItem subfolderItem = new JCheckBoxMenuItem(
                 "📂 Mostrar conteúdo de subpastas");
         subfolderItem.setSelected(currentIncludeSubfolders);
@@ -102,6 +127,7 @@ public class FileContextMenu extends JPopupMenu {
         add(subfolderItem);
 
         addSeparator();
+
         JCheckBoxMenuItem toggleOverlay = new JCheckBoxMenuItem("⭐ Mostrar avaliação nos ícones");
         toggleOverlay.setSelected(fileExplorerSwing.getConfigManager().getSavedShowStarRating());
         toggleOverlay.addActionListener(e -> {
@@ -109,6 +135,15 @@ public class FileContextMenu extends JPopupMenu {
             fileExplorerSwing.getConfigManager().saveShowStarRating(toggleOverlay.isSelected());
         });
         add(toggleOverlay);
+
+        JCheckBoxMenuItem toggleExtensionType = new JCheckBoxMenuItem("Mostrar tipo de arquivo nos ícones");
+        toggleExtensionType.setSelected(fileExplorerSwing.getConfigManager().getSavedShowTypeFile());
+        toggleExtensionType.addActionListener(e -> {
+
+            toggleExtensionTypeOverlay(toggleExtensionType.isSelected());
+            fileExplorerSwing.getConfigManager().saveShowTypeFile(toggleExtensionType.isSelected());
+        });
+        add(toggleExtensionType);
     }
 
     // ── Rating submenu ──────────────────────────────────────────────
@@ -170,6 +205,11 @@ public class FileContextMenu extends JPopupMenu {
         // Propaga para todos os FileItemPanels visíveis na tela
         propagateOverlayVisibility(parent);
     }
+    private void toggleExtensionTypeOverlay(boolean visible){
+        FileItemPanel.setShowExtensionFileOverlay(visible);
+
+        propagateExtensionTypeVisibility(parent);
+    }
 
     /**
      * Percorre a hierarquia de componentes a partir do ResultsPanel
@@ -188,6 +228,23 @@ public class FileContextMenu extends JPopupMenu {
                 fip.applyOverlayVisibility();
             } else if (c instanceof Container inner) {
                 applyToAll(inner);
+            }
+        }
+    }
+
+    private void propagateExtensionTypeVisibility(Component origin) {
+        // Sobe até o JFrame para depois descer até o gridPanel
+        Container root = SwingUtilities.getAncestorOfClass(JFrame.class, origin);
+        if (root == null) return;
+        applyToAllExtensionType(root);
+    }
+
+    private void applyToAllExtensionType(Container container) {
+        for (Component c : container.getComponents()) {
+            if (c instanceof FileItemPanel fip) {
+                fip.applyExtensionTypeVisibility();
+            } else if (c instanceof Container inner) {
+                applyToAllExtensionType(inner);
             }
         }
     }

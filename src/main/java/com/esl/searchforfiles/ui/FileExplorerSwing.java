@@ -41,6 +41,10 @@ public class FileExplorerSwing extends JFrame {
     private JLabel autoRefreshIndicator;
     private JLabel syncIndicator; // NOVO
 
+    public ResultsPanel getResultsPanel() {
+        return resultsPanel;
+    }
+
     public FileExplorerSwing() {
         super("Advanced File Search - Interface Gráfica");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -119,13 +123,13 @@ public class FileExplorerSwing extends JFrame {
                             showSubfolderContents = include;
                             currentPage = 1;
                             performCurrentSearch();
-                        }, FileExplorerSwing.this
+                        }, FileExplorerSwing.this, favoritesService
                 );
                 menu.show(source, x, y);
             }
         });
 
-        paginationPanel = new PaginationPanel();
+        paginationPanel = new PaginationPanel(this);
         paginationPanel.setPaginationListener(new PaginationPanel.PaginationListener() {
             @Override
             public void onPageChanged(int newPage) {

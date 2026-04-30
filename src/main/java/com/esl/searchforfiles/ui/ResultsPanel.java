@@ -30,6 +30,7 @@ public class ResultsPanel extends JPanel {
     private ThumbnailSize currentThumbSize = ThumbnailSize.MEDIO; // NOVO
     private int selectedIndex = -1;  // índice do item selecionado no grid
     private List<FileItemPanel> currentItems = new ArrayList<>(); // refs aos panels
+    private JScrollBar vBar;
 
     private KeyEventDispatcher keyDispatcher;
 
@@ -56,7 +57,7 @@ public class ResultsPanel extends JPanel {
 
         scrollPane = new JScrollPane(gridPanel);
         scrollPane.getVerticalScrollBar().setUnitIncrement(20);
-
+        vBar = scrollPane.getVerticalScrollBar();
         add(scrollPane, BorderLayout.CENTER);
 
         // Listener para redimensionamento
@@ -75,7 +76,7 @@ public class ResultsPanel extends JPanel {
 
 
     public void setupKeyboardScroll() {
-        JScrollBar vBar = scrollPane.getVerticalScrollBar();
+//        JScrollBar vBar = scrollPane.getVerticalScrollBar();
         int unit = 60;
         int block = 300;
 
@@ -149,7 +150,7 @@ public class ResultsPanel extends JPanel {
 
                 // ── Ir ao topo / final ────────────────────────────────
                 case KeyEvent.VK_HOME -> {
-                    vBar.setValue(vBar.getMinimum());
+                    topScroll();
                     return true;
                 }
                 case KeyEvent.VK_END -> {
@@ -184,6 +185,10 @@ public class ResultsPanel extends JPanel {
 
         KeyboardFocusManager.getCurrentKeyboardFocusManager()
                 .addKeyEventDispatcher(keyDispatcher);
+    }
+
+    public void topScroll() {
+        vBar.setValue(vBar.getMinimum());
     }
 
 

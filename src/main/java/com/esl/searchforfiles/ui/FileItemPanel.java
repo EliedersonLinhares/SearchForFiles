@@ -2,6 +2,8 @@ package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.model.FileInfo;
+import com.esl.searchforfiles.model.FileType;
+import com.esl.searchforfiles.service.IconService;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.PDFRenderer;
@@ -57,6 +59,7 @@ public class FileItemPanel extends JPanel {
             "mp4", "m4v", "mov", "avi", "mkv", "webm", "flv", "wmv", "mpeg", "mpg"
     ));
     private static boolean showRatingOverlay = true; // NOVO — controlado pelo menu de contexto
+    private static boolean showExtensionFileOverlay = true; // NOVO — controlado pelo menu de contexto
     private final File originalFile;  // Arquivo original (.lnk ou não)
     private final FileInfo fileInfo;
     private final ThumbnailCacheManager cacheManager;
@@ -69,14 +72,14 @@ public class FileItemPanel extends JPanel {
     private ResultsPanel.FileItemClickListener clickListener;
     private RatingOverlay ratingOverlay; // NOVO
     private boolean selected = false;
-
+    private TypeOverlay typeOverlay; // NOVO
 
     public FileItemPanel(File file, FileInfo fileInfo, int width, int height, int thumbSize, ResultsPanel resultsPanel) {
 
         this.originalFile = file;
         this.resultsPanel = resultsPanel;
         this.thumbSize = thumbSize;
-// VALIDAÇÃO CRÍTICA: Verifica se file não é null
+        // VALIDAÇÃO CRÍTICA: Verifica se file não é null
         if (file == null) {
             throw new IllegalArgumentException("File não pode ser null!");
         }
@@ -98,12 +101,13 @@ public class FileItemPanel extends JPanel {
         setBackground(normalColor);
         setAlignmentX(Component.CENTER_ALIGNMENT);
         setShowRatingOverlay(resultsPanel.getFileExplorerSwing().getConfigManager().getSavedShowStarRating());
+        setShowExtensionFileOverlay(resultsPanel.getFileExplorerSwing().getConfigManager().getSavedShowTypeFile());
 
         // Ícone / Miniatura
         JComponent iconLabel = createIconLabel();  // JComponent em vez de JLabel
         iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);  // mantém — é método de JComponent
 
-// setHorizontalAlignment não existe em JComponent — trate por tipo:
+        // setHorizontalAlignment não existe em JComponent — trate por tipo:
         if (iconLabel instanceof JLabel lbl) {
             lbl.setHorizontalAlignment(SwingConstants.CENTER);
         } else {
@@ -201,6 +205,14 @@ public class FileItemPanel extends JPanel {
         showRatingOverlay = v;
     }
 
+    public static boolean isShowExtensionFileOverlay() {
+        return showExtensionFileOverlay;
+    }
+
+    public static void setShowExtensionFileOverlay(boolean showExtensionFileOverlay) {
+        FileItemPanel.showExtensionFileOverlay = showExtensionFileOverlay;
+    }
+
     /**
      * Registra um JLabel para receber o ícone quando o worker terminar.
      * Usa WeakReference para não impedir o GC de coletar labels descartados.
@@ -261,21 +273,17 @@ public class FileItemPanel extends JPanel {
         return new ImageIcon(img);
     }
 
-    // ── Atualize createIconLabel() para usar fitInsideSquare ─────────
-    // Substitua as chamadas a scaleWithPreset() e getSystemIconCached()
-    // dentro dos workers pelos novos métodos:
-
     private static Icon getLoadingIcon() {
         return LOADING_ICON;
     }
 
-    // --- util: obtém extensão (sem o ponto), ou "" se não houver ---
+    // Utilitário auxiliar (se não existir em outro lugar)
     private static String getExtension(File file) {
-        if (file == null) return "";
         String name = file.getName();
-        int lastDot = name.lastIndexOf('.');
-        if (lastDot == -1 || lastDot == name.length() - 1) return "";
-        return name.substring(lastDot + 1).toLowerCase(Locale.ROOT);
+        int dot = name.lastIndexOf('.');
+        return (dot >= 0 && dot < name.length() - 1)
+                ? name.substring(dot + 1).toLowerCase()
+                : "";
     }
 
     private static String getMimeType(File file) {
@@ -469,50 +477,143 @@ public class FileItemPanel extends JPanel {
         return new ImageIcon(canvas);
     }
 
-    private void updateIconLabel(JLabel iconLabel, File file, int width) {
-        int thumbSize = Math.min(width - 10, 128);
-
-        if (isImage(file)) {
-            loadThumbnailAsyncCached(file, thumbSize, Preset.MEDIO, iconLabel);
-        } else if (isVideo(file)) {
-            loadVideoThumbnailAsync(file, thumbSize, iconLabel);
-        } else if (isPdf(file)) {
-            loadPdfThumbnailAsync(file, thumbSize, iconLabel);
-        } else {
-            iconLabel.setIcon(getSystemIconCached(file, 128));
-        }
-    }
-
     private JComponent createIconLabel() {
-        // MODIFICADO: usa o thumbSize recebido do construtor
         int boxSize = this.thumbSize;
-        File fileToDisplay = this.displayFile;
+        File fileToDisplay = this.displayFile;   // já resolvido no construtor (destino real)
 
+        // ── Detecta atalho pelo arquivo ORIGINAL, não pelo displayFile ──
+        // originalFile é o .lnk; displayFile já é o destino
+        boolean isShortcut = SimpleLinkResolver.isShortcut(this.originalFile);
+
+        // ── VERIFICAÇÃO DE EXISTÊNCIA ──
+        boolean exists = SimpleLinkResolver.isValid(this.originalFile);
+
+        // Extensão e tipo vêm do DESTINO (displayFile)
+        String ext;
+        FileType fileType;
+        if (isShortcut) {
+            if (fileToDisplay.isDirectory()) {
+                ext = "folder";
+                fileType = FileType.FOLDER;
+            } else {
+                ext = getExtension(fileToDisplay);
+                fileType = FileType.fromExtension(ext);
+            }
+        } else {
+            ext = fileInfo.getExtension();
+            fileType = fileInfo.getFileType();
+        }
+
+        // ── Ícone principal (do destino) ──────────────────────────────
         JLabel iconLabel = new JLabel();
         iconLabel.setHorizontalAlignment(SwingConstants.CENTER);
         iconLabel.setVerticalAlignment(SwingConstants.CENTER);
         iconLabel.setPreferredSize(new Dimension(boxSize, boxSize));
 
-        if (isImage(fileToDisplay)) loadThumbnailFit(fileToDisplay, boxSize, iconLabel);
-        else if (isVideo(fileToDisplay)) loadVideoThumbnailFit(fileToDisplay, boxSize, iconLabel);
-        else if (isPdf(fileToDisplay)) loadPdfThumbnailFit(fileToDisplay, boxSize, iconLabel);
-        else {
-            Icon sys = FileSystemView.getFileSystemView().getSystemIcon(fileToDisplay);
+
+        if (IconService.hasCustomIcon(ext, fileType)) {
+            loadCustomIcon(ext, fileType, boxSize, iconLabel);
+        } else if (isImage(fileToDisplay)) {
+            loadThumbnailFit(fileToDisplay, boxSize, iconLabel);
+        } else if (isVideo(fileToDisplay)) {
+            loadVideoThumbnailFit(fileToDisplay, boxSize, iconLabel);
+        } else if (isPdf(fileToDisplay)) {
+            loadPdfThumbnailFit(fileToDisplay, boxSize, iconLabel);
+        } else {
+
+            Icon sys;
+            if (isShortcut && !exists) {
+                sys = IconService.getIconDefault("file_not_found", 512);
+            } else {
+                sys = FileSystemView.getFileSystemView().getSystemIcon(fileToDisplay);
+            }
+
             iconLabel.setIcon(fitIconInsideSquare(sys, boxSize));
         }
 
-        if (fileInfo.getRating() <= 0) return iconLabel;
 
+        boolean hasTypeOvl = TypeOverlay.hasOverlay(ext, fileType);
+        if (!hasTypeOvl && !isShortcut) return iconLabel;
+
+
+        // ── Monta JLayeredPane ────────────────────────────────────────
         JLayeredPane layered = new JLayeredPane();
         layered.setPreferredSize(new Dimension(boxSize, boxSize));
+        layered.setMaximumSize(new Dimension(boxSize, boxSize));   // impede que BoxLayout estique
+        layered.setAlignmentX(Component.CENTER_ALIGNMENT);        // centraliza no BoxLayout
         layered.setOpaque(false);
+
         iconLabel.setBounds(0, 0, boxSize, boxSize);
         layered.add(iconLabel, JLayeredPane.DEFAULT_LAYER);
-        ratingOverlay = new RatingOverlay(fileInfo.getRating());
+
+        ratingOverlay = new RatingOverlay(fileInfo.getRating()); // rating 0 = não desenha nada
         ratingOverlay.setBounds(0, 0, boxSize, boxSize);
-        ratingOverlay.setVisible(showRatingOverlay);
+        ratingOverlay.setVisible(showRatingOverlay && fileInfo.getRating() > 0);
         layered.add(ratingOverlay, JLayeredPane.PALETTE_LAYER);
+
+        // Em createIconLabel() — remova o if interno de showExtensionFileOverlay:
+        if (hasTypeOvl) {
+            typeOverlay = new TypeOverlay(ext, fileType);
+            typeOverlay.setBounds(0, 0, boxSize, boxSize);
+            typeOverlay.setVisible(showExtensionFileOverlay); // ← visibilidade inicial
+            layered.add(typeOverlay, JLayeredPane.PALETTE_LAYER);
+        }
+
+        // Seta de atalho — canto inferior esquerdo, sempre acima dos demais
+        if (isShortcut) {
+            ShortcutOverlay shortcutOverlay = new ShortcutOverlay();
+            shortcutOverlay.setBounds(0, 0, boxSize, boxSize);
+            layered.add(shortcutOverlay, JLayeredPane.MODAL_LAYER);
+        }
+
         return layered;
+    }
+
+
+    private void loadCustomIcon(String extension, FileType fileType,
+                                int boxSize, JLabel target) {
+        // Chave de cache inclui extensão para diferenciar doc de docx
+        String cacheKey = "custom_"
+                + (extension != null ? extension.toLowerCase() : "")
+                + "_" + (fileType != null ? fileType.name() : "")
+                + "_" + boxSize;
+
+        ImageIcon cached = ICON_CACHE.get(cacheKey);
+        if (cached != null) {
+            target.setIcon(cached);
+            return;
+        }
+
+        new SwingWorker<ImageIcon, Void>() {
+            @Override
+            protected ImageIcon doInBackground() {
+                // MODIFICADO: resolve passando extensão + tipo
+                BufferedImage src = IconService.resolve(extension, fileType);
+                if (src == null) return null;
+
+                BufferedImage fitted = fitInsideSquare(src, boxSize);
+                ImageIcon icon = new ImageIcon(fitted);
+                ICON_CACHE.put(cacheKey, icon);
+                return icon;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    ImageIcon icon = get();
+                    if (icon != null) {
+                        SwingUtilities.invokeLater(() -> target.setIcon(icon));
+                    } else {
+                        Icon sys = FileSystemView.getFileSystemView()
+                                .getSystemIcon(new File(fileInfo.getPath()));
+                        SwingUtilities.invokeLater(() ->
+                                target.setIcon(fitIconInsideSquare(sys, boxSize)));
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }.execute();
     }
 
     /**
@@ -632,7 +733,7 @@ public class FileItemPanel extends JPanel {
 
         new SwingWorker<ImageIcon, Void>() {
             @Override
-            protected ImageIcon doInBackground() throws Exception {
+            protected ImageIcon doInBackground() {
                 BufferedImage raw = extractPdfThumbnail(file, boxSize);
                 if (raw == null) return null;
                 BufferedImage fitted = fitInsideSquare(raw, boxSize);
@@ -666,6 +767,11 @@ public class FileItemPanel extends JPanel {
         if (ratingOverlay != null) {
             ratingOverlay.setRating(newRating);
             ratingOverlay.setVisible(showRatingOverlay && newRating > 0);
+            ratingOverlay.repaint(); // ← garante repaint do overlay
+
+            // Força o pai (JLayeredPane) a se repintar também
+            Container parent = ratingOverlay.getParent();
+            if (parent != null) parent.repaint();
         }
     }
 
@@ -676,6 +782,12 @@ public class FileItemPanel extends JPanel {
     public void applyOverlayVisibility() {
         if (ratingOverlay != null) {
             ratingOverlay.setVisible(showRatingOverlay && fileInfo.getRating() > 0);
+        }
+    }
+
+    public void applyExtensionTypeVisibility() {
+        if (typeOverlay != null) {
+            typeOverlay.setVisible(showExtensionFileOverlay);
         }
     }
 

@@ -4,6 +4,7 @@ package com.esl.searchforfiles.ui;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.model.SearchCriteria;
+import com.esl.searchforfiles.service.IconService;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileSystemView;
@@ -152,6 +153,9 @@ public class SubFolderPanel extends JPanel {
 
     private JPanel createFolderRow(FileInfo fi) {
         File file = new File(fi.getPath());
+        System.out.println(file.getName());
+
+
 
         JPanel row = new JPanel(new BorderLayout(6, 0));
         row.setBackground(BG_COLOR);
@@ -160,7 +164,8 @@ public class SubFolderPanel extends JPanel {
         row.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         JLabel iconLabel = new JLabel();
-        iconLabel.setIcon(resizeIcon(FSV.getSystemIcon(file), 16));
+       // iconLabel.setIcon(resizeIcon(FSV.getSystemIcon(file), 16));
+        iconLabel.setIcon(IconService.getIcon(file,"",FileType.FOLDER,32));
         iconLabel.setOpaque(false);
         // NOVO: propaga cursor para filhos
         iconLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));

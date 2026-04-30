@@ -1,6 +1,8 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.service.FavoritesService;
+import com.esl.searchforfiles.service.IconService;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileSystemView;
@@ -8,6 +10,7 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -244,7 +247,15 @@ public class FavoritesPanel extends JPanel {
                 setFont(getFont().deriveFont(Font.ITALIC));
             } else {
                 File file = new File(path);
-                setIcon(fsv.getSystemIcon(file));
+
+                List<String> exclusion = List.of("Desktop","Downloads","Pictures","3D Objects","Documents"
+                , "Favorites", "Meus Documentos", "Music", "OneDrive", "Recent" ,"Saved Games", "Search", "Videos");
+
+                if(exclusion.stream().anyMatch( e -> e.equalsIgnoreCase(file.getName()))){
+                    setIcon(fsv.getSystemIcon(file,32,32));
+                }else {
+                    setIcon(IconService.getIcon(file, "", FileType.FOLDER, 32));
+                }
 
                 // Mostra apenas o nome da pasta
                 String displayName = file.getName();

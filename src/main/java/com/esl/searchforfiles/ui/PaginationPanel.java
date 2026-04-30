@@ -19,30 +19,44 @@ public class PaginationPanel extends JPanel {
 
     private PaginationListener paginationListener;
     private PaginationInfo currentPagination;
+    private final FileExplorerSwing fileExplorerSwing;
 
-    public PaginationPanel() {
+    public PaginationPanel(FileExplorerSwing fileExplorerSwing) {
+        this.fileExplorerSwing = fileExplorerSwing;
         setLayout(new FlowLayout(FlowLayout.CENTER, 10, 5));
         setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
 
         // Botões de navegação
         firstButton = new JButton("⏮ Primeira");
         firstButton.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        firstButton.addActionListener(e -> goToPage(1));
+        firstButton.addActionListener(e -> {
+            goToPage(1);
+            fileExplorerSwing.getResultsPanel().topScroll();
+        });
 
         previousButton = new JButton("◀ Anterior");
         previousButton.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        previousButton.addActionListener(e -> goToPreviousPage());
+        previousButton.addActionListener(e ->{
+            goToPreviousPage();
+            fileExplorerSwing.getResultsPanel().topScroll();
+        });
 
         pageLabel = new JLabel("Página 1 de 1");
         pageLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
 
         nextButton = new JButton("Próxima ▶");
         nextButton.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        nextButton.addActionListener(e -> goToNextPage());
+        nextButton.addActionListener(e -> {
+            goToNextPage();
+            fileExplorerSwing.getResultsPanel().topScroll();
+        });
 
         lastButton = new JButton("Última ⏭");
         lastButton.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        lastButton.addActionListener(e -> goToLastPage());
+        lastButton.addActionListener(e -> {
+            goToLastPage();
+            fileExplorerSwing.getResultsPanel().topScroll();
+        });
 
         // ComboBox de tamanho de página
         pageSizeCombo = new JComboBox<>(new Integer[]{50, 100, 200, 500, 1000});

@@ -23,6 +23,10 @@ public class SimpleLinkResolver {
                 file.exists() &&
                 file.getName().toLowerCase().endsWith(".lnk");
     }
+    public static boolean isValid(File file) {
+        return file != null &&
+                !file.exists();
+    }
 
     /**
      * Resolve atalho usando biblioteca mslinks com fallbacks
@@ -108,146 +112,6 @@ public class SimpleLinkResolver {
         }
     }
 
-    /**
-     * MÉTODO ALTERNATIVO 1: Parse manual simplificado do .lnk
-     */
-//    private static File parseShortcutManually(File shortcutFile) {
-//        try (FileInputStream fis = new FileInputStream(shortcutFile)) {
-//            byte[] header = new byte[76];
-//
-//            if (fis.read(header) != 76) {
-//                return null;
-//            }
-//
-//            // Verifica magic number
-//            ByteBuffer buffer = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN);
-//            int magic = buffer.getInt(0);
-//
-//            if (magic != 0x0000004C) {  // 'L' magic number
-//                return null;
-//            }
-//
-//            // Lê flags
-//            int flags = buffer.getInt(20);
-//
-//            // Pula LinkTargetIDList se presente
-//            int offset = 76;
-//            if ((flags & 0x01) != 0) {  // HAS_LINK_TARGET_ID_LIST
-//                fis.skip(offset - 76);
-//                byte[] sizeBytes = new byte[2];
-//                if (fis.read(sizeBytes) != 2) return null;
-//
-//                int idListSize = ByteBuffer.wrap(sizeBytes).order(ByteOrder.LITTLE_ENDIAN).getShort() & 0xFFFF;
-//                fis.skip(idListSize);
-//            }
-//
-//            // Lê LinkInfo se presente
-//            if ((flags & 0x02) != 0) {  // HAS_LINK_INFO
-//                byte[] sizeBytes = new byte[4];
-//                if (fis.read(sizeBytes) != 4) return null;
-//
-//                int linkInfoSize = ByteBuffer.wrap(sizeBytes).order(ByteOrder.LITTLE_ENDIAN).getInt();
-//
-//                if (linkInfoSize > 28 && linkInfoSize < 1024 * 1024) {  // Sanity check
-//                    byte[] linkInfo = new byte[linkInfoSize - 4];
-//                    if (fis.read(linkInfo) == linkInfo.length) {
-//                        String path = extractPathFromLinkInfo(linkInfo);
-//                        if (path != null && !path.isEmpty()) {
-//                            return new File(path);
-//                        }
-//                    }
-//                }
-//            }
-//
-//        } catch (Exception e) {
-//            // Ignora erros silenciosamente
-//        }
-//
-//        return null;
-//    }
-
-    /**
-     * Extrai caminho do LinkInfo
-     */
-//    private static String extractPathFromLinkInfo(byte[] linkInfo) {
-//        try {
-//            ByteBuffer buffer = ByteBuffer.wrap(linkInfo).order(ByteOrder.LITTLE_ENDIAN);
-//
-//            if (linkInfo.length < 16) return null;
-//
-//            int localBasePathOffset = buffer.getInt(12);
-//
-//            if (localBasePathOffset > 0 && localBasePathOffset < linkInfo.length) {
-//                StringBuilder path = new StringBuilder();
-//
-//                for (int i = localBasePathOffset; i < linkInfo.length; i++) {
-//                    byte b = linkInfo[i];
-//                    if (b == 0) break;
-//                    path.append((char) (b & 0xFF));
-//                }
-//
-//                String result = path.toString().trim();
-//                if (!result.isEmpty()) {
-//                    return result;
-//                }
-//            }
-//        } catch (Exception e) {
-//            // Ignora
-//        }
-//
-//        return null;
-//    }
-//
-//    /**
-//     * MÉTODO ALTERNATIVO 2: Usa Windows Script para resolver atalho
-//     */
-//    private static File resolveWithWindowsScript(File shortcutFile) {
-//        // Este método usa VBScript/PowerShell como último recurso
-//        // Só funciona no Windows
-//
-//        if (!System.getProperty("os.name").toLowerCase().contains("windows")) {
-//            return null;
-//        }
-//
-//        try {
-//            // Cria script temporário
-//            File tempScript = File.createTempFile("resolve_lnk_", ".vbs");
-//            tempScript.deleteOnExit();
-//
-//            String script = String.format(
-//                    "Set WshShell = CreateObject(\"WScript.Shell\")\n" +
-//                            "Set lnk = WshShell.CreateShortcut(\"%s\")\n" +
-//                            "WScript.Echo lnk.TargetPath\n",
-//                    shortcutFile.getAbsolutePath().replace("\\", "\\\\")
-//            );
-//
-//            Files.write(tempScript.toPath(), script.getBytes(StandardCharsets.UTF_8));
-//
-//            // Executa script
-//            Process process = Runtime.getRuntime().exec(
-//                    new String[]{"cscript", "//NoLogo", tempScript.getAbsolutePath()}
-//            );
-//
-//            BufferedReader reader = new BufferedReader(
-//                    new InputStreamReader(process.getInputStream())
-//            );
-//
-//            String targetPath = reader.readLine();
-//            reader.close();
-//
-//            process.waitFor();
-//            tempScript.delete();
-//
-//            if (targetPath != null && !targetPath.trim().isEmpty()) {
-//                return new File(targetPath.trim());
-//            }
-//
-//        } catch (Exception e) {
-//            // Ignora erros do script
-//        }
-//
-//        return null;
-//    }
 
     /**
      * Classe para armazenar informações do atalho

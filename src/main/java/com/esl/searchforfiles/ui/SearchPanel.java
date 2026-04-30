@@ -113,7 +113,7 @@ public class SearchPanel extends JPanel {
 
 
         filterBox = new JComboBox<>(new String[]{
-                "TODOS", "AUDIO", "VIDEO", "IMAGE", "DOCUMENT", "COMPRESSED", "EXECUTABLE", "FOLDER"
+                "TODOS", "AUDIO", "VIDEO", "IMAGE", "DOCUMENT", "COMPRESSED", "EXECUTABLE", "CONFIGURATION", "FOLDER"
         });
         filterBox.setSelectedItem(fileExplorerSwing.getConfigManager().getSavedFileType());
         filterBox.setFont(new Font("SansSerif", Font.PLAIN, 14));

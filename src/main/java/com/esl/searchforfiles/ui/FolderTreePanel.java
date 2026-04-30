@@ -1,6 +1,8 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.service.FavoritesService;
+import com.esl.searchforfiles.service.IconService;
 
 import javax.swing.*;
 import javax.swing.event.TreeExpansionEvent;
@@ -16,6 +18,7 @@ import java.awt.event.MouseEvent;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
 
 /**
  * Painel com JTree para navegação de drives e pastas
@@ -276,10 +279,21 @@ public class FolderTreePanel extends JPanel {
             DefaultMutableTreeNode node = (DefaultMutableTreeNode) value;
             Object userObject = node.getUserObject();
 
-            if (userObject instanceof File) {
-                File file = (File) userObject;
+            if (userObject instanceof File file) {
                 setText(file.getName().isEmpty() ? file.getAbsolutePath() : file.getName());
-                setIcon(fsv.getSystemIcon(file));
+
+           //     setIcon(fsv.getSystemIcon(file));
+
+
+                java.util.List<String> exclusion = List.of("Desktop","Downloads","Pictures","3D Objects","Documents"
+                        , "Favorites", "Meus Documentos", "Music", "OneDrive", "Recent" ,"Saved Games", "Search", "Videos");
+
+                if(file.getParent() == null || exclusion.stream().anyMatch( e -> e.equalsIgnoreCase(file.getName()))){
+                    setIcon(fsv.getSystemIcon(file,32,32));
+                }else {
+                    setIcon(IconService.getIcon(file, "", FileType.FOLDER, 32));
+                }
+
             } else if (userObject.equals("Computador")) {
                 setIcon(UIManager.getIcon("FileView.computerIcon"));
             }

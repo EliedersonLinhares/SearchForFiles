@@ -23,6 +23,7 @@ public class ConfigManager {
     public static final String KEY_STAR_RATING = "star_rating";
     public static final String KEY_SUBFOLDER_ITEMS = "subFolder_items";
     public static final String KEY_SHOW_STAR_RATING = "showStarRating";
+    public static final String KEY_SHOW_TYPE_FILE = "showTypeFile";
 
     private static final String CONFIG_FILE = "app_config.properties";
     private static final String APP_DIR_NAME = ".advancedsearch";
@@ -38,6 +39,7 @@ public class ConfigManager {
         DEFAULTS.put(KEY_STAR_RATING, "0");
         DEFAULTS.put(KEY_SUBFOLDER_ITEMS, "false");
         DEFAULTS.put(KEY_SHOW_STAR_RATING, "true");
+        DEFAULTS.put(KEY_SHOW_TYPE_FILE, "true");
 
     }
 
@@ -244,10 +246,18 @@ public class ConfigManager {
     public boolean getSavedShowStarRating() {
         return getBoolean(KEY_SHOW_STAR_RATING, true);
     }
-
     public void saveShowStarRating(boolean showStarRating) {
         setBoolean(KEY_SHOW_STAR_RATING, showStarRating);
     }
+
+    // -------------------------------------------------------------------------
+    // Atalhos específicos para definição se mostra icone do tipo de arquivo sobre o thumbnail
+    // -------------------------------------------------------------------------
+    public boolean getSavedShowTypeFile() {
+        return getBoolean(KEY_SHOW_TYPE_FILE, true);
+    }
+    public void saveShowTypeFile(boolean showTypeFile) {setBoolean(KEY_SHOW_TYPE_FILE, showTypeFile);}
+
 
     // -------------------------------------------------------------------------
     // Persistência interna — formato "chave=valor", uma por linha

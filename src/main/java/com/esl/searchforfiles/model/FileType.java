@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 public enum FileType {
-    AUDIO, VIDEO, IMAGE, DOCUMENT, COMPRESSED, EXECUTABLE, FOLDER, ALL;
+    AUDIO, VIDEO, IMAGE, DOCUMENT, COMPRESSED, EXECUTABLE, FOLDER,CONFIGURATION, ALL;
 
     private static final Map<FileType, Set<String>> EXTENSIONS = new HashMap<>();
 
@@ -33,7 +33,11 @@ public enum FileType {
         ));
 
         EXTENSIONS.put(EXECUTABLE, Set.of(
-                "exe", "msi", "bat", "cmd", "sh", "app", "jar", "dll", "so", "dylib"
+                "exe", "msi", "bat", "cmd", "sh", "app", "jar", "com", "ini"
+        ));
+
+        EXTENSIONS.put(CONFIGURATION, Set.of(
+                "dll", "so", "dylib", "ini", "bin", "acm" , "ax" , "blb", "conf", "ctz", "sys"
         ));
     }
 
