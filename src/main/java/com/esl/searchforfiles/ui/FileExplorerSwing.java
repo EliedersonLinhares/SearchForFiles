@@ -243,20 +243,20 @@ public class FileExplorerSwing extends JFrame {
 
         // Label principal de status
         statusLabel = new JLabel("📂 Local de busca: C:\\ | Sistema pronto");
-        statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 16));
 
         // Painel de indicadores à direita
         JPanel indicatorsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
 
         // Indicador de sincronização (NOVO)
         syncIndicator = new JLabel();
-        syncIndicator.setFont(new Font("SansSerif", Font.BOLD, 11));
+        syncIndicator.setFont(new Font("SansSerif", Font.BOLD, 16));
         syncIndicator.setForeground(new Color(33, 150, 243)); // Azul
         syncIndicator.setVisible(false);
 
         // Indicador de auto-refresh
         autoRefreshIndicator = new JLabel();
-        autoRefreshIndicator.setFont(new Font("SansSerif", Font.BOLD, 11));
+        autoRefreshIndicator.setFont(new Font("SansSerif", Font.BOLD, 16));
         autoRefreshIndicator.setForeground(new Color(76, 175, 80)); // Verde
         autoRefreshIndicator.setVisible(false);
 

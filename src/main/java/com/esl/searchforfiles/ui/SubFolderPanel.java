@@ -1,6 +1,7 @@
 package com.esl.searchforfiles.ui;
 
 
+import com.esl.searchforfiles.configuration.FileTransferHandler;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.model.SearchCriteria;
@@ -14,6 +15,7 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.List;
+import java.util.function.Supplier;
 
 public class SubFolderPanel extends JPanel {
 
@@ -26,6 +28,7 @@ public class SubFolderPanel extends JPanel {
     private final JScrollPane scrollPane;
     private final JLabel titleLabel;
     private FolderClickListener clickListener;
+    private DragAction dragAction;
 
     public SubFolderPanel() {
         setLayout(new BorderLayout(0, 0));
@@ -55,6 +58,8 @@ public class SubFolderPanel extends JPanel {
 
         setPreferredSize(new Dimension(200, 0));
         setVisible(false); // começa oculto
+
+        setTransferHandler(new FileTransferHandler());
     }
 
     // ── API pública ───────────────────────────────────────────────
@@ -153,9 +158,6 @@ public class SubFolderPanel extends JPanel {
 
     private JPanel createFolderRow(FileInfo fi) {
         File file = new File(fi.getPath());
-        System.out.println(file.getName());
-
-
 
         JPanel row = new JPanel(new BorderLayout(6, 0));
         row.setBackground(BG_COLOR);
@@ -213,6 +215,7 @@ public class SubFolderPanel extends JPanel {
                 if (e.getClickCount() == 1 && clickListener != null)
                     clickListener.onFolderClicked(file);
             }
+
         };
 
         // NOVO: aplica o listener no row E em todos os filhos
@@ -220,17 +223,13 @@ public class SubFolderPanel extends JPanel {
         iconLabel.addMouseListener(rowListener);
         nameLabel.addMouseListener(rowListener);
 
-        return row;
-    }
+        //Para o drag action
+        Supplier<File> fileSupplier = () -> file;
+        new DragAction(fileSupplier, row);
+        new DragAction(fileSupplier, iconLabel);
+        new DragAction(fileSupplier, nameLabel);
 
-    private ImageIcon resizeIcon(Icon icon, int size) {
-        if (icon == null) return null;
-        BufferedImage img = new BufferedImage(
-                icon.getIconWidth(), icon.getIconHeight(), BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = img.createGraphics();
-        icon.paintIcon(null, g, 0, 0);
-        g.dispose();
-        return new ImageIcon(img.getScaledInstance(size, size, Image.SCALE_SMOOTH));
+        return row;
     }
 
     // ── Interface ─────────────────────────────────────────────────

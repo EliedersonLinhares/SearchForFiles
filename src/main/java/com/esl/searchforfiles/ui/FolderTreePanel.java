@@ -1,5 +1,6 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.configuration.FileTransferHandler;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.service.FavoritesService;
 import com.esl.searchforfiles.service.IconService;
@@ -31,6 +32,7 @@ public class FolderTreePanel extends JPanel {
     private final FileExplorerSwing fileExplorerSwing;
     private FolderSelectionListener selectionListener;
     private File selectedFile;
+    private DragAction dragAction;
 
     public FolderTreePanel(FavoritesService favoritesService, FileExplorerSwing fileExplorerSwing) {
         this.favoritesService = favoritesService;
@@ -119,6 +121,24 @@ public class FolderTreePanel extends JPanel {
 
         JScrollPane scrollPane = new JScrollPane(folderTree);
         add(scrollPane, BorderLayout.CENTER);
+
+        // Drag & Drop — só pastas podem ser arrastadas para os favoritos
+        // arquivos comuns também podem ser arrastados (para uso futuro)
+        setTransferHandler(new FileTransferHandler());
+
+        dragAction = new DragAction(
+                () -> {
+                    // Executado no momento do drag, não na construção
+                    DefaultMutableTreeNode node =
+                            (DefaultMutableTreeNode) folderTree.getLastSelectedPathComponent();
+
+                    if (node != null && node.getUserObject() instanceof File file) {
+                        return file;
+                    }
+                    return null; // DragAction ignora null
+                },
+                folderTree  // ← drag reconhecido na JTree, não no painel
+        );
     }
 
     /**
@@ -129,31 +149,14 @@ public class FolderTreePanel extends JPanel {
 
         JMenuItem addFavoriteItem = new JMenuItem("⭐ Adicionar aos Favoritos");
         addFavoriteItem.addActionListener(e -> {
+
             DefaultMutableTreeNode selectedNode =
                     (DefaultMutableTreeNode) folderTree.getLastSelectedPathComponent();
 
             if (selectedNode != null && selectedNode.getUserObject() instanceof File) {
                 File selectedFile = (File) selectedNode.getUserObject();
 
-                if (fileExplorerSwing.isDriveRoot(selectedFile.getAbsolutePath())) {
-                    JOptionPane.showMessageDialog(this,
-                            "Drive raiz não pode ser adicionado aos favoritos!\n" + "Somente pastas.",
-                            "Aviso", JOptionPane.INFORMATION_MESSAGE);
-                    return;
-                }
-
-                if (favoritesService.isFavorite(selectedFile.getAbsolutePath())) {
-                    JOptionPane.showMessageDialog(this,
-                            "Esta pasta já está nos favoritos!",
-                            "Aviso", JOptionPane.INFORMATION_MESSAGE);
-                    return;
-                }
-
-                if (favoritesService.addFavorite(selectedFile.getAbsolutePath())) {
-                    JOptionPane.showMessageDialog(this,
-                            "Pasta adicionada aos favoritos!\n\n" + selectedFile.getAbsolutePath(),
-                            "Sucesso", JOptionPane.INFORMATION_MESSAGE);
-                }
+                confirmFavoriteAdd(selectedFile);
             }
         });
 
@@ -185,6 +188,28 @@ public class FolderTreePanel extends JPanel {
         menu.add(openItem);
 
         return menu;
+    }
+
+    private void confirmFavoriteAdd(File selectedFile) {
+        if (fileExplorerSwing.isDriveRoot(selectedFile.getAbsolutePath())) {
+            JOptionPane.showMessageDialog(this,
+                    "Drive raiz não pode ser adicionado aos favoritos!\n" + "Somente pastas.",
+                    "Aviso", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        if (favoritesService.isFavorite(selectedFile.getAbsolutePath())) {
+            JOptionPane.showMessageDialog(this,
+                    "Esta pasta já está nos favoritos!",
+                    "Aviso", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        if (favoritesService.addFavorite(selectedFile.getAbsolutePath())) {
+            JOptionPane.showMessageDialog(this,
+                    "Pasta adicionada aos favoritos!\n\n" + selectedFile.getAbsolutePath(),
+                    "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+        }
     }
 
     private void defaultFolderListener() {

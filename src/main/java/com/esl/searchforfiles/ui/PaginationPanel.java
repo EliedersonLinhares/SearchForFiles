@@ -28,31 +28,31 @@ public class PaginationPanel extends JPanel {
 
         // Botões de navegação
         firstButton = new JButton("⏮ Primeira");
-        firstButton.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        firstButton.setFont(new Font("SansSerif", Font.PLAIN, 14));
         firstButton.addActionListener(e -> {
             goToPage(1);
             fileExplorerSwing.getResultsPanel().topScroll();
         });
 
         previousButton = new JButton("◀ Anterior");
-        previousButton.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        previousButton.setFont(new Font("SansSerif", Font.PLAIN, 14));
         previousButton.addActionListener(e ->{
             goToPreviousPage();
             fileExplorerSwing.getResultsPanel().topScroll();
         });
 
         pageLabel = new JLabel("Página 1 de 1");
-        pageLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        pageLabel.setFont(new Font("SansSerif", Font.BOLD, 15));
 
         nextButton = new JButton("Próxima ▶");
-        nextButton.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        nextButton.setFont(new Font("SansSerif", Font.PLAIN, 14));
         nextButton.addActionListener(e -> {
             goToNextPage();
             fileExplorerSwing.getResultsPanel().topScroll();
         });
 
         lastButton = new JButton("Última ⏭");
-        lastButton.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        lastButton.setFont(new Font("SansSerif", Font.PLAIN, 14));
         lastButton.addActionListener(e -> {
             goToLastPage();
             fileExplorerSwing.getResultsPanel().topScroll();
@@ -61,12 +61,12 @@ public class PaginationPanel extends JPanel {
         // ComboBox de tamanho de página
         pageSizeCombo = new JComboBox<>(new Integer[]{50, 100, 200, 500, 1000});
         pageSizeCombo.setSelectedItem(100);
-        pageSizeCombo.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        pageSizeCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
         pageSizeCombo.addActionListener(e -> onPageSizeChanged());
 
         // Label de total
         totalLabel = new JLabel("0 resultados");
-        totalLabel.setFont(new Font("SansSerif", Font.ITALIC, 11));
+        totalLabel.setFont(new Font("SansSerif", Font.ITALIC, 14));
         totalLabel.setForeground(Color.GRAY);
 
         // Layout

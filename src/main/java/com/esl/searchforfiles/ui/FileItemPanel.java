@@ -1,6 +1,7 @@
 package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
+import com.esl.searchforfiles.configuration.FileTransferHandler;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.service.IconService;
@@ -73,6 +74,7 @@ public class FileItemPanel extends JPanel {
     private RatingOverlay ratingOverlay; // NOVO
     private boolean selected = false;
     private TypeOverlay typeOverlay; // NOVO
+    private DragAction dragAction;
 
     public FileItemPanel(File file, FileInfo fileInfo, int width, int height, int thumbSize, ResultsPanel resultsPanel) {
 
@@ -195,6 +197,12 @@ public class FileItemPanel extends JPanel {
             }
 
         });
+        // Drag & Drop — só pastas podem ser arrastadas para os favoritos
+        // arquivos comuns também podem ser arrastados (para uso futuro)
+        setTransferHandler(new FileTransferHandler());
+
+        dragAction = new DragAction(() -> displayFile, this);
+
     }
 
     public static boolean isShowRatingOverlay() {
@@ -241,10 +249,6 @@ public class FileItemPanel extends JPanel {
         }
     }
 
-// ==============================================================
-// NOVO MÉTODO: Atualiza ícone do label
-// ==============================================================
-
     private static ImageIcon createLoadingIcon(int w, int h) {
         BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = img.createGraphics();
@@ -272,6 +276,10 @@ public class FileItemPanel extends JPanel {
         g.dispose();
         return new ImageIcon(img);
     }
+
+// ==============================================================
+// NOVO MÉTODO: Atualiza ícone do label
+// ==============================================================
 
     private static Icon getLoadingIcon() {
         return LOADING_ICON;
@@ -379,6 +387,10 @@ public class FileItemPanel extends JPanel {
      */
     public static ThumbnailCacheManager getThumbnailCacheManager() {
         return THUMBNAIL_CACHE;
+    }
+
+    public File getDisplayFile() {
+        return displayFile;
     }
 
     public boolean isSelected() {
@@ -893,7 +905,7 @@ public class FileItemPanel extends JPanel {
         return img;
     }
 
-    private Icon resizeIcon(Icon icon, int size) {
+    public Icon resizeIcon(Icon icon, int size) {
         if (icon == null) return null;
 
         BufferedImage img = new BufferedImage(
