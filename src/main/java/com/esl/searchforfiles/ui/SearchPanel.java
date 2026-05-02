@@ -1,5 +1,6 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.configuration.WrapLayout;
 import com.esl.searchforfiles.model.OrderBy;
 import com.esl.searchforfiles.model.SortOption;
 import com.esl.searchforfiles.others.ThumbnailSize;
@@ -27,7 +28,6 @@ public class SearchPanel extends JPanel {
     private final JTextField tagFilterField;       // texto livre de tag
     private final JButton backButton;
     private final JButton forwardButton;
-    private final JLabel breadcrumbLabel;   // mostra o caminho atual
     private final JComboBox<ThumbnailSize> thumbSizeCombo; // NOVO
     private final FileExplorerSwing fileExplorerSwing;
     private NavigationListener navigationListener;
@@ -63,20 +63,14 @@ public class SearchPanel extends JPanel {
             if (navigationListener != null) navigationListener.onForward();
         });
 
-        // Breadcrumb — mostra pasta atual abaixo dos controles
-        breadcrumbLabel = new JLabel(" ");
-        breadcrumbLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        breadcrumbLabel.setForeground(new Color(150, 150, 150));
-        breadcrumbLabel.setBorder(BorderFactory.createEmptyBorder(2, 4, 0, 0));
-
         // Atalhos de teclado Alt+← e Alt+→
         registerKeyboardShortcuts();
 
-        // NOVO: ComboBox de ordenação por
+        // NOVO: ComboBox de ordenação
         sortByCombo = new JComboBox<>(SortOption.values());
         //  sortByCombo.setSelectedItem(SortOption.DATE); // Padrão: Nome
         sortByCombo.setSelectedItem(SortOption.fromDisplayName(fileExplorerSwing.getConfigManager().getSavedSortBy())); // Padrão: Nome
-        sortByCombo.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        sortByCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
         sortByCombo.setToolTipText("Ordenar por");
         sortByCombo.setPreferredSize(new Dimension(160, 25));
         sortByCombo.addActionListener(e -> {
@@ -87,7 +81,7 @@ public class SearchPanel extends JPanel {
         // NOVO: ComboBox de ordem (crescente/decrescente)
         sortOrderCombo = new JComboBox<>(OrderBy.values());
         sortOrderCombo.setSelectedItem(OrderBy.fromDisplayName(fileExplorerSwing.getConfigManager().getSavedOrderBy())); // Padrão: Crescente
-        sortOrderCombo.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        sortOrderCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
         sortOrderCombo.setToolTipText("Ordem de classificação");
         sortOrderCombo.setPreferredSize(new Dimension(120, 25));
         sortOrderCombo.addActionListener(e -> {
@@ -97,7 +91,7 @@ public class SearchPanel extends JPanel {
 
         thumbSizeCombo = new JComboBox<>(ThumbnailSize.values());
         thumbSizeCombo.setSelectedItem(ThumbnailSize.fromLabel(fileExplorerSwing.getConfigManager().getSavedThumbnailsSize()));
-        thumbSizeCombo.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        thumbSizeCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
         thumbSizeCombo.setToolTipText("Tamanho das miniaturas");
         thumbSizeCombo.setPreferredSize(new Dimension(130, 25));
         thumbSizeCombo.addActionListener(e -> {
@@ -141,80 +135,98 @@ public class SearchPanel extends JPanel {
                 "★ Qualquer", "★ 1+", "★★ 2+", "★★★ 3+", "★★★★ 4+", "★★★★★ 5"
         });
         ratingFilterCombo.setSelectedItem(fileExplorerSwing.getConfigManager().getSavedStarRating());
-        ratingFilterCombo.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        ratingFilterCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
         ratingFilterCombo.setToolTipText("Filtrar por avaliação mínima");
         ratingFilterCombo.setPreferredSize(new Dimension(120, 25));
         ratingFilterCombo.addActionListener(e -> {
-          fileExplorerSwing.getConfigManager().saveStarRating(getMinRating());
+            fileExplorerSwing.getConfigManager().saveStarRating(getMinRating());
             triggerSearch();
         });
 
         // NOVO: Campo de texto para filtro por tag ──────────────────
         tagFilterField = new JTextField();
-        tagFilterField.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        tagFilterField.setFont(new Font("SansSerif", Font.PLAIN, 14));
         tagFilterField.setToolTipText("Filtrar por tag (ex: ferias)");
         tagFilterField.setPreferredSize(new Dimension(110, 25));
         tagFilterField.addActionListener(e -> triggerSearch());
 
+// Envolve todo o conteúdo num painel com WrapLayout
+        JPanel wrapPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 5, 4));
 
-        // NOVO: Layout atualizado com controles de ordenação
-        JPanel mainPanel = new JPanel(new BorderLayout(5, 5));
+// ── Grupo 1: Navegação ────────────────────────────────────────────────────────
+        wrapPanel.add(backButton);
+        wrapPanel.add(forwardButton);
+        wrapPanel.add(makeSeparator());
 
-        // Painel central: Campo de busca + Ordenação + Filtro
-        JPanel centerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+// ── Grupo 2: Busca ────────────────────────────────────────────────────────────
+        searchField.setPreferredSize(new Dimension(280, 28));   // largura mínima razoável
+        wrapPanel.add(searchField);
+        wrapPanel.add(makeSeparator());
 
-        // Botões de nav primeiro
-        centerPanel.add(backButton);
-        centerPanel.add(forwardButton);
-        centerPanel.add(new JSeparator(SwingConstants.VERTICAL) {{
-            setPreferredSize(new Dimension(2, 22));
-        }});
+        Font font = new Font("SansSerif", Font.PLAIN, 14);
 
-        // Campo de busca com largura fixa
-        searchField.setPreferredSize(new Dimension(360, 25));
-        centerPanel.add(searchField);
+// ── Grupo 3: Ordenação ────────────────────────────────────────────────────────
+        JLabel typeLabel = new JLabel("Ordenar:");
+        typeLabel.setFont(font);
+        wrapPanel.add(typeLabel);
+        wrapPanel.add(sortByCombo);
+        wrapPanel.add(sortOrderCombo);
+        wrapPanel.add(makeSeparator());
 
-        // Separador visual
-        centerPanel.add(new JLabel(" | "));
-
-        // NOVO: Controles de ordenação
-        JLabel sortLabel = new JLabel("Ordenar:");
-        sortLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        centerPanel.add(sortLabel);
-        centerPanel.add(sortByCombo);
-        centerPanel.add(sortOrderCombo);
-
-        // Separador visual
-        centerPanel.add(new JLabel(" | "));
-
-        // Filtro por tipo
+// ── Grupo 4: Tipo ─────────────────────────────────────────────────────────────
         JLabel filterLabel = new JLabel("Tipo:");
-        filterLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
-        centerPanel.add(filterLabel);
-        centerPanel.add(filterBox);
+        filterLabel.setFont(font);
+        wrapPanel.add(filterLabel);
+        wrapPanel.add(filterBox);
+        wrapPanel.add(makeSeparator());
 
-        // NOVO: bloco de estrelas + tag ─────────────────────────────
-        centerPanel.add(new JLabel(" | "));
-        centerPanel.add(new JLabel("Rating:"));
-        centerPanel.add(ratingFilterCombo);
+// ── Grupo 5: Rating + Tag ─────────────────────────────────────────────────────
+        JLabel ratingLabel = new JLabel("Rating:");
+        JLabel tagLabel = new JLabel("Tag:");
+        ratingLabel.setFont(font);
+        tagLabel.setFont(font);
+        wrapPanel.add(ratingLabel);
+        wrapPanel.add(ratingFilterCombo);
+        wrapPanel.add(tagLabel);
+        wrapPanel.add(tagFilterField);
+        wrapPanel.add(makeSeparator());
 
-        centerPanel.add(new JLabel("Tag:"));
-        centerPanel.add(tagFilterField);
-        //
-        centerPanel.add(new JLabel(" | "));
-        centerPanel.add(new JLabel("Ícones:"));
-        centerPanel.add(thumbSizeCombo);
+// ── Grupo 6: Ícones ───────────────────────────────────────────────────────────
+        JLabel iconLabel = new JLabel("Ícones:");
+        iconLabel.setFont(font);
+        wrapPanel.add(iconLabel);
+        wrapPanel.add(thumbSizeCombo);
+        wrapPanel.add(makeSeparator());
 
-        mainPanel.add(centerPanel, BorderLayout.CENTER);
+// ── Grupo 7: Ações ────────────────────────────────────────────────────────────
+        wrapPanel.add(searchButton);
+        wrapPanel.add(indexButton);
 
-        // Painel direito: Botões
-        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
-        rightPanel.add(searchButton);
-        rightPanel.add(indexButton);
-        mainPanel.add(rightPanel, BorderLayout.EAST);
+// ── Monta o painel principal com scroll vertical ──────────────────────────────
 
-        add(mainPanel, BorderLayout.CENTER);
+// ── Monta sem scroll: o WrapLayout recalcula a altura e o BorderLayout
+// do pai (FileExplorerSwing) se encarrega de expandir o NORTH automaticamente.
+        JPanel outer = new JPanel(new BorderLayout(0, 2));
+        outer.add(wrapPanel, BorderLayout.CENTER);
+        //  outer.add(breadcrumbLabel, BorderLayout.SOUTH);
+
+        add(outer, BorderLayout.CENTER);
     }
+
+
+    // ── Helpers (adicione como métodos privados na classe) ────────────────────────
+    private JLabel label(String text) {
+        JLabel l = new JLabel(text);
+        l.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        return l;
+    }
+
+    private JSeparator makeSeparator() {
+        JSeparator sep = new JSeparator(SwingConstants.VERTICAL);
+        sep.setPreferredSize(new Dimension(2, 24));
+        return sep;
+    }
+
 
     // ── API pública nova ──────────────────────────────────────────
 
@@ -224,30 +236,8 @@ public class SearchPanel extends JPanel {
     public void updateNavigationState(NavigationHistory history) {
         backButton.setEnabled(history.canGoBack());
         forwardButton.setEnabled(history.canGoForward());
-        updateBreadcrumb(history.getCurrent());
     }
 
-    /**
-     * Atualiza só o breadcrumb (ex: ao selecionar pela árvore).
-     */
-    public void updateBreadcrumb(String path) {
-        if (path == null) {
-            breadcrumbLabel.setText(" ");
-            return;
-        }
-
-        // Monta breadcrumb estilo "C: › Users › Fotos › Férias"
-        String[] parts = path.replace("\\", "/").split("/");
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < parts.length; i++) {
-            if (!parts[i].isEmpty()) {
-                if (sb.length() > 0) sb.append(" › ");
-                sb.append(parts[i].replace(":", ":"));
-            }
-        }
-        breadcrumbLabel.setText(sb.length() > 0 ? sb.toString() : path);
-        breadcrumbLabel.setToolTipText(path);
-    }
 
     public void setNavigationListener(NavigationListener l) {
         this.navigationListener = l;

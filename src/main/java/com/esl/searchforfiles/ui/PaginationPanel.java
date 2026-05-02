@@ -1,9 +1,10 @@
 package com.esl.searchforfiles.ui;
+
+import com.esl.searchforfiles.configuration.WrapLayout;
 import com.esl.searchforfiles.model.PaginationInfo;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionListener;
 
 /**
  * Painel com controles de paginação
@@ -16,75 +17,98 @@ public class PaginationPanel extends JPanel {
     private final JButton lastButton;
     private final JComboBox<Integer> pageSizeCombo;
     private final JLabel totalLabel;
-
+    private final FileExplorerSwing fileExplorerSwing;
     private PaginationListener paginationListener;
     private PaginationInfo currentPagination;
-    private final FileExplorerSwing fileExplorerSwing;
 
     public PaginationPanel(FileExplorerSwing fileExplorerSwing) {
         this.fileExplorerSwing = fileExplorerSwing;
-        setLayout(new FlowLayout(FlowLayout.CENTER, 10, 5));
-        setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
 
-        // Botões de navegação
-        firstButton = new JButton("⏮ Primeira");
-        firstButton.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        // WrapLayout: quebra linha quando não há espaço, centralizado
+        setLayout(new WrapLayout(FlowLayout.CENTER, 8, 4));
+        setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+
+        // ── Botões ────────────────────────────────────────────────────────────
+        firstButton = navButton("⏮", "Primeira página");
         firstButton.addActionListener(e -> {
             goToPage(1);
             fileExplorerSwing.getResultsPanel().topScroll();
         });
 
-        previousButton = new JButton("◀ Anterior");
-        previousButton.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        previousButton.addActionListener(e ->{
+        previousButton = navButton("◀", "Página anterior");
+        previousButton.addActionListener(e -> {
             goToPreviousPage();
             fileExplorerSwing.getResultsPanel().topScroll();
         });
 
         pageLabel = new JLabel("Página 1 de 1");
-        pageLabel.setFont(new Font("SansSerif", Font.BOLD, 15));
+        pageLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
 
-        nextButton = new JButton("Próxima ▶");
-        nextButton.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        nextButton = navButton("▶", "Próxima página");
         nextButton.addActionListener(e -> {
             goToNextPage();
             fileExplorerSwing.getResultsPanel().topScroll();
         });
 
-        lastButton = new JButton("Última ⏭");
-        lastButton.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        lastButton = navButton("⏭", "Última página");
         lastButton.addActionListener(e -> {
             goToLastPage();
             fileExplorerSwing.getResultsPanel().topScroll();
         });
 
-        // ComboBox de tamanho de página
+        // ── Items por página ──────────────────────────────────────────────────
         pageSizeCombo = new JComboBox<>(new Integer[]{50, 100, 200, 500, 1000});
         pageSizeCombo.setSelectedItem(100);
         pageSizeCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        pageSizeCombo.setPreferredSize(new Dimension(75, 26));
         pageSizeCombo.addActionListener(e -> onPageSizeChanged());
 
-        // Label de total
+        // ── Total ─────────────────────────────────────────────────────────────
         totalLabel = new JLabel("0 resultados");
         totalLabel.setFont(new Font("SansSerif", Font.ITALIC, 14));
         totalLabel.setForeground(Color.GRAY);
 
-        // Layout
+        // ── Monta o layout em grupos visuais ──────────────────────────────────
+        // Grupo 1 — Navegação
         add(firstButton);
         add(previousButton);
-        add(new JLabel(" "));
         add(pageLabel);
-        add(new JLabel(" "));
         add(nextButton);
         add(lastButton);
-        add(new JSeparator(SwingConstants.VERTICAL));
-        add(new JLabel("Itens por página:"));
+
+        // Separador visual (leve — só um espaço rotulado)
+        add(vSep());
+
+        // Grupo 2 — Tamanho de página
+        JLabel perPage = new JLabel("Itens/pág:");
+        perPage.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        add(perPage);
         add(pageSizeCombo);
-        add(new JSeparator(SwingConstants.VERTICAL));
+
+        add(vSep());
+
+        // Grupo 3 — Total
         add(totalLabel);
 
-        // Inicia desabilitado
         setEnabled(false);
+    }
+
+    /**
+     * Separador vertical leve entre grupos
+     */
+    private JSeparator vSep() {
+        JSeparator sep = new JSeparator(SwingConstants.VERTICAL);
+        sep.setPreferredSize(new Dimension(2, 22));
+        return sep;
+    }
+
+    private JButton navButton(String text, String tooltip) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("SansSerif", Font.BOLD, 15));
+        btn.setToolTipText(tooltip);
+        btn.setPreferredSize(new Dimension(46, 26));
+        btn.setMargin(new Insets(2, 6, 2, 6));
+        return btn;
     }
 
     /**
@@ -176,6 +200,7 @@ public class PaginationPanel extends JPanel {
 
     public interface PaginationListener {
         void onPageChanged(int newPage);
+
         void onPageSizeChanged(int newPageSize);
     }
 }

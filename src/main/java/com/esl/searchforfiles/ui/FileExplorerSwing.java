@@ -41,10 +41,6 @@ public class FileExplorerSwing extends JFrame {
     private JLabel autoRefreshIndicator;
     private JLabel syncIndicator; // NOVO
 
-    public ResultsPanel getResultsPanel() {
-        return resultsPanel;
-    }
-
     public FileExplorerSwing() {
         super("Advanced File Search - Interface Gráfica");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -85,9 +81,15 @@ public class FileExplorerSwing extends JFrame {
                 if (next != null) navigateTo(next, false);
             }
         });
-        searchPanel.setThumbnailSizeListener(size ->
-                resultsPanel.setThumbnailSize(size));
-        add(searchPanel, BorderLayout.NORTH);
+        searchPanel.setThumbnailSizeListener(resultsPanel::setThumbnailSize);
+
+
+        //  add(searchPanel, BorderLayout.NORTH);
+        // Envolve o searchPanel num wrapper com BorderLayout para que o
+        // WrapLayout interno recalcule a altura e o NORTH se expanda ao fazer wrap.
+        JPanel searchWrapper = new JPanel(new BorderLayout());
+        searchWrapper.add(searchPanel, BorderLayout.CENTER);
+        add(searchWrapper, BorderLayout.NORTH);  // ← wrapper no NORTH, não o searchPanel direto
 
         // === PAINEL ESQUERDO ===
         JPanel leftPanel = createLeftPanel();
@@ -146,7 +148,14 @@ public class FileExplorerSwing extends JFrame {
 
         JPanel centerPanel = new JPanel(new BorderLayout());
         centerPanel.add(resultsPanel, BorderLayout.CENTER);
-        centerPanel.add(paginationPanel, BorderLayout.SOUTH);
+
+
+        JPanel paginationWrapper = new JPanel(new BorderLayout());
+        paginationWrapper.add(paginationPanel, BorderLayout.CENTER);
+        centerPanel.add(paginationWrapper, BorderLayout.SOUTH);  // ← wrapper no NORTH, não o searchPanel direto
+
+
+        //centerPanel.add(paginationPanel, BorderLayout.SOUTH);
 
         // === PAINEL DIREITO (subpastas) ===
         subFolderPanel = new SubFolderPanel();
@@ -190,6 +199,10 @@ public class FileExplorerSwing extends JFrame {
         // antes de exibir os resultados
         navigateTo(selectedPath, true);  // selectedPath = "C:\" por padrão
 
+    }
+
+    public ResultsPanel getResultsPanel() {
+        return resultsPanel;
     }
 
     public String getSelectedPath() {
