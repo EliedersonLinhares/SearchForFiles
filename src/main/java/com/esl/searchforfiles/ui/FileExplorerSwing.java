@@ -6,6 +6,7 @@ import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.PaginationInfo;
 import com.esl.searchforfiles.others.ThumbnailSize;
 import com.esl.searchforfiles.service.FavoritesService;
+import com.esl.searchforfiles.service.IndexFilterService;
 import com.esl.searchforfiles.service.SyncService;
 
 import javax.swing.*;
@@ -30,16 +31,21 @@ public class FileExplorerSwing extends JFrame {
     private FolderTreePanel treePanel;
     private FavoritesPanel favoritesPanel; // NOVO
     private ConfigManager configManager;
-    private JLabel statusLabel;
+    private BottomIndicatorPanel bottomIndicatorPanel;
+    private IndexFilterService indexFilterService;
+
     private String selectedPath = "C:\\";
     private int currentPage = 1; // NOVO
     private String currentSortBy = "last_modified"; // NOVO
     private String currentSortOrder = "DESC"; // NOVO
     private SubFolderPanel subFolderPanel;           // NOVO
     private boolean showSubfolderContents = false; // NOVO — controlado pelo menu
-    // NOVO: Indicador de auto-refresh
-    private JLabel autoRefreshIndicator;
-    private JLabel syncIndicator; // NOVO
+
+
+    public SearchController getController() {
+        return controller;
+    }
+    public BottomIndicatorPanel getBottomIndicatorPanel() {return bottomIndicatorPanel;}
 
     public FileExplorerSwing() {
         super("Advanced File Search - Interface Gráfica");
@@ -52,8 +58,23 @@ public class FileExplorerSwing extends JFrame {
         configManager = new ConfigManager();
         setSelectedPath(configManager.getSavedDefaultFolder());
 
+        bottomIndicatorPanel = new BottomIndicatorPanel(this);
+
+        indexFilterService = new IndexFilterService();
+        // Pastas que NUNCA devem ser indexadas
+        indexFilterService.excludeFolder("C:\\Windows");
+        indexFilterService.excludeFolder("C:\\Program Files");
+        indexFilterService.excludeFolder("C:\\ProgramData");
+        indexFilterService.excludeFolder("C:\\Program Files (x86)");
+
+       // Dentro de C:\Projects, indexar SOMENTE as pastas src e docs
+        indexFilterService.allowOnly("C:\\Projects\\MeuApp",
+                "C:\\Projects\\MeuApp\\src",
+                "C:\\Projects\\MeuApp\\docs"
+        );
+
         try {
-            controller = new SearchController(this);
+            controller = new SearchController(this, indexFilterService);
             controller.setFileSystemChangeListener(this::onFileSystemChanged);
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this,
@@ -180,7 +201,7 @@ public class FileExplorerSwing extends JFrame {
         add(mainSplit, BorderLayout.CENTER);  // ← único add ao CENTER
 
         // === PAINEL INFERIOR ===
-        JPanel statusPanel = createStatusPanel();
+        JPanel statusPanel = bottomIndicatorPanel.createStatusPanel();
         add(statusPanel, BorderLayout.SOUTH);
         resultsPanel.setThumbnailSize(ThumbnailSize.fromLabel(getConfigManager().getSavedThumbnailsSize()));
 
@@ -230,7 +251,7 @@ public class FileExplorerSwing extends JFrame {
         if (pushHistory) navigationHistory.push(path);
 
         searchPanel.updateNavigationState(navigationHistory);
-        showSyncIndicator("🔄 Verificando mudanças...");
+        bottomIndicatorPanel.showSyncIndicator("🔄 Verificando mudanças...");
 
         // Subpastas carregam independentemente
         subFolderPanel.loadSubfolders(selectedPath, controller);
@@ -242,165 +263,17 @@ public class FileExplorerSwing extends JFrame {
 
         // Sync roda em paralelo e atualiza os resultados sozinha
         // via refreshCurrentSearch() que já existe no SearchController
-        controller.updateMonitoredFolder(path, createSyncCallback());
+        controller.updateMonitoredFolder(path, bottomIndicatorPanel.createSyncCallback(path));
     }
-
-
-    /**
-     * Cria painel de status com indicador de auto-refresh
-     * NOVO MÉTODO
-     */
-    private JPanel createStatusPanel() {
-        JPanel statusPanel = new JPanel(new BorderLayout());
-        statusPanel.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
-
-        // Label principal de status
-        statusLabel = new JLabel("📂 Local de busca: C:\\ | Sistema pronto");
-        statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 16));
-
-        // Painel de indicadores à direita
-        JPanel indicatorsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
-
-        // Indicador de sincronização (NOVO)
-        syncIndicator = new JLabel();
-        syncIndicator.setFont(new Font("SansSerif", Font.BOLD, 16));
-        syncIndicator.setForeground(new Color(33, 150, 243)); // Azul
-        syncIndicator.setVisible(false);
-
-        // Indicador de auto-refresh
-        autoRefreshIndicator = new JLabel();
-        autoRefreshIndicator.setFont(new Font("SansSerif", Font.BOLD, 16));
-        autoRefreshIndicator.setForeground(new Color(76, 175, 80)); // Verde
-        autoRefreshIndicator.setVisible(false);
-
-        indicatorsPanel.add(syncIndicator);
-        indicatorsPanel.add(autoRefreshIndicator);
-
-        statusPanel.add(statusLabel, BorderLayout.WEST);
-        statusPanel.add(indicatorsPanel, BorderLayout.EAST);
-
-        return statusPanel;
-    }
-
-    /**
-     * Mostra indicador de sincronização
-     * NOVO MÉTODO
-     */
-    private void showSyncIndicator(String message) {
-        syncIndicator.setText(message);
-        syncIndicator.setVisible(true);
-    }
-
-
-    /**
-     * Esconde indicador com cor apropriada
-     * MODIFICADO: Trata caso de pasta não indexada
-     */
-    private void hideSyncIndicator(boolean isWarning) {
-        if (isWarning) {
-            syncIndicator.setForeground(new Color(255, 152, 0)); // Laranja para aviso
-        } else {
-            syncIndicator.setForeground(new Color(33, 150, 243)); // Azul normal
-        }
-
-        Timer timer = new Timer(5000, e -> { // 5 segundos para avisos
-            syncIndicator.setVisible(false);
-        });
-        timer.setRepeats(false);
-        timer.start();
-    }
-
-
-    /**
-     * Cria callback para sincronização
-     * MODIFICADO: Trata caso de pasta não indexada
-     */
-    private SearchController.SyncCallback createSyncCallback() {
-        return new SearchController.SyncCallback() {
-            @Override
-            public void onSyncCompleted(SyncService.SyncResult result) {
-                SwingUtilities.invokeLater(() -> {
-                    // CASO 1: Pasta não indexada
-                    if (result.isNotIndexed()) {
-                        showSyncIndicator("⚠️ Pasta não indexada - Use 'Indexar'");
-                        hideSyncIndicator(true); // Aviso em laranja
-
-                        String statusText = "📂 " + selectedPath +
-                                " | ⚠️ Pasta não indexada";
-                        statusLabel.setText(statusText);
-
-                        // Limpa resultados se há busca ativa
-                        resultsPanel.showMessage(
-                                "⚠️ Pasta não está indexada\n\n" +
-                                        "Clique em 'Indexar' para indexar esta pasta antes de buscar.",
-                                ResultsPanel.MessageType.ERROR
-                        );
-
-                        return;
-                    }
-
-                    // CASO 2: Pasta indexada com mudanças
-                    if (result.hasChanges()) {
-                        String message = String.format(
-                                "✅ Sincronizado: +%d | ↻%d | -%d",
-                                result.getAdded(),
-                                result.getUpdated(),
-                                result.getDeleted()
-                        );
-                        showSyncIndicator(message);
-
-                        String statusText = "📂 " + selectedPath + " | " + result.getSummary();
-                        String monitoringStatus = controller.getMonitoringStatus();
-                        if (!monitoringStatus.isEmpty()) {
-                            statusText += " | " + monitoringStatus;
-                        }
-                        statusLabel.setText(statusText);
-
-                    } else {
-                        // CASO 3: Pasta indexada sem mudanças
-                        showSyncIndicator("✅ Sincronizado");
-                        updateStatusLabel();
-                    }
-
-                    hideSyncIndicator(false); // Normal em azul
-                });
-            }
-
-            @Override
-            public void onSyncError(Exception e) {
-                SwingUtilities.invokeLater(() -> {
-                    showSyncIndicator("❌ Erro na sincronização");
-                    hideSyncIndicator(true);
-                });
-            }
-        };
-    }
-
     /**
      * Chamado quando o sistema de arquivos muda
      * NOVO MÉTODO
      */
     private void onFileSystemChanged() {
         // Mostra feedback visual temporário
-        showAutoRefreshIndicator();
+        bottomIndicatorPanel.showAutoRefreshIndicator();
 
         System.out.println("🔄 Sistema de arquivos modificado - Auto-refresh ativado");
-    }
-
-    /**
-     * Mostra indicador visual de auto-refresh
-     * NOVO MÉTODO
-     */
-    private void showAutoRefreshIndicator() {
-        autoRefreshIndicator.setText("🔄 Atualizando...");
-        autoRefreshIndicator.setVisible(true);
-
-        // Esconde após 2 segundos
-        Timer timer = new Timer(2000, e -> {
-            autoRefreshIndicator.setVisible(false);
-        });
-        timer.setRepeats(false);
-        timer.start();
     }
 
     /**
@@ -505,6 +378,8 @@ public class FileExplorerSwing extends JFrame {
                         // NOVO: remove a própria pasta atual dos resultados
                         List<FileInfo> filtered = results.stream()
                                 .filter(f -> !f.getPath().equalsIgnoreCase(selectedPath))
+                                .filter(f -> !f.getExtension().equalsIgnoreCase("ini"))
+                                .filter(f -> !f.getExtension().equalsIgnoreCase("db"))
                                 .toList();
 
                         if (filtered.isEmpty()) {
@@ -556,7 +431,7 @@ public class FileExplorerSwing extends JFrame {
                         if (!monitoringStatus.isEmpty())
                             statusText += " | " + monitoringStatus + " 🔄";
 
-                        statusLabel.setText(statusText);
+                        bottomIndicatorPanel.getStatusLabel().setText(statusText);
                     }
 
                     @Override
@@ -591,6 +466,8 @@ public class FileExplorerSwing extends JFrame {
                 selectedPath
         );
 
+
+
         int option = JOptionPane.showConfirmDialog(this,
                 message,
                 "Indexar Pasta",
@@ -608,14 +485,10 @@ public class FileExplorerSwing extends JFrame {
         controller.indexFolder(selectedPath, includeSubfolders,
                 new SearchController.IndexCallback() {
                     @Override
-                    public void onIndexCompleted() {
-                        statusLabel.setText("✓ Indexação concluída: " + selectedPath);
-                    }
+                    public void onIndexCompleted() {bottomIndicatorPanel.getStatusLabel().setText("✓ Indexação concluída: " + selectedPath);}
 
                     @Override
-                    public void onIndexError(Exception e) {
-                        statusLabel.setText("❌ Erro na indexação");
-                    }
+                    public void onIndexError(Exception e) {bottomIndicatorPanel.getStatusLabel().setText("❌ Erro na indexação");}
                 });
     }
 
@@ -631,20 +504,20 @@ public class FileExplorerSwing extends JFrame {
         }
     }
 
-    /**
-     * Atualiza label de status com informação de monitoramento
-     * NOVO MÉTODO
-     */
-    private void updateStatusLabel() {
-        String monitoringStatus = controller.getMonitoringStatus();
-        String statusText = "📂 Pasta selecionada: " + selectedPath;
-
-        if (!monitoringStatus.isEmpty()) {
-            statusText += " | " + monitoringStatus;
-        }
-
-        statusLabel.setText(statusText);
-    }
+//    /**
+//     * Atualiza label de status com informação de monitoramento
+//     * NOVO MÉTODO
+//     */
+//    private void updateStatusLabel() {
+//        String monitoringStatus = controller.getMonitoringStatus();
+//        String statusText = "📂 Pasta selecionada: " + selectedPath;
+//
+//        if (!monitoringStatus.isEmpty()) {
+//            statusText += " | " + monitoringStatus;
+//        }
+//
+//        statusLabel.setText(statusText);
+//    }
 
     /**
      * Mensagem de boas-vindas

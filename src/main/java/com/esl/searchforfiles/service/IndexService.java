@@ -32,13 +32,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class IndexService {
     private final DatabaseManager dbManager;
     private final ExecutorService virtualExecutor;
+    private final IndexFilterService indexFilterService;
     private static final int REPORT_INTERVAL = 1000;
 
     /**
      * Construtor - Cria ExecutorService com Virtual Threads
      */
-    public IndexService(DatabaseManager dbManager) {
+    public IndexService(DatabaseManager dbManager, IndexFilterService indexFilterService) {
         this.dbManager = dbManager;
+        this.indexFilterService = indexFilterService;
         // Virtual Thread Executor - Pode criar milhares de threads sem problema!
         this.virtualExecutor = Executors.newVirtualThreadPerTaskExecutor();
     }
@@ -77,12 +79,14 @@ public class IndexService {
                 new SimpleFileVisitor<Path>() {
                     @Override
                     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+
+                        if (!indexFilterService.shouldIndex(file)) return FileVisitResult.CONTINUE; // pula arquivo
                         // VALIDAÇÃO: Verifica se o Path é válido
                         if (Objects.isNull(file) || Objects.isNull(attrs)) {
                             errorCount.incrementAndGet();
                             return FileVisitResult.CONTINUE;
                         }
-
+                        if (!indexFilterService.shouldIndex(file)) return FileVisitResult.CONTINUE; // pula arquivo
                         CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                             try {
                                 // Validação adicional antes de indexar
@@ -118,6 +122,12 @@ public class IndexService {
                     @Override
                     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
                         dirCount.incrementAndGet();
+
+                        // ✅ FILTRO: pula a pasta inteira se não deve ser indexada
+                        if (!indexFilterService.shouldIndex(dir)) {
+                            System.out.println("⏭ Pasta ignorada pelo filtro: " + dir);
+                            return FileVisitResult.SKIP_SUBTREE; // não desce nos filhos
+                        }
 
                         // VALIDAÇÃO: Verifica se o diretório é válido
                         if (Objects.isNull(dir) || Objects.isNull(attrs)) {

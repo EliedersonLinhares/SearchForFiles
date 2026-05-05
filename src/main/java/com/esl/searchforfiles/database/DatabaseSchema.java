@@ -1,5 +1,10 @@
 package com.esl.searchforfiles.database;
 
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+
 public class DatabaseSchema {
     public static final String CREATE_FILE_INDEX_TABLE = """
         CREATE TABLE IF NOT EXISTS file_index (
@@ -61,4 +66,50 @@ public class DatabaseSchema {
         FOREIGN KEY (tag_id)    REFERENCES tags(id)          ON DELETE CASCADE
     )
 """;
+
+
+
+    // Em DatabaseSchema, adicione:
+    public static final String ALTER_IDENTITY_RATING = """
+    ALTER TABLE file_identity ADD COLUMN rating INTEGER DEFAULT 0
+""";
+
+
+
+    // Tabela que mapeia identidade → path atual
+    public static final String CREATE_FILE_IDENTITY_TABLE = """
+        CREATE TABLE IF NOT EXISTS file_identity (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            ntfs_file_id  TEXT,              -- volumeSerial-fileIndex (pode ser null)
+            fingerprint   TEXT NOT NULL,     -- nome:tamanho:dataCriacao
+            last_path     TEXT NOT NULL,     -- path mais recente conhecido
+            UNIQUE(ntfs_file_id),
+            UNIQUE(fingerprint)
+        )
+    """;
+
+    // Índices para busca rápida
+    public static final String IDX_IDENTITY_NTFS = """
+        CREATE INDEX IF NOT EXISTS idx_identity_ntfs
+        ON file_identity(ntfs_file_id)
+    """;
+    public static final String IDX_IDENTITY_FP = """
+        CREATE INDEX IF NOT EXISTS idx_identity_fp
+        ON file_identity(fingerprint)
+    """;
+
+    // Migração: adiciona colunas de identidade na file_index
+    // (executada uma vez via migrateDatabase())
+    public static final String ALTER_FILE_INDEX_NTFS = """
+        ALTER TABLE file_index ADD COLUMN ntfs_file_id TEXT
+    """;
+    public static final String ALTER_FILE_INDEX_FP = """
+        ALTER TABLE file_index ADD COLUMN fingerprint TEXT
+    """;
+
+    // Migração: vincula ratings e tags à identity_id em vez do path
+    public static final String ALTER_FILE_TAGS_IDENTITY = """
+        ALTER TABLE file_tags ADD COLUMN identity_id INTEGER
+            REFERENCES file_identity(id)
+    """;
 }

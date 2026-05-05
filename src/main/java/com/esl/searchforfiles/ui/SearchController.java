@@ -2,6 +2,7 @@ package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.database.DatabaseManager;
 import com.esl.searchforfiles.model.PaginationInfo;
+import com.esl.searchforfiles.service.IndexFilterService;
 import com.esl.searchforfiles.service.MonitoringService;
 import com.esl.searchforfiles.service.SearchService;
 import com.esl.searchforfiles.service.SyncService;
@@ -46,10 +47,12 @@ public class SearchController {
     // Controle de monitoramento automático
     private String currentMonitoredPath = null;
     private static final long MAX_FOLDER_SIZE = 50_000;
+    private final IndexFilterService indexFilterService;
 
-    public SearchController(JFrame parentFrame) throws SQLException {
+    public SearchController(JFrame parentFrame, IndexFilterService indexFilterService) throws SQLException {
         this.parentFrame = parentFrame;
-        this.searchSystem = new AdvancedFileSearch();
+        this.indexFilterService = indexFilterService;
+        this.searchSystem = new AdvancedFileSearch(indexFilterService);
         this.monitoringService = searchSystem.getMonitoringService();
 
         this.syncService = new SyncService(
@@ -310,11 +313,11 @@ public class SearchController {
             return;
         }
 
-        if (isDriveRoot(newPath)) {
-            System.out.println("⚠️ Drive raiz não será monitorado: " + newPath);
-            stopCurrentMonitoring();
-            return;
-        }
+//        if (isDriveRoot(newPath)) {
+//            System.out.println("⚠️ Drive raiz não será monitorado: " + newPath);
+//            stopCurrentMonitoring();
+//            return;
+//        }
 
         Path folderPath = Paths.get(newPath);
         if (!Files.exists(folderPath) || !Files.isDirectory(folderPath)) {

@@ -24,6 +24,7 @@ public class ConfigManager {
     public static final String KEY_SUBFOLDER_ITEMS = "subFolder_items";
     public static final String KEY_SHOW_STAR_RATING = "showStarRating";
     public static final String KEY_SHOW_TYPE_FILE = "showTypeFile";
+    public static final String KEY_SHOW_ANIMATED_GIF = "showAnimatedGif";
 
     private static final String CONFIG_FILE = "app_config.properties";
     private static final String APP_DIR_NAME = ".advancedsearch";
@@ -40,6 +41,7 @@ public class ConfigManager {
         DEFAULTS.put(KEY_SUBFOLDER_ITEMS, "false");
         DEFAULTS.put(KEY_SHOW_STAR_RATING, "true");
         DEFAULTS.put(KEY_SHOW_TYPE_FILE, "true");
+        DEFAULTS.put(KEY_SHOW_ANIMATED_GIF, "true");
 
     }
 
@@ -257,6 +259,15 @@ public class ConfigManager {
         return getBoolean(KEY_SHOW_TYPE_FILE, true);
     }
     public void saveShowTypeFile(boolean showTypeFile) {setBoolean(KEY_SHOW_TYPE_FILE, showTypeFile);}
+
+    // -------------------------------------------------------------------------
+    // Atalhos específicos para definição se mostra o thumbnail de gif que seja animado
+    // -------------------------------------------------------------------------
+    public boolean getSavedShowAnimatedGif() {
+        return getBoolean(KEY_SHOW_ANIMATED_GIF, true);
+    }
+    public void saveShowAnimatedGif(boolean showAnimatedGif) {setBoolean(KEY_SHOW_ANIMATED_GIF, showAnimatedGif);}
+
 
 
     // -------------------------------------------------------------------------

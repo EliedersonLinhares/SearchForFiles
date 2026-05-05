@@ -1,6 +1,7 @@
 package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
+import com.esl.searchforfiles.configuration.ConfigManager;
 import com.esl.searchforfiles.configuration.FileTransferHandler;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.FileType;
@@ -33,6 +34,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
+import static com.esl.searchforfiles.ui.AnimatedGifThumb.isAnimatedGif;
+
 /**
  * Menu de contexto (botão direito) para arquivos
  * ATUALIZADO: Inclui opção para gerenciar cache se for vídeo
@@ -61,6 +64,7 @@ public class FileItemPanel extends JPanel {
     ));
     private static boolean showRatingOverlay = true; // NOVO — controlado pelo menu de contexto
     private static boolean showExtensionFileOverlay = true; // NOVO — controlado pelo menu de contexto
+    private static boolean showAnimatedGif = true; // NOVO — controlado pelo menu de contexto
     private final File originalFile;  // Arquivo original (.lnk ou não)
     private final FileInfo fileInfo;
     private final ThumbnailCacheManager cacheManager;
@@ -75,6 +79,13 @@ public class FileItemPanel extends JPanel {
     private boolean selected = false;
     private TypeOverlay typeOverlay; // NOVO
     private DragAction dragAction;
+    private AnimatedGifThumb animatedGifThumb;
+
+    private JComponent iconSlot;
+
+    public Color getNormalColor() {
+        return normalColor;
+    }
 
     public FileItemPanel(File file, FileInfo fileInfo, int width, int height, int thumbSize, ResultsPanel resultsPanel) {
 
@@ -105,8 +116,12 @@ public class FileItemPanel extends JPanel {
         setShowRatingOverlay(resultsPanel.getFileExplorerSwing().getConfigManager().getSavedShowStarRating());
         setShowExtensionFileOverlay(resultsPanel.getFileExplorerSwing().getConfigManager().getSavedShowTypeFile());
 
+        animatedGifThumb = new AnimatedGifThumb(this);
+        AnimatedGifThumb.setShowAnimatedGif(resultsPanel.getFileExplorerSwing().getConfigManager().getSavedShowAnimatedGif());
+
         // Ícone / Miniatura
         JComponent iconLabel = createIconLabel();  // JComponent em vez de JLabel
+        this.iconSlot = iconLabel;
         iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);  // mantém — é método de JComponent
 
         // setHorizontalAlignment não existe em JComponent — trate por tipo:
@@ -221,6 +236,7 @@ public class FileItemPanel extends JPanel {
         FileItemPanel.showExtensionFileOverlay = showExtensionFileOverlay;
     }
 
+
     /**
      * Registra um JLabel para receber o ícone quando o worker terminar.
      * Usa WeakReference para não impedir o GC de coletar labels descartados.
@@ -286,7 +302,7 @@ public class FileItemPanel extends JPanel {
     }
 
     // Utilitário auxiliar (se não existir em outro lugar)
-    private static String getExtension(File file) {
+    public static String getExtension(File file) {
         String name = file.getName();
         int dot = name.lastIndexOf('.');
         return (dot >= 0 && dot < name.length() - 1)
@@ -523,8 +539,37 @@ public class FileItemPanel extends JPanel {
         iconLabel.setPreferredSize(new Dimension(boxSize, boxSize));
 
 
+        boolean hasTypeOvl = TypeOverlay.hasOverlay(ext, fileType);
+
+
         if (IconService.hasCustomIcon(ext, fileType)) {
             loadCustomIcon(ext, fileType, boxSize, iconLabel);
+        } else if (AnimatedGifThumb.isShowAnimatedGif() && isAnimatedGif(fileToDisplay)) {
+            JLabel gifLabel = animatedGifThumb.createGifLabel(boxSize);
+            animatedGifThumb.loadAnimatedGif(fileToDisplay, boxSize, gifLabel);
+
+            // Monta JLayeredPane opaco para isolar o GIF do RepaintManager
+            JLayeredPane gifPane = animatedGifThumb.createGifLayeredPane(boxSize);
+            gifLabel.setBounds(0, 0, boxSize, boxSize);
+            gifPane.add(gifLabel, JLayeredPane.DEFAULT_LAYER);
+
+            // Adiciona overlays se necessário
+            if (isShortcut) {
+                ShortcutOverlay so = new ShortcutOverlay();
+                so.setBounds(0, 0, boxSize, boxSize);
+                gifPane.add(so, JLayeredPane.MODAL_LAYER);
+            }
+            if (hasTypeOvl) {
+                TypeOverlay so =new TypeOverlay(ext, fileType);
+                so.setBounds(0, 0, boxSize, boxSize);
+                gifPane.add(so, JLayeredPane.MODAL_LAYER);
+            }
+            ratingOverlay = new RatingOverlay(fileInfo.getRating()); // rating 0 = não desenha nada
+            ratingOverlay.setBounds(0, 0, boxSize, boxSize);
+            ratingOverlay.setVisible(showRatingOverlay && fileInfo.getRating() > 0);
+            gifPane.add(ratingOverlay, JLayeredPane.MODAL_LAYER);
+
+            return gifPane; // retorna direto — não precisa do fluxo abaixo
         } else if (isImage(fileToDisplay)) {
             loadThumbnailFit(fileToDisplay, boxSize, iconLabel);
         } else if (isVideo(fileToDisplay)) {
@@ -542,9 +587,6 @@ public class FileItemPanel extends JPanel {
 
             iconLabel.setIcon(fitIconInsideSquare(sys, boxSize));
         }
-
-
-        boolean hasTypeOvl = TypeOverlay.hasOverlay(ext, fileType);
         if (!hasTypeOvl && !isShortcut) return iconLabel;
 
 
@@ -631,7 +673,7 @@ public class FileItemPanel extends JPanel {
     /**
      * Carrega imagem e aplica fitInsideSquare em vez de scaleWithPreset.
      */
-    private void loadThumbnailFit(File file, int boxSize, JLabel target) {
+    void loadThumbnailFit(File file, int boxSize, JLabel target) {
         String key = "fit_" + file.getAbsolutePath() + "_" + boxSize;
         ImageIcon cached = ICON_CACHE.get(key);
         if (cached != null) {
@@ -803,6 +845,37 @@ public class FileItemPanel extends JPanel {
         }
     }
 
+
+
+
+    public void applyAnimatedGifVisibility() {
+        // Só precisa recriar se o arquivo for GIF animado
+        String ext = fileInfo.getExtension();
+        if (!ext.equalsIgnoreCase("gif")) return;
+        if (!AnimatedGifThumb.isAnimatedGif(displayFile)) return;
+
+        // Invalida cache para forçar recriação pelo caminho correto
+        String cacheKey = "gif_" + displayFile.getAbsolutePath() + "_" + thumbSize;
+        ICON_CACHE.remove(cacheKey);
+
+        SwingUtilities.invokeLater(() -> {
+            JComponent newIcon = createIconLabel(); // lerá AnimatedGifThumb.isShowAnimatedGif()
+
+            int idx = -1;
+            for (int i = 0; i < getComponentCount(); i++) {
+                if (getComponent(i) == iconSlot) { idx = i; break; }
+            }
+            if (idx < 0) return;
+
+            remove(iconSlot);
+            add(newIcon, idx);
+            newIcon.setAlignmentX(Component.CENTER_ALIGNMENT);
+            iconSlot = newIcon;
+
+            revalidate();
+            repaint();
+        });
+    }
     /**
      * Carrega a imagem em baixa resolução e retorna com proporção original.
      * NÃO força quadrado — deixa fitInsideSquare() fazer o encaixe.

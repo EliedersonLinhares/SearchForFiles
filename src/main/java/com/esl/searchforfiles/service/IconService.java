@@ -29,39 +29,26 @@ public class IconService {
 
     static {
 
-        EXTENSION_ICONS.put("exe", "/icons/ext/executable/exe.png");
-        EXTENSION_ICONS.put("msi", "/icons/ext/executable/msi.png");
-        EXTENSION_ICONS.put("jar", "/icons/ext/executable/jar.png");
-        EXTENSION_ICONS.put("txt", "/icons/ext/document/txt.png");
-        EXTENSION_ICONS.put("doc", "/icons/ext/document/doc.png");
-        EXTENSION_ICONS.put("docx", "/icons/ext/document/docx.png");
-       // EXTENSION_ICONS.put("jpeg", "/icons/types/image.png");
-        // Documentos Office
-        // Documentos Office
-//        EXTENSION_ICONS.put("docx", "/icons/types/docx.png");
-//        EXTENSION_ICONS.put("doc",  "/icons/types/doc.png");
-//        EXTENSION_ICONS.put("xlsx", "/icons/types/xlsx.png");
-//        EXTENSION_ICONS.put("xls",  "/icons/types/xls.png");
-//        EXTENSION_ICONS.put("pptx", "/icons/types/pptx.png");
-//        EXTENSION_ICONS.put("ppt",  "/icons/types/ppt.png");
+//        EXTENSION_ICONS.put("exe", "/icons/ext/executable/exe.png");
+        EXTENSION_ICONS.put("doc", "/icons/types/document.png");
+        EXTENSION_ICONS.put("docx", "/icons/types/document.png");
+        EXTENSION_ICONS.put("txt", "/icons/types/document.png");
+        EXTENSION_ICONS.put("rtf", "/icons/types/document.png");
 
-        // PDF com ícone próprio
-//        EXTENSION_ICONS.put("pdf",  "/icons/types/pdf.png");
 
-        // Imagens com ícones individuais (opcional)
-        // EXTENSION_ICONS.put("png",  "/icons/types/png.png");
-        // EXTENSION_ICONS.put("jpg",  "/icons/types/jpg.png");
-
+        EXTENSION_ICONS.put("m3u", "/icons/types/audio.png");
         // Adicione quantas extensões quiser aqui
     }
 
     static {
-        EXTENSION_ICONS.put("folder", "/icons/ext/folder/folder.png"); // pasta via extensão fake
-        TYPE_ICONS.put(FileType.FOLDER, "/icons/ext/folder/folder.png");
+        //EXTENSION_ICONS.put("folder", "/icons/types/folder/folder.png"); // pasta via extensão fake
+        TYPE_ICONS.put(FileType.FOLDER, "/icons/types/folder/folder.png");
+        TYPE_ICONS.put(FileType.AUDIO, "/icons/types/audio.png");
+//        TYPE_ICONS.put(FileType.DOCUMENT, "/icons/types/document.png");
+        TYPE_ICONS.put(FileType.COMPRESSED, "/icons/types/compressed.png");
+        TYPE_ICONS.put(FileType.EXECUTABLE, "/icons/types/executable.png");
 
-        // TYPE_ICONS.put(FileType.AUDIO,    "/icons/audio.png");
-        // TYPE_ICONS.put(FileType.VIDEO,    "/icons/video.png");
-        // TYPE_ICONS.put(FileType.DOCUMENT, "/icons/document.png"); // fallback genérico
+
     }
 
     static {

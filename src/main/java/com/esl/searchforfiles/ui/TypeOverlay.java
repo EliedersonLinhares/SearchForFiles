@@ -21,43 +21,53 @@ public class TypeOverlay extends JComponent {
     // Útil quando uma extensão merece um badge diferente do seu FileType.
     // Ex: "iso" (COMPRESSED) pode ter badge próprio distinto de "zip".
     private static final Map<String, String> EXTENSION_ICONS = new HashMap<>();
-
-    static {
-        // Exemplos — adicione conforme necessário:
-        // EXTENSION_ICONS.put("txt", "/icons/types/txt.png");
-        // EXTENSION_ICONS.put("jar", "/icons/overlay/jar.png");
-        // EXTENSION_ICONS.put("sh",  "/icons/overlay/shell.png");
-        EXTENSION_ICONS.put("jpg", "/icons/jpg.png");
-        EXTENSION_ICONS.put("jpeg", "/icons/jpg.png");
-        EXTENSION_ICONS.put("gif", "/icons/overlay/gif.png");
-        EXTENSION_ICONS.put("png", "/icons/png.png");
-      //  EXTENSION_ICONS.put("mp4", "/icons/mp4.png");
-    }
-
     // ── Nível 2: FileType genérico → ícone de overlay ────────────
     private static final Map<FileType, String> TYPE_ICONS = new EnumMap<>(FileType.class);
-
-    static {
-        TYPE_ICONS.put(FileType.VIDEO, "/icons/overlay/video.png");
-        // Exemplos:
-        // TYPE_ICONS.put(FileType.AUDIO,    "/icons/overlay/audio.png");
-        // TYPE_ICONS.put(FileType.DOCUMENT, "/icons/overlay/document.png");
-    }
-
     // ── Cache unificado: chave = caminho do recurso ───────────────
     private static final Map<String, BufferedImage> IMAGE_CACHE = new ConcurrentHashMap<>();
+    private static final Color BG_COLOR = new Color(0, 0, 0, 90);
+
+    static {
+        //IMAGES
+        EXTENSION_ICONS.put("jpg", "/icons/ext/image/jpg.png");
+        EXTENSION_ICONS.put("jpeg", "/icons/ext/image/jpg.png");
+        EXTENSION_ICONS.put("gif", "/icons/ext/image/gif.png");
+        EXTENSION_ICONS.put("png", "/icons/ext/image/png.png");
+        EXTENSION_ICONS.put("bmp", "/icons/ext/image/bmp.png");
+        EXTENSION_ICONS.put("heic", "/icons/ext/image/heic.png");
+        EXTENSION_ICONS.put("raw", "/icons/ext/image/raw.png");
+        EXTENSION_ICONS.put("svg", "/icons/ext/image/svg.png");
+        EXTENSION_ICONS.put("tif", "/icons/ext/image/tif.png");
+        EXTENSION_ICONS.put("tiff", "/icons/ext/image/tiff.png");
+        EXTENSION_ICONS.put("webp", "/icons/ext/image/webp.png");
+        //VIDEOS
+        EXTENSION_ICONS.put("avi", "/icons/ext/video/avi.png");
+        EXTENSION_ICONS.put("flv", "/icons/ext/video/flv.png");
+        EXTENSION_ICONS.put("m4v", "/icons/ext/video/m4v.png");
+        EXTENSION_ICONS.put("mkv", "/icons/ext/video/mkv.png");
+        EXTENSION_ICONS.put("mov", "/icons/ext/video/mov.png");
+        EXTENSION_ICONS.put("mp4", "/icons/ext/video/mp4.png");
+        EXTENSION_ICONS.put("webm", "/icons/ext/video/webm.png");
+        EXTENSION_ICONS.put("wmv", "/icons/ext/video/wmv.png");
+
+    }
+
+    static {
+//        TYPE_ICONS.put(FileType.VIDEO, "/icons/overlay/video.png");
+//        // Exemplos:
+//        // TYPE_ICONS.put(FileType.AUDIO,    "/icons/overlay/audio.png");
+//        // TYPE_ICONS.put(FileType.DOCUMENT, "/icons/overlay/document.png");
+    }
 
     // ── Estado da instância ───────────────────────────────────────
-    private final String   extension; // pode ser null
+    private final String extension; // pode ser null
     private final FileType fileType;
-    private BufferedImage  typeImage;
-
-    private static final Color BG_COLOR = new Color(0, 0, 0, 90);
+    private BufferedImage typeImage;
 
     // ── Construtor atualizado: recebe extensão + tipo ─────────────
     public TypeOverlay(String extension, FileType fileType) {
         this.extension = (extension != null) ? extension.toLowerCase() : null;
-        this.fileType  = fileType;
+        this.fileType = fileType;
         setOpaque(false);
         loadImage();
     }
@@ -119,7 +129,8 @@ public class TypeOverlay extends JComponent {
                         typeImage = img;
                         repaint();
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             }
         }.execute();
     }
@@ -134,10 +145,10 @@ public class TypeOverlay extends JComponent {
         g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
                 RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 
-        int iconSize = Math.min(40, Math.max(14, (int)(getWidth() * 0.22)));
-        int pad      = 4;
+        int iconSize = Math.min(40, Math.max(14, (int) (getWidth() * 0.22)));
+        int pad = 4;
 
-        int bgX = getWidth()  - iconSize - pad * 2 - 2;
+        int bgX = getWidth() - iconSize - pad * 2 - 2;
         int bgY = getHeight() - iconSize - pad * 2 - 2;
         int bgW = iconSize + pad * 2;
         int bgH = iconSize + pad * 2;

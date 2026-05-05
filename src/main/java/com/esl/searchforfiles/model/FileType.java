@@ -12,7 +12,7 @@ public enum FileType {
 
     static {
         EXTENSIONS.put(AUDIO, Set.of(
-                "mp3", "wav", "flac", "aac", "ogg", "wma", "m4a", "opus", "ape", "alac"
+                "mp3", "wav", "flac", "aac", "ogg", "wma", "m4a", "opus", "ape", "alac", "m3u"
         ));
 
         EXTENSIONS.put(VIDEO, Set.of(
@@ -34,10 +34,6 @@ public enum FileType {
 
         EXTENSIONS.put(EXECUTABLE, Set.of(
                 "exe", "msi", "bat", "cmd", "sh", "app", "jar", "com", "ini"
-        ));
-
-        EXTENSIONS.put(CONFIGURATION, Set.of(
-                "dll", "so", "dylib", "ini", "bin", "acm" , "ax" , "blb", "conf", "ctz", "sys"
         ));
     }
 

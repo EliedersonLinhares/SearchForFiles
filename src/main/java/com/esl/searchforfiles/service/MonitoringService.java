@@ -1,39 +1,47 @@
 package com.esl.searchforfiles.service;
 
+import com.esl.searchforfiles.configuration.FingerprintCalculator;
 import com.esl.searchforfiles.database.DatabaseManager;
 
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.*;
-import java.util.concurrent.*;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Serviço responsável pelo monitoramento em tempo real do sistema de arquivos
- *
+ * <p>
  * Funcionalidades:
  * - Detecta criação de arquivos/pastas
  * - Detecta modificação de arquivos
  * - Detecta exclusão de arquivos/pastas
  * - Atualiza índice automaticamente
  * - Suporta monitoramento recursivo de diretórios
- *  * Serviço de monitoramento usando Virtual Threads
- *  * Cada evento de arquivo é processado em uma Virtual Thread separada
- *
+ * * Serviço de monitoramento usando Virtual Threads
+ * * Cada evento de arquivo é processado em uma Virtual Thread separada
+ * <p>
  * Utiliza WatchService do Java NIO para eficiência
- *
+ * <p>
  * MODIFICADO: Adiciona callback para auto-refresh
+ *
  * @author Sistema de Busca
  */
 public class MonitoringService {
+    private static final long DELETE_WINDOW_MS = 2000; // janela de 2 segundos
     private final DatabaseManager dbManager;
     private final SearchService searchService;
     private final ExecutorService virtualExecutor;
+    private final Map<String, Long> recentDeletes = new ConcurrentHashMap<>();
     private WatchService watchService;
     private Map<WatchKey, Path> watchKeys;
     private volatile boolean monitoring = false;
     private Thread monitorThread;
-
     // NOVO: Callback para notificar mudanças
     private FileChangeCallback fileChangeCallback;
 
@@ -127,6 +135,7 @@ public class MonitoringService {
 
         System.out.println("✓ Monitoramento encerrado");
     }
+
     /**
      * Loop principal de monitoramento
      * MODIFICADO: Notifica mudanças para auto-refresh
@@ -215,6 +224,7 @@ public class MonitoringService {
 
         System.out.println("🏁 Virtual Thread de monitoramento encerrada");
     }
+
     private void registerDirectory(Path dir) throws IOException {
         Files.walkFileTree(dir, new SimpleFileVisitor<Path>() {
             @Override
@@ -244,56 +254,154 @@ public class MonitoringService {
      * Handler de arquivo criado
      * CORRIGIDO: Validações adicionais
      */
+//    private void handleFileCreated(Path file) {
+//        try {
+//            // VALIDAÇÃO: Path não pode ser nulo
+//            if (file == null) {
+//                return;
+//            }
+//
+//            // VALIDAÇÃO: Arquivo deve existir
+//            if (Files.exists(file)) {
+//                BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
+//
+//                // VALIDAÇÃO: Atributos não podem ser nulos
+//                if (attrs != null) {
+//                    dbManager.indexFile(file, attrs);
+//                    searchService.clearCache();
+//
+//                    String type = attrs.isDirectory() ? "📁 Pasta" : "📄 Arquivo";
+//                    Path fileName = file.getFileName();
+//                    String name = (fileName != null) ? fileName.toString() : file.toString();
+//
+//                    System.out.println("➕ " + type + " criado: " + name +
+//                            " [VThread: " + Thread.currentThread().threadId() + "]");
+//                }
+//            }
+//        } catch (Exception e) {
+//            // Erro silencioso - comum durante monitoramento
+//            System.err.println("⚠️  Erro ao indexar arquivo criado: " + e.getMessage());
+//        }
+//    }
+
+
+// Substitua handleFileCreated():
     private void handleFileCreated(Path file) {
         try {
-            // VALIDAÇÃO: Path não pode ser nulo
-            if (file == null) {
-                return;
-            }
+            if (file == null) return;
+            if (!Files.exists(file)) return;
 
-            // VALIDAÇÃO: Arquivo deve existir
-            if (Files.exists(file)) {
-                BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
+            String absPath = file.toAbsolutePath().toString();
 
-                // VALIDAÇÃO: Atributos não podem ser nulos
-                if (attrs != null) {
-                    dbManager.indexFile(file, attrs);
-                    searchService.clearCache();
+            // NOVO: pequeno delay para aguardar possível DELETE do mesmo nome
+            // (movimentação entre pastas monitoradas gera DELETE + CREATE)
+            Thread.sleep(300);
 
-                    String type = attrs.isDirectory() ? "📁 Pasta" : "📄 Arquivo";
-                    Path fileName = file.getFileName();
-                    String name = (fileName != null) ? fileName.toString() : file.toString();
+            BasicFileAttributes attrs =
+                    Files.readAttributes(file, BasicFileAttributes.class);
+            if (attrs == null) return;
 
-                    System.out.println("➕ " + type + " criado: " + name +
-                            " [VThread: " + Thread.currentThread().threadId() + "]");
+            // NOVO: limpa entrada de delete recente para este path
+            recentDeletes.remove(absPath);
+
+            // NOVO: verifica se há um arquivo com mesmo fingerprint
+            // recém-deletado de outra pasta (movimentação entre drives)
+            String fp = FingerprintCalculator.calculate(file, attrs);
+            cleanupStaleEntryByFingerprint(fp, absPath);
+
+            dbManager.indexFile(file, attrs);
+            searchService.clearCache();
+
+            String type = attrs.isDirectory() ? "📁 Pasta" : "📄 Arquivo";
+            Path fileName = file.getFileName();
+            String name   = fileName != null ? fileName.toString() : absPath;
+            System.out.println("➕ " + type + " criado: " + name
+                    + " [VThread: " + Thread.currentThread().threadId() + "]");
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            System.err.println("⚠️ Erro ao indexar arquivo criado: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Remove entradas antigas do índice com mesmo fingerprint
+     * mas path diferente — evita duplicatas ao mover entre drives.
+     */
+    private void cleanupStaleEntryByFingerprint(String fingerprint,
+                                                String newPath) {
+        if (fingerprint == null) return;
+        try {
+            String sql = """
+            SELECT path FROM file_index
+            WHERE fingerprint = ? AND path != ?
+        """;
+            try (PreparedStatement p =
+                         dbManager.getConnection().prepareStatement(sql)) {
+                p.setString(1, fingerprint);
+                p.setString(2, newPath);
+                try (ResultSet rs = p.executeQuery()) {
+                    while (rs.next()) {
+                        String stalePath = rs.getString("path");
+                        // Só remove se o arquivo não existe mais no path antigo
+                        if (!Files.exists(Paths.get(stalePath))) {
+                            dbManager.deleteFile(stalePath);
+                            System.out.println("🧹 Entrada obsoleta removida: "
+                                    + stalePath);
+                        }
+                    }
                 }
             }
         } catch (Exception e) {
-            // Erro silencioso - comum durante monitoramento
-            System.err.println("⚠️  Erro ao indexar arquivo criado: " + e.getMessage());
+            System.err.println("⚠️ Erro ao limpar entrada obsoleta: "
+                    + e.getMessage());
         }
     }
-    /**
-     * Handler de arquivo deletado
-     * CORRIGIDO: Validações adicionais
-     */
+
+//    /**
+//     * Handler de arquivo deletado
+//     * CORRIGIDO: Validações adicionais
+//     */
+//    private void handleFileDeleted(Path file) {
+//        try {
+//            // VALIDAÇÃO: Path não pode ser nulo
+//            if (file == null) {
+//                return;
+//            }
+//
+//            dbManager.deleteFile(file.toAbsolutePath().toString());
+//            searchService.clearCache();
+//
+//            Path fileName = file.getFileName();
+//            String name = (fileName != null) ? fileName.toString() : file.toString();
+//
+//            System.out.println("➖ Arquivo deletado: " + name +
+//                    " [VThread: " + Thread.currentThread().threadId() + "]");
+//        } catch (Exception e) {
+//            System.err.println("⚠️  Erro ao remover do índice: " + e.getMessage());
+//        }
+//    }
+
+    // Substitua handleFileDeleted():
     private void handleFileDeleted(Path file) {
         try {
-            // VALIDAÇÃO: Path não pode ser nulo
-            if (file == null) {
-                return;
-            }
+            if (file == null) return;
 
-            dbManager.deleteFile(file.toAbsolutePath().toString());
+            String absPath = file.toAbsolutePath().toString();
+
+            // NOVO: registra o momento da deleção para uso no CREATE
+            recentDeletes.put(absPath, System.currentTimeMillis());
+
+            dbManager.deleteFile(absPath);
             searchService.clearCache();
 
             Path fileName = file.getFileName();
-            String name = (fileName != null) ? fileName.toString() : file.toString();
-
-            System.out.println("➖ Arquivo deletado: " + name +
-                    " [VThread: " + Thread.currentThread().threadId() + "]");
+            String name   = fileName != null ? fileName.toString() : absPath;
+            System.out.println("➖ Arquivo deletado: " + name
+                    + " [VThread: " + Thread.currentThread().threadId() + "]");
         } catch (Exception e) {
-            System.err.println("⚠️  Erro ao remover do índice: " + e.getMessage());
+            System.err.println("⚠️ Erro ao remover do índice: " + e.getMessage());
         }
     }
     /**
@@ -325,6 +433,7 @@ public class MonitoringService {
             // Erro silencioso
         }
     }
+
     public void shutdown() {
         stopMonitoring();
 

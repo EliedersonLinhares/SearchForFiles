@@ -105,6 +105,9 @@ public class FileContextMenu extends JPopupMenu {
                 JOptionPane.showMessageDialog(this,
                         "Pasta adicionada aos favoritos!\n\n" + file.getAbsolutePath(),
                         "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+
+//                fileExplorerSwing.getBottomIndicatorPanel().showSyncIndicator("⭐ Pasta adicionada aos favoritos! " + file.getAbsolutePath());
+//                fileExplorerSwing.getBottomIndicatorPanel().hideSyncIndicator(false);
             }
             });
             add(favoriteItem);
@@ -127,6 +130,14 @@ public class FileContextMenu extends JPopupMenu {
         add(subfolderItem);
 
         addSeparator();
+
+        JCheckBoxMenuItem toggleAnimatedGif = new JCheckBoxMenuItem(" Mostrar gifs animados");
+        toggleAnimatedGif.setSelected(fileExplorerSwing.getConfigManager().getSavedShowAnimatedGif());
+        toggleAnimatedGif.addActionListener(e -> {
+            toggleAnimatedGif(toggleAnimatedGif.isSelected());
+            fileExplorerSwing.getConfigManager().saveShowAnimatedGif(toggleAnimatedGif.isSelected());
+        });
+        add(toggleAnimatedGif);
 
         JCheckBoxMenuItem toggleOverlay = new JCheckBoxMenuItem("⭐ Mostrar avaliação nos ícones");
         toggleOverlay.setSelected(fileExplorerSwing.getConfigManager().getSavedShowStarRating());
@@ -211,6 +222,13 @@ public class FileContextMenu extends JPopupMenu {
         propagateExtensionTypeVisibility(parent);
     }
 
+    private void toggleAnimatedGif(boolean visible) {
+        AnimatedGifThumb.setShowAnimatedGif(visible); // ← flag atualizada AQUI
+        propagateAnimatedGifVisibility(parent);        // ← painéis recriam usando a flag já correta
+        // NÃO chame FileItemPanel.showAnimatedGif = visible — remova se existir
+    }
+
+
     /**
      * Percorre a hierarquia de componentes a partir do ResultsPanel
      * e atualiza todos os FileItemPanels encontrados.
@@ -248,6 +266,30 @@ public class FileContextMenu extends JPopupMenu {
             }
         }
     }
+
+    /**
+     * Percorre a hierarquia de componentes a partir do ResultsPanel
+     * e atualiza todos os FileItemPanels encontrados.
+     */
+    private void propagateAnimatedGifVisibility(Component origin) {
+        // Sobe até o JFrame para depois descer até o gridPanel
+        Container root = SwingUtilities.getAncestorOfClass(JFrame.class, origin);
+        if (root == null) return;
+        applyToAllAnimatedGif(root);
+    }
+
+    private void applyToAllAnimatedGif(Container container) {
+        for (Component c : container.getComponents()) {
+            if (c instanceof FileItemPanel fip) {
+                fip.applyAnimatedGifVisibility();
+            } else if (c instanceof Container inner) {
+                applyToAllAnimatedGif(inner);
+            }
+        }
+    }
+
+
+
     /**
      * NOVO: Cria submenu para opções de cache (apenas para vídeos)
      */

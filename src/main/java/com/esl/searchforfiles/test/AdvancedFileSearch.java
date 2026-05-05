@@ -2,6 +2,7 @@ package com.esl.searchforfiles.test;
 
 import com.esl.searchforfiles.database.DatabaseManager;
 import com.esl.searchforfiles.model.*;
+import com.esl.searchforfiles.service.IndexFilterService;
 import com.esl.searchforfiles.service.IndexService;
 import com.esl.searchforfiles.service.MonitoringService;
 import com.esl.searchforfiles.service.SearchService;
@@ -30,14 +31,16 @@ public class AdvancedFileSearch {
     private final IndexService indexService;
     private final SearchService searchService;
     private final MonitoringService monitoringService;
+    private final IndexFilterService indexFilterService;
 
     /**
      * Construtor principal - Inicializa todos os serviços
      * @throws SQLException se houver erro ao conectar com o banco de dados
      */
-    public AdvancedFileSearch() throws SQLException {
+    public AdvancedFileSearch(IndexFilterService indexFilterService) throws SQLException {
+        this.indexFilterService = indexFilterService;
         this.dbManager = new DatabaseManager();
-        this.indexService = new IndexService(dbManager);
+        this.indexService = new IndexService(dbManager,indexFilterService);
         this.searchService = new SearchService(dbManager);
         this.monitoringService = new MonitoringService(dbManager, searchService);
     }
