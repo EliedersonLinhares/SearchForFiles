@@ -4,6 +4,7 @@ import com.esl.searchforfiles.configuration.WrapLayout;
 import com.esl.searchforfiles.model.OrderBy;
 import com.esl.searchforfiles.model.SortOption;
 import com.esl.searchforfiles.others.ThumbnailSize;
+import com.esl.searchforfiles.service.TransferService;
 
 import javax.swing.*;
 import java.awt.*;
@@ -22,6 +23,7 @@ public class SearchPanel extends JPanel {
     private final JComboBox<String> filterBox;
     private final JButton searchButton;
     private final JButton indexButton;
+    private final JButton transferButton;
 
     // NOVO ▼
     private final JComboBox<String> ratingFilterCombo;   // "Qualquer", "1+", "2+", …, "5"
@@ -30,6 +32,7 @@ public class SearchPanel extends JPanel {
     private final JButton forwardButton;
     private final JComboBox<ThumbnailSize> thumbSizeCombo; // NOVO
     private final FileExplorerSwing fileExplorerSwing;
+    private final TransferService transferService = new TransferService();
     private NavigationListener navigationListener;
     private SearchListener searchListener;
     private IndexListener indexListener;
@@ -150,6 +153,13 @@ public class SearchPanel extends JPanel {
         tagFilterField.setPreferredSize(new Dimension(110, 25));
         tagFilterField.addActionListener(e -> triggerSearch());
 
+
+        transferButton = new JButton("✂️ Selecionar");
+        transferButton.setFont(new Font("SansSerif", Font.BOLD, 14));
+        transferButton.setToolTipText("Ativar modo de transferência de arquivos");
+        transferButton.addActionListener(e -> toggleTransferMode());
+
+
 // Envolve todo o conteúdo num painel com WrapLayout
         JPanel wrapPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 5, 4));
 
@@ -199,6 +209,7 @@ public class SearchPanel extends JPanel {
         wrapPanel.add(makeSeparator());
 
 // ── Grupo 7: Ações ────────────────────────────────────────────────────────────
+        wrapPanel.add(transferButton);
         wrapPanel.add(searchButton);
         wrapPanel.add(indexButton);
 
@@ -229,6 +240,17 @@ public class SearchPanel extends JPanel {
 
 
     // ── API pública nova ──────────────────────────────────────────
+
+
+
+    public void toggleTransferMode() {
+        if (transferService.isTransferModeActive()) {
+         fileExplorerSwing.getResultsPanel().exitTransferMode();
+        } else {
+            fileExplorerSwing.getResultsPanel().enterTransferMode(transferService);
+        }
+    }
+    
 
     /**
      * Atualiza estado visual dos botões e do breadcrumb.

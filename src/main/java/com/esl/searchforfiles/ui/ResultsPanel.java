@@ -3,6 +3,7 @@ package com.esl.searchforfiles.ui;
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.others.ThumbnailSize;
+import com.esl.searchforfiles.service.TransferService;
 
 import javax.swing.*;
 import java.awt.*;
@@ -33,6 +34,8 @@ public class ResultsPanel extends JPanel {
     private JScrollBar vBar;
 
     private KeyEventDispatcher keyDispatcher;
+    private TransferService transferService;
+    private JToolBar transferToolBar;
 
     public ResultsPanel(FileExplorerSwing fileExplorerSwing) {
         this.fileExplorerSwing = fileExplorerSwing;
@@ -374,6 +377,8 @@ public class ResultsPanel extends JPanel {
         gridPanel.revalidate();
         gridPanel.repaint();
 
+        reapplyTransferModeIfActive();
+
         // NOVO: requisita foco após renderizar
         // invokeLater garante que o layout já terminou antes de pedir foco
         SwingUtilities.invokeLater(gridPanel::requestFocusInWindow);
@@ -521,5 +526,106 @@ public class ResultsPanel extends JPanel {
         void onFileRightClick(File file, FileInfo fileInfo,
                               Component source, int x, int y,
                               FileItemPanel itemPanel); // NOVO
+    }
+
+
+
+
+    /** Chamado por FileExplorerSwing quando o botão "Selecionar" é pressionado. */
+    public void enterTransferMode(TransferService tm) {
+        this.transferService = tm;
+        tm.enterTransferMode();
+
+        // Mostra barra de ferramentas de transferência
+        if (transferToolBar == null) {
+            transferToolBar = buildTransferToolBar(tm);
+            add(transferToolBar, BorderLayout.NORTH);
+            revalidate();
+        }
+
+        applyTransferModeToItems(tm);
+    }
+
+    public void exitTransferMode() {
+        if (transferService != null) transferService.exitTransferMode();
+        transferService = null;
+
+        // Remove a toolbar
+        if (transferToolBar != null) {
+            remove(transferToolBar);
+            transferToolBar = null;
+            revalidate();
+        }
+
+        // Remove checkboxes de todos os cards
+        for (FileItemPanel item : currentItems) item.disableTransferMode();
+        repaint();
+    }
+
+    private void applyTransferModeToItems(TransferService tm) {
+        for (FileItemPanel item : currentItems) item.enableTransferMode(tm);
+    }
+
+    /**
+     * Chamado no final de renderGrid() para re-aplicar o modo
+     * de transferência caso esteja ativo.
+     */
+    private void reapplyTransferModeIfActive() {
+        if (transferService != null && transferService.isTransferModeActive()) {
+            applyTransferModeToItems(transferService);
+        }
+    }
+
+    /**
+     * Barra de ferramentas exibida no topo do ResultsPanel durante o modo
+     * de transferência. Fornece "Selecionar todos", "Limpar" e "Sair".
+     */
+    private JToolBar buildTransferToolBar(TransferService tm) {
+        JToolBar bar = new JToolBar();
+        bar.setFloatable(false);
+        bar.setBackground(new Color(33, 33, 60));
+
+        JLabel lbl = new JLabel("  ✂️  Modo de Transferência  ");
+        lbl.setForeground(Color.WHITE);
+        lbl.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        //lbl.setFont(lbl.getFont().deriveFont(Font.BOLD,14));
+        bar.add(lbl);
+
+        bar.addSeparator();
+
+        JButton selectAll = new JButton("Selecionar todos");
+        selectAll.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        selectAll.addActionListener(e -> {
+            List<File> files = currentItems.stream()
+                    .map(FileItemPanel::getDisplayFile)
+                    .toList();
+            tm.selectAll(files);
+            currentItems.forEach(item -> {
+                if (item.selectionCheckbox != null)
+                    item.selectionCheckbox.setSelected(true);
+            });
+        });
+        bar.add(selectAll);
+
+        JButton clearSel = new JButton("Limpar seleção");
+        clearSel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        clearSel.addActionListener(e -> {
+            tm.clearSelection();
+            currentItems.forEach(item -> {
+                if (item.selectionCheckbox != null)
+                    item.selectionCheckbox.setSelected(false);
+            });
+        });
+        bar.add(clearSel);
+
+        bar.addSeparator();
+
+        JButton exitBtn = new JButton("✕ Sair");
+        exitBtn.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        exitBtn.setForeground(new Color(255, 80, 80));
+        exitBtn.addActionListener(e -> exitTransferMode());
+        bar.add(exitBtn);
+
+        return bar;
     }
 }

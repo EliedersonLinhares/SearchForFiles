@@ -94,67 +94,6 @@ public class SearchController {
      * @param folderPath Pasta a sincronizar
      * @param callback Callback para notificar resultado
      */
-
-// CORREÇÃO: garante que refreshCurrentSearch() é chamado
-// mesmo quando a pasta não está indexada (para não travar a UI)
-//    public void syncFolderIfNeeded(String folderPath, SyncCallback callback) {
-//        if (folderPath == null || folderPath.trim().isEmpty()) {
-//            return;
-//        }
-//
-//        if (isDriveRoot(folderPath)) {
-//            System.out.println("⚠️ Sincronização ignorada: drive raiz");
-//            return;
-//        }
-//
-//        SwingWorker<SyncService.SyncResult, Void> worker = new SwingWorker<>() {
-//            @Override
-//            protected SyncService.SyncResult doInBackground() throws Exception {
-//                // VALIDAÇÃO CRÍTICA: Verifica se pasta foi indexada
-//                if (!syncService.isFolderIndexed(folderPath)) {
-//                    System.out.println("⚠️ Pasta não indexada, sincronização ignorada");
-//                    SyncService.SyncResult result = new SyncService.SyncResult(folderPath);
-//                    result.setNotIndexed(true);
-//                    return result;
-//                }
-//
-//                // Verifica se precisa sincronizar
-//                if (!syncService.needsSync(folderPath)) {
-//                    System.out.println("✅ Índice já sincronizado");
-//                    return new SyncService.SyncResult(folderPath);
-//                }
-//
-//                // Executa sincronização
-//                return syncService.synchronizeFolder(folderPath);
-//            }
-//
-//            @Override
-//            protected void done() {
-//                try {
-//                    SyncService.SyncResult result = get();
-//
-//                    if (callback != null) {
-//                        callback.onSyncCompleted(result);
-//                    }
-//
-//                    // Se houve mudanças E há busca ativa, atualiza
-//                    if (result.hasChanges() && lastCallback != null) {
-//                        System.out.println("🔄 Atualizando resultados após sincronização...");
-//                        refreshCurrentSearch();
-//                    }
-//
-//                } catch (Exception e) {
-//                    System.err.println("❌ Erro na sincronização: " + e.getMessage());
-//                    if (callback != null) {
-//                        callback.onSyncError(e);
-//                    }
-//                }
-//            }
-//        };
-//
-//        worker.execute();
-//    }
-
     public void syncFolderIfNeeded(String folderPath, SyncCallback callback) {
         if (folderPath == null || folderPath.trim().isEmpty()) {
             if (callback != null)

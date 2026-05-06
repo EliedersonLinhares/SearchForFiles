@@ -6,8 +6,8 @@ import com.esl.searchforfiles.model.SortOption;
 import com.esl.searchforfiles.others.ThumbnailSize;
 
 import java.io.*;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
+
 /**
  * Gerencia as configurações do aplicativo.
  * Salva e carrega preferências do usuário em arquivo .properties
@@ -25,6 +25,8 @@ public class ConfigManager {
     public static final String KEY_SHOW_STAR_RATING = "showStarRating";
     public static final String KEY_SHOW_TYPE_FILE = "showTypeFile";
     public static final String KEY_SHOW_ANIMATED_GIF = "showAnimatedGif";
+    public static final String KEY_SEARCH_HISTORY = "search_history";
+    public static final String KEY_TAG_HISTORY = "tag_history";
 
     private static final String CONFIG_FILE = "app_config.properties";
     private static final String APP_DIR_NAME = ".advancedsearch";
@@ -83,6 +85,38 @@ public class ConfigManager {
     // -------------------------------------------------------------------------
     // Leitura e escrita genéricas
     // -------------------------------------------------------------------------
+
+    private static final String SEP = ";;"; // separador seguro
+
+    public List<String> getList(String key) {
+        String value = get(key);
+        if (value == null || value.isEmpty()) return new ArrayList<>();
+        return new ArrayList<>(Arrays.asList(value.split(SEP)));
+    }
+
+    public void setList(String key, List<String> list) {
+        String joined = String.join(SEP, list);
+        set(key, joined);
+    }
+    public void addToHistory(String key, String value) {
+        if (value == null || value.trim().isEmpty()) return;
+
+        List<String> list = getList(key);
+
+        // remove duplicado
+        list.remove(value);
+
+        // adiciona no topo
+        list.add(0, value);
+
+        // limita a 5
+        if (list.size() > 5) {
+            list = list.subList(0, 5);
+        }
+
+        setList(key, list);
+    }
+
 
     /**
      * Retorna o valor de uma configuração como String.

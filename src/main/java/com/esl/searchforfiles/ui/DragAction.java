@@ -17,7 +17,6 @@ import java.util.function.Supplier;
 
 public class DragAction {
 
-
     public DragAction(Supplier<File> fileSupplier, JComponent component) {
 
         DragSource.getDefaultDragSource().createDefaultDragGestureRecognizer(

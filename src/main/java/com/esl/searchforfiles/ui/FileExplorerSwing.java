@@ -47,6 +47,7 @@ public class FileExplorerSwing extends JFrame {
     }
     public BottomIndicatorPanel getBottomIndicatorPanel() {return bottomIndicatorPanel;}
 
+
     public FileExplorerSwing() {
         super("Advanced File Search - Interface Gráfica");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);

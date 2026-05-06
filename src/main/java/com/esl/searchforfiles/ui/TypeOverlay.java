@@ -28,6 +28,40 @@ public class TypeOverlay extends JComponent {
     private static final Color BG_COLOR = new Color(0, 0, 0, 90);
 
     static {
+        //AUDIO
+        EXTENSION_ICONS.put("aac", "/icons/ext/audio/aac.png");
+        EXTENSION_ICONS.put("alac", "/icons/ext/audio/alac.png");
+        EXTENSION_ICONS.put("ape", "/icons/ext/audio/ape.png");
+        EXTENSION_ICONS.put("flac", "/icons/ext/audio/flac.png");
+        EXTENSION_ICONS.put("m3u", "/icons/ext/audio/m3u.png");
+        EXTENSION_ICONS.put("m4a", "/icons/ext/audio/m4a.png");
+        EXTENSION_ICONS.put("mp3", "/icons/ext/audio/mp3.png");
+        EXTENSION_ICONS.put("ogg", "/icons/ext/audio/ogg.png");
+        EXTENSION_ICONS.put("opus", "/icons/ext/audio/opus.png");
+        EXTENSION_ICONS.put("wav", "/icons/ext/audio/wav.png");
+        EXTENSION_ICONS.put("wma", "/icons/ext/audio/wma.png");
+        //COMPRESSED
+        EXTENSION_ICONS.put("7z", "/icons/ext/compressed/7z.png");
+        EXTENSION_ICONS.put("bz2", "/icons/ext/compressed/bz2.png");
+        EXTENSION_ICONS.put("dmg", "/icons/ext/compressed/dmg.png");
+        EXTENSION_ICONS.put("gz", "/icons/ext/compressed/gz.png");
+        EXTENSION_ICONS.put("iso", "/icons/ext/compressed/iso.png");
+        EXTENSION_ICONS.put("pkg", "/icons/ext/compressed/pkg.png");
+        EXTENSION_ICONS.put("rar", "/icons/ext/compressed/rar.png");
+        EXTENSION_ICONS.put("tar", "/icons/ext/compressed/tar.png");
+        EXTENSION_ICONS.put("xz", "/icons/ext/compressed/xz.png");
+        EXTENSION_ICONS.put("zip", "/icons/ext/compressed/zip.png");
+        //EXECUTABLE
+        EXTENSION_ICONS.put("app", "/icons/ext/executable/app.png");
+        EXTENSION_ICONS.put("bat", "/icons/ext/executable/bat.png");
+        EXTENSION_ICONS.put("cmd", "/icons/ext/executable/cmd.png");
+        EXTENSION_ICONS.put("com", "/icons/ext/executable/com.png");
+        EXTENSION_ICONS.put("exe", "/icons/ext/executable/exe.png");
+        EXTENSION_ICONS.put("ini", "/icons/ext/executable/ini.png");
+        EXTENSION_ICONS.put("jar", "/icons/ext/executable/jar.png");
+        EXTENSION_ICONS.put("msi", "/icons/ext/executable/msi.png");
+        EXTENSION_ICONS.put("sh", "/icons/ext/executable/sh.png");
+
         //IMAGES
         EXTENSION_ICONS.put("jpg", "/icons/ext/image/jpg.png");
         EXTENSION_ICONS.put("jpeg", "/icons/ext/image/jpg.png");
@@ -49,6 +83,22 @@ public class TypeOverlay extends JComponent {
         EXTENSION_ICONS.put("mp4", "/icons/ext/video/mp4.png");
         EXTENSION_ICONS.put("webm", "/icons/ext/video/webm.png");
         EXTENSION_ICONS.put("wmv", "/icons/ext/video/wmv.png");
+        //DOCUMENTS
+        EXTENSION_ICONS.put("csv", "/icons/ext/document/csv.png");
+        EXTENSION_ICONS.put("doc", "/icons/ext/document/doc.png");
+        EXTENSION_ICONS.put("docx", "/icons/ext/document/docx.png");
+        EXTENSION_ICONS.put("json", "/icons/ext/document/json.png");
+        EXTENSION_ICONS.put("log", "/icons/ext/document/log.png");
+        EXTENSION_ICONS.put("md", "/icons/ext/document/md.png");
+        EXTENSION_ICONS.put("odt", "/icons/ext/document/odt.png");
+        EXTENSION_ICONS.put("pdf", "/icons/ext/document/pdf.png");
+        EXTENSION_ICONS.put("ppt", "/icons/ext/document/ppt.png");
+        EXTENSION_ICONS.put("pptx", "/icons/ext/document/pptx.png");
+        EXTENSION_ICONS.put("rtf", "/icons/ext/document/rtf.png");
+        EXTENSION_ICONS.put("txt", "/icons/ext/document/txt.png");
+        EXTENSION_ICONS.put("xls", "/icons/ext/document/xls.png");
+        EXTENSION_ICONS.put("xlsx", "/icons/ext/document/xlsx.png");
+        EXTENSION_ICONS.put("xml", "/icons/ext/document/xml.png");
 
     }
 

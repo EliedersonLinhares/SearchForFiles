@@ -5,7 +5,9 @@ import com.esl.searchforfiles.configuration.ConfigManager;
 import com.esl.searchforfiles.configuration.FileTransferHandler;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.FileType;
+import com.esl.searchforfiles.model.TransferMode;
 import com.esl.searchforfiles.service.IconService;
+import com.esl.searchforfiles.service.TransferService;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.PDFRenderer;
@@ -82,6 +84,8 @@ public class FileItemPanel extends JPanel {
     private AnimatedGifThumb animatedGifThumb;
 
     private JComponent iconSlot;
+    SelectionCheckbox selectionCheckbox;
+    private TransferService transferService;
 
     public Color getNormalColor() {
         return normalColor;
@@ -1278,6 +1282,181 @@ public class FileItemPanel extends JPanel {
         RAPIDO,
         MEDIO,
         ALTA_QUALIDADE
+    }
+
+
+    /**
+     * Ativa o modo de transferência neste card:
+     * exibe o checkbox de seleção e registra o clique no TransferService.
+     */
+    public void enableTransferMode(TransferService tm) {
+        this.transferService = tm;
+
+        if (selectionCheckbox == null) {
+            selectionCheckbox = new SelectionCheckbox();
+            selectionCheckbox.setBounds(4, 4, 22, 22);
+            selectionCheckbox.setSelected(tm.isSelected(displayFile));
+
+            // Clique no checkbox alterna seleção
+            selectionCheckbox.addActionListener(e ->
+                    tm.toggleSelection(displayFile));
+
+            // Adiciona ao JLayeredPane se iconSlot for um, senão cria um wrapper
+            if (iconSlot instanceof JLayeredPane lp) {
+                lp.add(selectionCheckbox, JLayeredPane.DRAG_LAYER);
+            } else {
+                // Converte iconSlot em JLayeredPane
+                int idx = -1;
+                for (int i = 0; i < getComponentCount(); i++) {
+                    if (getComponent(i) == iconSlot) { idx = i; break; }
+                }
+                if (idx >= 0) {
+                    int bs = this.thumbSize;
+                    JLayeredPane lp = new JLayeredPane();
+                    lp.setPreferredSize(new Dimension(bs, bs));
+                    lp.setMaximumSize(new Dimension(bs, bs));
+                    lp.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+                    iconSlot.setBounds(0, 0, bs, bs);
+                    lp.add(iconSlot, JLayeredPane.DEFAULT_LAYER);
+                    lp.add(selectionCheckbox, JLayeredPane.DRAG_LAYER);
+
+                    remove(idx);
+                    add(lp, idx);
+                    iconSlot = lp;
+                    revalidate();
+                    repaint();
+                }
+            }
+        }
+
+        // Clique no painel (fora do checkbox): mostra menu de ação
+        // (registrado via addMouseListener para não sobrescrever os existentes)
+        addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (!tm.isTransferModeActive()) return;
+                if (e.getClickCount() == 1 && !e.isPopupTrigger()) {
+                    // Alterna seleção
+                    tm.toggleSelection(displayFile);
+                    if (selectionCheckbox != null)
+                        selectionCheckbox.setSelected(tm.isSelected(displayFile));
+                }
+            }
+
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent e) {
+                if (!tm.isTransferModeActive()) return;
+                if (e.isPopupTrigger()) showTransferMenu(e);
+            }
+
+            @Override
+            public void mouseReleased(java.awt.event.MouseEvent e) {
+                if (!tm.isTransferModeActive()) return;
+                if (e.isPopupTrigger()) showTransferMenu(e);
+            }
+        });
+    }
+
+    private void showTransferMenu(java.awt.event.MouseEvent e) {
+        // Se o item clicado não está selecionado, seleciona-o automaticamente
+        if (!transferService.isSelected(displayFile)) {
+            transferService.toggleSelection(displayFile);
+            if (selectionCheckbox != null)
+                selectionCheckbox.setSelected(true);
+        }
+
+        TransferActionMenu menu = new TransferActionMenu(new TransferActionMenu.ActionListener() {
+            @Override public void onCopy()   { requestTransfer(TransferMode.COPY);   }
+            @Override public void onMove()   { requestTransfer(TransferMode.MOVE);   }
+            @Override public void onDelete() { requestDelete();                        }
+        });
+        menu.show(this, e.getX(), e.getY());
+    }
+
+    /** Abre o seletor de destino e executa COPY ou MOVE. */
+    private void requestTransfer(TransferMode mode) {
+        Window owner = SwingUtilities.getWindowAncestor(this);
+        new DestinationChooserDialog(owner, mode,
+                transferService.getSelectedCount(),
+                dest -> performTransfer(mode, dest))
+                .setVisible(true);
+    }
+
+    private void performTransfer(TransferMode mode, java.io.File dest) {
+        Window owner = SwingUtilities.getWindowAncestor(this);
+        int total = transferService.getSelectedCount();
+        TransferProgressDialog progress = new TransferProgressDialog(owner, mode, total);
+
+        // Abre o diálogo de progresso em thread separada para não bloquear o worker
+        SwingUtilities.invokeLater(() -> progress.setVisible(true));
+
+        transferService.execute(mode, dest, new TransferService.TransferListener() {
+            @Override
+            public void onProgress(int done, int t, String file) {
+                progress.update(done, t, file);
+            }
+            @Override
+            public void onCompleted(int success, int failed) {
+                progress.dispose();
+                String msg = String.format("✅ %d transferido(s)" +
+                        (failed > 0 ? "\n⚠️ %d com erro" : ""), success, failed);
+                JOptionPane.showMessageDialog(owner, msg);
+                // Dispara refresh no ResultsPanel via callback no FileExplorerSwing
+                resultsPanel.getFileExplorerSwing().performCurrentSearch();
+            }
+            @Override
+            public void onError(String message) {
+                progress.dispose();
+                JOptionPane.showMessageDialog(owner, "Erro: " + message,
+                        "Erro", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+    }
+
+    /** Apagar com confirmação. */
+    private void requestDelete() {
+        Window owner = SwingUtilities.getWindowAncestor(this);
+        int n = transferService.getSelectedCount();
+        int opt = JOptionPane.showConfirmDialog(owner,
+                "Apagar " + n + " item(s) permanentemente?\nEsta ação não pode ser desfeita.",
+                "Confirmar exclusão", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (opt != JOptionPane.YES_OPTION) return;
+
+        TransferProgressDialog progress =
+                new TransferProgressDialog(owner, TransferMode.DELETE, n);
+        SwingUtilities.invokeLater(() -> progress.setVisible(true));
+
+        transferService.executeDelete(new TransferService.TransferListener() {
+            @Override
+            public void onProgress(int done, int t, String file) {
+                progress.update(done, t, file);
+            }
+            @Override
+            public void onCompleted(int success, int failed) {
+                progress.dispose();
+                JOptionPane.showMessageDialog(owner, "✅ " + success + " apagado(s).");
+                resultsPanel.getFileExplorerSwing().performCurrentSearch();
+            }
+            @Override
+            public void onError(String m) {
+                progress.dispose();
+                JOptionPane.showMessageDialog(owner, "Erro: " + m,
+                        "Erro", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+    }
+
+    /** Remove o checkbox e desativa listeners de transferência. */
+    public void disableTransferMode() {
+        this.transferService = null;
+        if (selectionCheckbox != null) {
+            if (selectionCheckbox.getParent() != null)
+                selectionCheckbox.getParent().remove(selectionCheckbox);
+            selectionCheckbox = null;
+        }
+        revalidate();
+        repaint();
     }
 
 }
