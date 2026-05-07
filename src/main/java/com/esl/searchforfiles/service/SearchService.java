@@ -43,54 +43,7 @@ public class SearchService {
      * @param pattern Padrão de busca (ex: "*.pdf", "relatorio*", "*2024*")
      * @return Lista de arquivos encontrados (máximo 1000)
      * @throws SQLException se houver erro na consulta
-//     */
-//    public List<FileInfo> searchByName(String pattern) throws SQLException {
-//        String cacheKey = "name:" + pattern;
-//
-//        // Tenta obter do cache
-//        List<FileInfo> cached = cache.get(cacheKey);
-//        if (cached != null) {
-//            System.out.println("💨 Cache HIT - Resultado instantâneo");
-//            return new ArrayList<>(cached); // Retorna cópia para segurança
-//        }
-//
-//        System.out.println("🔍 Buscando no banco de dados...");
-//        long startTime = System.currentTimeMillis();
-//
-//        String sql = """
-//            SELECT * FROM file_index
-//            WHERE name LIKE ?
-//            ORDER BY access_count DESC, name
-//            LIMIT ?
-//        """;
-//
-//        List<FileInfo> results = new ArrayList<>();
-//
-//        try (PreparedStatement pstmt = dbManager.getConnection().prepareStatement(SEARCH_BASE_SQL)) {
-//            pstmt.setString(1, pattern.replace("*", "%").replace("?", "_"));
-//            pstmt.setInt(2, DEFAULT_LIMIT);
-//
-//            try (ResultSet rs = pstmt.executeQuery()) {
-//                while (rs.next()) {
-//                    results.add(extractFileInfo(rs));
-//                }
-//            }
-//        }
-//
-//        long elapsed = System.currentTimeMillis() - startTime;
-//
-//        // Loga estatísticas
-//        dbManager.logSearchStats(pattern, results.size(), elapsed);
-//
-//        // Armazena no cache
-//        cache.put(cacheKey, results);
-//
-//        System.out.printf("✓ Busca concluída em %dms - %d resultados\n", elapsed, results.size());
-//
-//        return results;
-//    }
-
-
+     */
 // ── 4. searchByName() — usa SEARCH_BASE_SQL corretamente ─────────
     public List<FileInfo> searchByName(String pattern) throws SQLException {
         String cacheKey = "name:" + pattern;
@@ -131,8 +84,6 @@ public class SearchService {
         return results;
     }
 
-
-
     private static final String SEARCH_BASE_SQL = """
         SELECT fi.*,
                COALESCE(fid.rating, fi.rating, 0) AS effective_rating
@@ -142,7 +93,6 @@ public class SearchService {
                OR fid.fingerprint  = fi.fingerprint
         WHERE 1=1
         """;
-
 
     /**
      * Busca arquivos por tipo (categoria)
@@ -219,122 +169,6 @@ public class SearchService {
      * @return Lista de arquivos que atendem TODOS os critérios
      * @throws SQLException se houver erro na consulta
      */
-//    public List<FileInfo> advancedSearch(SearchCriteria criteria) throws SQLException {
-//        String cacheKey = criteria.toCacheKey();
-//
-//        // Tenta obter do cache
-//        List<FileInfo> cached = cache.get(cacheKey);
-//        if (cached != null) {
-//            System.out.println("Cache HIT - Resultado instantâneo");
-//            return new ArrayList<>(cached);
-//        }
-//
-//        System.out.println("🔍 Executando busca avançada...");
-//        long startTime = System.currentTimeMillis();
-//
-//        // Constrói query SQL dinamicamente
-//        StringBuilder sql = new StringBuilder("SELECT * FROM file_index WHERE 1=1");
-//        List<Object> params = new ArrayList<>();
-//
-//        // Filtro por nome
-//        if (criteria.getNamePattern() != null && !criteria.getNamePattern().isEmpty()) {
-//            sql.append(" AND name LIKE ?");
-//            params.add(criteria.getNamePattern().replace("*", "%").replace("?", "_"));
-//        }
-//
-//        // Filtro por extensão
-//        if (criteria.getExtension() != null && !criteria.getExtension().isEmpty()) {
-//            sql.append(" AND extension = ?");
-//            params.add(criteria.getExtension().toLowerCase());
-//        }
-//
-//        // Filtro por tipo de arquivo
-//        if (criteria.getFileType() != null && criteria.getFileType() != FileType.ALL) {
-//            sql.append(" AND file_type = ?");
-//            params.add(criteria.getFileType().name());
-//        }
-//
-//        // Filtro por tamanho mínimo
-//        if (criteria.getMinSize() != null) {
-//            sql.append(" AND size >= ?");
-//            params.add(criteria.getMinSize());
-//        }
-//
-//        // Filtro por tamanho máximo
-//        if (criteria.getMaxSize() != null) {
-//            sql.append(" AND size <= ?");
-//            params.add(criteria.getMaxSize());
-//        }
-//
-//        // Filtro por pasta (com ou sem subpastas)
-//        if (criteria.getParentPath() != null && !criteria.getParentPath().isEmpty()) {
-//            if (criteria.isIncludeSubfolders()) {
-//                // Inclui subpastas (busca recursiva)
-//                sql.append(" AND path LIKE ?");
-//                params.add(criteria.getParentPath() + "%");
-//            } else {
-//                // Apenas pasta atual (não recursivo)
-//                sql.append(" AND parent_path = ?");
-//                params.add(criteria.getParentPath());
-//            }
-//        }
-//
-//        // Filtro por drive
-//        if (criteria.getDriveFilter() != null && !criteria.getDriveFilter().isEmpty()) {
-//            String driveLetter = criteria.getDriveFilter().toUpperCase().replaceAll("[:\\\\]", "");
-//            sql.append(" AND path LIKE ?");
-//            params.add(driveLetter + ":\\%");
-//        }
-//
-//        // Filtro por data de modificação (depois de)
-//        if (criteria.getModifiedAfter() != null) {
-//            sql.append(" AND last_modified >= ?");
-//            params.add(criteria.getModifiedAfter());
-//        }
-//
-//        // Filtro por data de modificação (antes de)
-//        if (criteria.getModifiedBefore() != null) {
-//            sql.append(" AND last_modified <= ?");
-//            params.add(criteria.getModifiedBefore());
-//        }
-//
-//        // Ordenação
-//        sql.append(" ORDER BY ").append(criteria.getSortBy())
-//                .append(" ").append(criteria.getSortOrder());
-//
-//        // Limite
-//        sql.append(" LIMIT ").append(criteria.getLimit());
-//
-//        // Executa query
-//        List<FileInfo> results = new ArrayList<>();
-//
-//        try (PreparedStatement pstmt = dbManager.getConnection().prepareStatement(sql.toString())) {
-//            // Define parâmetros
-//            for (int i = 0; i < params.size(); i++) {
-//                pstmt.setObject(i + 1, params.get(i));
-//            }
-//
-//            // Executa e processa resultados
-//            try (ResultSet rs = pstmt.executeQuery()) {
-//                while (rs.next()) {
-//                    results.add(extractFileInfo(rs));
-//                }
-//            }
-//        }
-//
-//        long elapsed = System.currentTimeMillis() - startTime;
-//
-//        // Loga estatísticas
-//        dbManager.logSearchStats(cacheKey, results.size(), elapsed);
-//
-//        // Armazena no cache
-//        cache.put(cacheKey, results);
-//
-//        System.out.printf("✓ Busca avançada concluída em %dms - %d resultados\n", elapsed, results.size());
-//
-//        return results;
-//    }
-
 
 // ── 3. advancedSearch() — usa SEARCH_BASE_SQL ────────────────────
     public List<FileInfo> advancedSearch(SearchCriteria criteria) throws SQLException {

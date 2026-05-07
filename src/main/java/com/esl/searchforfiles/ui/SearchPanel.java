@@ -157,7 +157,7 @@ public class SearchPanel extends JPanel {
         transferButton = new JButton("✂️ Selecionar");
         transferButton.setFont(new Font("SansSerif", Font.BOLD, 14));
         transferButton.setToolTipText("Ativar modo de transferência de arquivos");
-        transferButton.addActionListener(e -> toggleTransferMode());
+        transferButton.addActionListener(e -> fileExplorerSwing.toggleTransferMode());
 
 
 // Envolve todo o conteúdo num painel com WrapLayout
@@ -243,13 +243,15 @@ public class SearchPanel extends JPanel {
 
 
 
-    public void toggleTransferMode() {
-        if (transferService.isTransferModeActive()) {
-         fileExplorerSwing.getResultsPanel().exitTransferMode();
-        } else {
-            fileExplorerSwing.getResultsPanel().enterTransferMode(transferService);
-        }
-    }
+//    public void toggleTransferMode() {
+//        if (transferService.isTransferModeActive()) {
+//         fileExplorerSwing.getResultsPanel().exitTransferMode();
+//        } else {
+//            fileExplorerSwing.getResultsPanel().enterTransferMode(transferService);
+//        }
+//    }
+
+
     
 
     /**

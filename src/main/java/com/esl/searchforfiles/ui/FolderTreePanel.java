@@ -1,9 +1,11 @@
 package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.configuration.FileTransferHandler;
+import com.esl.searchforfiles.configuration.TransferDropHelper;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.service.FavoritesService;
 import com.esl.searchforfiles.service.IconService;
+import com.esl.searchforfiles.service.TransferService;
 
 import javax.swing.*;
 import javax.swing.event.TreeExpansionEvent;
@@ -14,6 +16,8 @@ import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
 import java.awt.*;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.dnd.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
@@ -33,6 +37,7 @@ public class FolderTreePanel extends JPanel {
     private FolderSelectionListener selectionListener;
     private File selectedFile;
     private DragAction dragAction;
+    private TransferService transferService;
 
     public FolderTreePanel(FavoritesService favoritesService, FileExplorerSwing fileExplorerSwing) {
         this.favoritesService = favoritesService;
@@ -119,6 +124,8 @@ public class FolderTreePanel extends JPanel {
 
         populateDrives();
 
+        setupTransferDropTarget();
+
         JScrollPane scrollPane = new JScrollPane(folderTree);
         add(scrollPane, BorderLayout.CENTER);
 
@@ -138,6 +145,7 @@ public class FolderTreePanel extends JPanel {
                     return null; // DragAction ignora null
                 },
                 folderTree  // ← drag reconhecido na JTree, não no painel
+                ,transferService
         );
     }
 
@@ -188,6 +196,73 @@ public class FolderTreePanel extends JPanel {
         menu.add(openItem);
 
         return menu;
+    }
+
+
+    public void setTransferManager(TransferService tm) {
+        this.transferService = tm;
+    }
+
+    private void setupTransferDropTarget() {
+        new DropTarget(folderTree, new DropTargetAdapter() {
+
+            @Override
+            public void dragEnter(DropTargetDragEvent dtde) {
+                if (dtde.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
+                    dtde.acceptDrag(DnDConstants.ACTION_COPY_OR_MOVE);
+                    folderTree.setBorder(BorderFactory.createLineBorder(
+                            new Color(33, 150, 243), 2));
+                } else {
+                    dtde.rejectDrag();
+                }
+            }
+
+            @Override
+            public void dragExit(DropTargetEvent dte) {
+                folderTree.setBorder(null);
+            }
+
+            @Override
+            public void dragOver(DropTargetDragEvent dtde) {
+                // Destaca o nó sob o cursor durante o drag
+                TreePath path = folderTree.getPathForLocation(
+                        dtde.getLocation().x, dtde.getLocation().y);
+                if (path != null) folderTree.setSelectionPath(path);
+            }
+
+            @Override
+            public void drop(DropTargetDropEvent dtde) {
+                folderTree.setBorder(null);
+
+                // Resolve pasta de destino a partir do nó selecionado
+                DefaultMutableTreeNode node =
+                        (DefaultMutableTreeNode) folderTree.getLastSelectedPathComponent();
+                if (node == null || !(node.getUserObject() instanceof File dest)
+                        || !dest.isDirectory()) {
+                    dtde.rejectDrop();
+                    return;
+                }
+
+                try {
+                    dtde.acceptDrop(DnDConstants.ACTION_COPY_OR_MOVE);
+                    @SuppressWarnings("unchecked")
+                    List<File> files = (List<File>)
+                            dtde.getTransferable()
+                                    .getTransferData(DataFlavor.javaFileListFlavor);
+
+                    dtde.dropComplete(true);
+
+                    // Mostra popup Mover / Copiar / Cancelar
+                    TransferDropHelper.showDropMenu(
+                            folderTree, files, dest, transferService,
+                            () -> fileExplorerSwing.performCurrentSearch());
+
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    dtde.rejectDrop();
+                }
+            }
+        });
     }
 
     private void confirmFavoriteAdd(File selectedFile) {

@@ -1,13 +1,16 @@
 package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.configuration.FileTransferHandler;
+import com.esl.searchforfiles.configuration.TransferDropHelper;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.service.FavoritesService;
 import com.esl.searchforfiles.service.IconService;
+import com.esl.searchforfiles.service.TransferService;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileSystemView;
 import java.awt.*;
+import java.awt.datatransfer.DataFlavor;
 import java.awt.dnd.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -23,6 +26,7 @@ public class FavoritesPanel extends JPanel {
     private final FavoritesService favoritesService;
     private FavoriteSelectionListener selectionListener;
     private FileExplorerSwing fileExplorerSwing;
+    private TransferService transferService;
 
     public FavoritesPanel(FavoritesService favoritesManager, FileExplorerSwing fileExplorerSwing) {
         this.favoritesService = favoritesManager;
@@ -233,96 +237,232 @@ public class FavoritesPanel extends JPanel {
         void onFavoriteSelected(File folder);
     }
 
+    public void setTransferManager(TransferService tm) {
+        this.transferService = tm;
+    }
+
     // Adicione este método e chame-o no construtor, após o setup da favoritesList
+//    private void setupDropTarget() {
+//        DropTargetListener dtl = new DropTargetAdapter() {
+//
+//            @Override
+//            public void dragEnter(DropTargetDragEvent dtde) {
+//                if (dtde.isDataFlavorSupported(FileTransferHandler.FILE_FLAVOR)) {
+//                    dtde.acceptDrag(DnDConstants.ACTION_COPY);
+//                    // Feedback visual: borda destacada no painel
+//                    setBorder(BorderFactory.createTitledBorder(
+//                            BorderFactory.createLineBorder(new Color(33, 150, 243), 2),
+//                            "⭐ Favoritos"
+//                    ));
+//                } else {
+//                    dtde.rejectDrag();
+//                }
+//            }
+//
+//            @Override
+//            public void dragExit(DropTargetEvent dte) {
+//                // Restaura borda original
+//                setBorder(BorderFactory.createTitledBorder("⭐ Favoritos"));
+//            }
+//
+//            @Override
+//            public void drop(DropTargetDropEvent dtde) {
+//                // Restaura borda original
+//                setBorder(BorderFactory.createTitledBorder("⭐ Favoritos"));
+//
+//                try {
+//                    dtde.acceptDrop(DnDConstants.ACTION_COPY);
+//
+//                    @SuppressWarnings("unchecked")
+//                    List<File> files = (List<File>)
+//                            dtde.getTransferable().getTransferData(FileTransferHandler.FILE_FLAVOR);
+//
+//                    if (files == null || files.isEmpty()) {
+//                        dtde.dropComplete(false);
+//                        return;
+//                    }
+//
+//                    File dropped = files.get(0);
+//
+//                    //veto a drives como C: ou D:
+//                    if (fileExplorerSwing.isDriveRoot(dropped.getAbsolutePath())) {
+//                        JOptionPane.showMessageDialog(FavoritesPanel.this,
+//                                "Drive raiz não pode ser adicionado aos favoritos!\n" + "Somente pastas.",
+//                                "Aviso", JOptionPane.WARNING_MESSAGE);
+//                        return;
+//                    }
+//
+//                    // Só aceita pastas
+//                    if (!dropped.isDirectory()) {
+//                        JOptionPane.showMessageDialog(FavoritesPanel.this,
+//                                "Apenas pastas podem ser adicionadas aos favoritos.\n\n" +
+//                                        dropped.getName(),
+//                                "Tipo inválido", JOptionPane.WARNING_MESSAGE);
+//                        dtde.dropComplete(false);
+//                        return;
+//                    }
+//
+//                    // Já é favorito?
+//                    if (favoritesService.isFavorite(dropped.getAbsolutePath())) {
+//                        JOptionPane.showMessageDialog(FavoritesPanel.this,
+//                                "Esta pasta já está nos favoritos!\n\n" +
+//                                        dropped.getName(),
+//                                "Aviso", JOptionPane.INFORMATION_MESSAGE);
+//                        dtde.dropComplete(false);
+//                        return;
+//                    }
+//
+//                    // Adiciona
+//                    if (favoritesService.addFavorite(dropped.getAbsolutePath())) {
+//                        dtde.dropComplete(true);
+//                        System.out.println("⭐ Adicionado via drag: " + dropped.getAbsolutePath());
+//                    } else {
+//                        dtde.dropComplete(false);
+//                    }
+//
+//                } catch (Exception e) {
+//                    e.printStackTrace();
+//                    dtde.dropComplete(false);
+//                }
+//            }
+//        };
+//
+//        // Aplica o drop tanto na lista quanto no painel inteiro
+//        new DropTarget(favoritesList, dtl);
+//        new DropTarget(this, dtl);
+//    }
+
+
+
+    // Substitua setupDropTarget() por:
     private void setupDropTarget() {
         DropTargetListener dtl = new DropTargetAdapter() {
 
+            // Guarda se o drag em curso é de pasta(s) puras (sem arquivos)
+            // — determinado no dragEnter e reutilizado no drop.
+            private boolean isDirOnlyDrag = false;
+
             @Override
             public void dragEnter(DropTargetDragEvent dtde) {
-                if (dtde.isDataFlavorSupported(FileTransferHandler.FILE_FLAVOR)) {
-                    dtde.acceptDrag(DnDConstants.ACTION_COPY);
-                    // Feedback visual: borda destacada no painel
-                    setBorder(BorderFactory.createTitledBorder(
-                            BorderFactory.createLineBorder(new Color(33, 150, 243), 2),
-                            "⭐ Favoritos"
-                    ));
-                } else {
+                if (!dtde.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
                     dtde.rejectDrag();
+                    return;
+                }
+                dtde.acceptDrag(DnDConstants.ACTION_COPY_OR_MOVE);
+                setBorder(BorderFactory.createTitledBorder(
+                        BorderFactory.createLineBorder(new Color(33, 150, 243), 2),
+                        "⭐ Favoritos"));
+
+                // BUG 2 FIX — tenta inspecionar o conteúdo já no dragEnter
+                // para saber se é drag de pasta pura (adicionar favorito)
+                // ou de arquivos (transferir). Se não conseguir ler, assume false.
+                try {
+                    @SuppressWarnings("unchecked")
+                    List<File> preview = (List<File>)
+                            dtde.getTransferable()
+                                    .getTransferData(DataFlavor.javaFileListFlavor);
+                    isDirOnlyDrag = preview != null
+                            && !preview.isEmpty()
+                            && preview.stream().allMatch(File::isDirectory);
+                } catch (Exception ignored) {
+                    isDirOnlyDrag = false;
+                }
+            }
+
+            @Override
+            public void dragOver(DropTargetDragEvent dtde) {
+                // Só destaca item se for drag de arquivos (não de pasta→favorito)
+                if (!isDirOnlyDrag) {
+                    Point p = SwingUtilities.convertPoint(
+                            dtde.getDropTargetContext().getComponent(),
+                            dtde.getLocation(), favoritesList);
+                    int idx = favoritesList.locationToIndex(p);
+                    if (idx >= 0) favoritesList.setSelectedIndex(idx);
                 }
             }
 
             @Override
             public void dragExit(DropTargetEvent dte) {
-                // Restaura borda original
                 setBorder(BorderFactory.createTitledBorder("⭐ Favoritos"));
+                favoritesList.clearSelection();
             }
 
             @Override
             public void drop(DropTargetDropEvent dtde) {
-                // Restaura borda original
                 setBorder(BorderFactory.createTitledBorder("⭐ Favoritos"));
 
                 try {
-                    dtde.acceptDrop(DnDConstants.ACTION_COPY);
+                    dtde.acceptDrop(DnDConstants.ACTION_COPY_OR_MOVE);
 
                     @SuppressWarnings("unchecked")
-                    List<File> files = (List<File>)
-                            dtde.getTransferable().getTransferData(FileTransferHandler.FILE_FLAVOR);
+                    List<File> incoming = (List<File>)
+                            dtde.getTransferable()
+                                    .getTransferData(DataFlavor.javaFileListFlavor);
 
-                    if (files == null || files.isEmpty()) {
-                        dtde.dropComplete(false);
+                    dtde.dropComplete(true);
+                    if (incoming == null || incoming.isEmpty()) return;
+
+                    List<File> dirs  = incoming.stream().filter(File::isDirectory).toList();
+                    List<File> files = incoming.stream().filter(f -> !f.isDirectory()).toList();
+
+                    // BUG 2 FIX — drag é só de pastas: comportamento original (adicionar favorito)
+                    if (!dirs.isEmpty() && files.isEmpty()) {
+                        dirs.forEach(this::tryAddFavorite);
+                        favoritesList.clearSelection();
                         return;
                     }
 
-                    File dropped = files.get(0);
+                    // Drag contém arquivos (ou misto): resolve destino pelo item selecionado
+                    String selectedFav = favoritesList.getSelectedValue();
+                    favoritesList.clearSelection();
 
-                    //veto a drives como C: ou D:
-                    if (fileExplorerSwing.isDriveRoot(dropped.getAbsolutePath())) {
+                    if (selectedFav == null || selectedFav.equals("(Nenhum favorito)")) {
                         JOptionPane.showMessageDialog(FavoritesPanel.this,
-                                "Drive raiz não pode ser adicionado aos favoritos!\n" + "Somente pastas.",
-                                "Aviso", JOptionPane.WARNING_MESSAGE);
+                                "Solte sobre um favorito específico para copiar/mover arquivos.",
+                                "Destino não identificado", JOptionPane.INFORMATION_MESSAGE);
                         return;
                     }
 
-                    // Só aceita pastas
-                    if (!dropped.isDirectory()) {
-                        JOptionPane.showMessageDialog(FavoritesPanel.this,
-                                "Apenas pastas podem ser adicionadas aos favoritos.\n\n" +
-                                        dropped.getName(),
-                                "Tipo inválido", JOptionPane.WARNING_MESSAGE);
-                        dtde.dropComplete(false);
-                        return;
-                    }
+                    File dest = new File(selectedFav);
+                    if (!dest.isDirectory()) return;
 
-                    // Já é favorito?
-                    if (favoritesService.isFavorite(dropped.getAbsolutePath())) {
-                        JOptionPane.showMessageDialog(FavoritesPanel.this,
-                                "Esta pasta já está nos favoritos!\n\n" +
-                                        dropped.getName(),
-                                "Aviso", JOptionPane.INFORMATION_MESSAGE);
-                        dtde.dropComplete(false);
-                        return;
-                    }
+                    // Inclui as pastas do drag misto junto com os arquivos
+                    List<File> toTransfer = new java.util.ArrayList<>(files);
+                    toTransfer.addAll(dirs);
 
-                    // Adiciona
-                    if (favoritesService.addFavorite(dropped.getAbsolutePath())) {
-                        dtde.dropComplete(true);
-                        System.out.println("⭐ Adicionado via drag: " + dropped.getAbsolutePath());
-                    } else {
-                        dtde.dropComplete(false);
-                    }
+                    TransferDropHelper.showDropMenu(
+                            FavoritesPanel.this, toTransfer, dest, transferService,
+                            () -> fileExplorerSwing.performCurrentSearch());
 
-                } catch (Exception e) {
-                    e.printStackTrace();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
                     dtde.dropComplete(false);
                 }
             }
+
+            private void tryAddFavorite(File dir) {
+                if (fileExplorerSwing.isDriveRoot(dir.getAbsolutePath())) {
+                    JOptionPane.showMessageDialog(FavoritesPanel.this,
+                            "Drive raiz não pode ser adicionado aos favoritos!",
+                            "Aviso", JOptionPane.WARNING_MESSAGE);
+                    return;
+                }
+                if (favoritesService.isFavorite(dir.getAbsolutePath())) {
+                    JOptionPane.showMessageDialog(FavoritesPanel.this,
+                            "Esta pasta já está nos favoritos!\n\n" + dir.getName(),
+                            "Aviso", JOptionPane.INFORMATION_MESSAGE);
+                    return;
+                }
+                favoritesService.addFavorite(dir.getAbsolutePath());
+            }
         };
 
-        // Aplica o drop tanto na lista quanto no painel inteiro
-        new DropTarget(favoritesList, dtl);
-        new DropTarget(this, dtl);
+        new DropTarget(favoritesList, DnDConstants.ACTION_COPY_OR_MOVE, dtl);
+        new DropTarget(this,          DnDConstants.ACTION_COPY_OR_MOVE, dtl);
     }
+
+
+
     /**
      * Renderizador customizado para células
      */

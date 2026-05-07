@@ -49,6 +49,9 @@ public class SearchController {
     private static final long MAX_FOLDER_SIZE = 50_000;
     private final IndexFilterService indexFilterService;
 
+
+    private volatile boolean transferInProgress = false;
+
     public SearchController(JFrame parentFrame, IndexFilterService indexFilterService) throws SQLException {
         this.parentFrame = parentFrame;
         this.indexFilterService = indexFilterService;
@@ -78,6 +81,10 @@ public class SearchController {
 
 
     public DatabaseManager getDbManager() { return searchSystem.getDatabaseManager(); }
+
+    public void setTransferInProgress(boolean inProgress) {
+        this.transferInProgress = inProgress;
+    }
 
     public List<FileInfo> searchDirect(SearchCriteria criteria) throws Exception {
         return searchSystem.getSearchService().advancedSearch(criteria);
@@ -222,18 +229,36 @@ public class SearchController {
      * Chamado pelo MonitoringService (requer modificação naquela classe)
      * NOVO MÉTODO
      */
+//    public void onFileSystemChange() {
+//        // Notifica listener (UI)
+//        if (fileSystemChangeListener != null) {
+//            SwingUtilities.invokeLater(() -> {
+//                fileSystemChangeListener.onFileSystemChanged();
+//            });
+//        }
+//
+//        // Auto-refresh automático após pequeno delay (debounce)
+//        Timer timer = new Timer(500, e -> {
+//            refreshCurrentSearch();
+//        });
+//        timer.setRepeats(false);
+//        timer.start();
+//    }
+
     public void onFileSystemChange() {
-        // Notifica listener (UI)
-        if (fileSystemChangeListener != null) {
-            SwingUtilities.invokeLater(() -> {
-                fileSystemChangeListener.onFileSystemChanged();
-            });
+        // Suprime auto-refresh enquanto uma transferência está em andamento.
+        // O refresh final é feito manualmente pelo TransferDropHelper após
+        // a operação concluir (via onCompleted → performCurrentSearch).
+        if (transferInProgress) {
+            System.out.println("⏸️  Auto-refresh suspenso: transferência em andamento");
+            return;
         }
 
-        // Auto-refresh automático após pequeno delay (debounce)
-        Timer timer = new Timer(500, e -> {
-            refreshCurrentSearch();
-        });
+        if (fileSystemChangeListener != null) {
+            SwingUtilities.invokeLater(() -> fileSystemChangeListener.onFileSystemChanged());
+        }
+
+        Timer timer = new Timer(500, e -> refreshCurrentSearch());
         timer.setRepeats(false);
         timer.start();
     }

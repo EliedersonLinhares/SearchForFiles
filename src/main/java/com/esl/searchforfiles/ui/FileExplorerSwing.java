@@ -8,6 +8,7 @@ import com.esl.searchforfiles.others.ThumbnailSize;
 import com.esl.searchforfiles.service.FavoritesService;
 import com.esl.searchforfiles.service.IndexFilterService;
 import com.esl.searchforfiles.service.SyncService;
+import com.esl.searchforfiles.service.TransferService;
 
 import javax.swing.*;
 import java.awt.*;
@@ -33,6 +34,7 @@ public class FileExplorerSwing extends JFrame {
     private ConfigManager configManager;
     private BottomIndicatorPanel bottomIndicatorPanel;
     private IndexFilterService indexFilterService;
+    private TransferService transferService;
 
     private String selectedPath = "C:\\";
     private int currentPage = 1; // NOVO
@@ -47,6 +49,9 @@ public class FileExplorerSwing extends JFrame {
     }
     public BottomIndicatorPanel getBottomIndicatorPanel() {return bottomIndicatorPanel;}
 
+    public TransferService getTransferService() {
+        return transferService;
+    }
 
     public FileExplorerSwing() {
         super("Advanced File Search - Interface Gráfica");
@@ -180,7 +185,7 @@ public class FileExplorerSwing extends JFrame {
         //centerPanel.add(paginationPanel, BorderLayout.SOUTH);
 
         // === PAINEL DIREITO (subpastas) ===
-        subFolderPanel = new SubFolderPanel();
+        subFolderPanel = new SubFolderPanel(this);
         subFolderPanel.setFolderClickListener(folder ->
                 navigateTo(folder.getAbsolutePath(), true));
 
@@ -189,7 +194,8 @@ public class FileExplorerSwing extends JFrame {
         JSplitPane rightSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                 centerPanel, subFolderPanel);
         rightSplit.setResizeWeight(1.0);      // resultados expande, subpastas fixo
-        rightSplit.setDividerSize(4);
+
+        rightSplit.setDividerSize(12);
         rightSplit.setContinuousLayout(true);
         // Divider location em pixels após o frame estar visível (veja abaixo)
 
@@ -216,6 +222,9 @@ public class FileExplorerSwing extends JFrame {
             rightSplit.setDividerLocation((int) (totalWidth * 0.80));
         });
 
+
+        transferService = new TransferService();
+
         // MODIFICADO: em vez de performCurrentSearch() direto,
         // passa pelo navigateTo() para que a sincronização aconteça
         // antes de exibir os resultados
@@ -238,6 +247,25 @@ public class FileExplorerSwing extends JFrame {
     public ConfigManager getConfigManager() {
         return configManager;
     }
+
+
+    public void toggleTransferMode() {
+        if (transferService.isTransferModeActive()) {
+            resultsPanel.exitTransferMode();
+            // Remove referência dos painéis laterais
+            treePanel.setTransferManager(null);
+            subFolderPanel.setTransferManager(null);
+            favoritesPanel.setTransferManager(null);
+        } else {
+            resultsPanel.enterTransferMode(transferService);
+            // Injeta TransferManager nos painéis que recebem drop
+            treePanel.setTransferManager(transferService);
+            subFolderPanel.setTransferManager(transferService);
+            favoritesPanel.setTransferManager(transferService);
+        }
+    }
+
+
 
     /**
      * Navega para o caminho informado.

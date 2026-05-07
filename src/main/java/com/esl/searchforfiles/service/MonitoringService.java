@@ -254,37 +254,6 @@ public class MonitoringService {
      * Handler de arquivo criado
      * CORRIGIDO: Validações adicionais
      */
-//    private void handleFileCreated(Path file) {
-//        try {
-//            // VALIDAÇÃO: Path não pode ser nulo
-//            if (file == null) {
-//                return;
-//            }
-//
-//            // VALIDAÇÃO: Arquivo deve existir
-//            if (Files.exists(file)) {
-//                BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
-//
-//                // VALIDAÇÃO: Atributos não podem ser nulos
-//                if (attrs != null) {
-//                    dbManager.indexFile(file, attrs);
-//                    searchService.clearCache();
-//
-//                    String type = attrs.isDirectory() ? "📁 Pasta" : "📄 Arquivo";
-//                    Path fileName = file.getFileName();
-//                    String name = (fileName != null) ? fileName.toString() : file.toString();
-//
-//                    System.out.println("➕ " + type + " criado: " + name +
-//                            " [VThread: " + Thread.currentThread().threadId() + "]");
-//                }
-//            }
-//        } catch (Exception e) {
-//            // Erro silencioso - comum durante monitoramento
-//            System.err.println("⚠️  Erro ao indexar arquivo criado: " + e.getMessage());
-//        }
-//    }
-
-
 // Substitua handleFileCreated():
     private void handleFileCreated(Path file) {
         try {

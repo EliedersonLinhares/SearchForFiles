@@ -1,7 +1,6 @@
 package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
-import com.esl.searchforfiles.configuration.ConfigManager;
 import com.esl.searchforfiles.configuration.FileTransferHandler;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.FileType;
@@ -75,6 +74,7 @@ public class FileItemPanel extends JPanel {
     private final Color normalColor = new Color(56, 56, 56);
     private final Color hoverColor = new Color(70, 70, 70);
     private final int thumbSize;
+    SelectionCheckbox selectionCheckbox;
     private File displayFile;
     private ResultsPanel.FileItemClickListener clickListener;
     private RatingOverlay ratingOverlay; // NOVO
@@ -82,14 +82,8 @@ public class FileItemPanel extends JPanel {
     private TypeOverlay typeOverlay; // NOVO
     private DragAction dragAction;
     private AnimatedGifThumb animatedGifThumb;
-
     private JComponent iconSlot;
-    SelectionCheckbox selectionCheckbox;
     private TransferService transferService;
-
-    public Color getNormalColor() {
-        return normalColor;
-    }
 
     public FileItemPanel(File file, FileInfo fileInfo, int width, int height, int thumbSize, ResultsPanel resultsPanel) {
 
@@ -220,7 +214,8 @@ public class FileItemPanel extends JPanel {
         // arquivos comuns também podem ser arrastados (para uso futuro)
         setTransferHandler(new FileTransferHandler());
 
-        dragAction = new DragAction(() -> displayFile, this);
+        //  dragAction = new DragAction(() -> displayFile, this);
+        dragAction = new DragAction(() -> displayFile, this, null);
 
     }
 
@@ -239,7 +234,6 @@ public class FileItemPanel extends JPanel {
     public static void setShowExtensionFileOverlay(boolean showExtensionFileOverlay) {
         FileItemPanel.showExtensionFileOverlay = showExtensionFileOverlay;
     }
-
 
     /**
      * Registra um JLabel para receber o ícone quando o worker terminar.
@@ -297,13 +291,13 @@ public class FileItemPanel extends JPanel {
         return new ImageIcon(img);
     }
 
-// ==============================================================
-// NOVO MÉTODO: Atualiza ícone do label
-// ==============================================================
-
     private static Icon getLoadingIcon() {
         return LOADING_ICON;
     }
+
+// ==============================================================
+// NOVO MÉTODO: Atualiza ícone do label
+// ==============================================================
 
     // Utilitário auxiliar (se não existir em outro lugar)
     public static String getExtension(File file) {
@@ -407,6 +401,10 @@ public class FileItemPanel extends JPanel {
      */
     public static ThumbnailCacheManager getThumbnailCacheManager() {
         return THUMBNAIL_CACHE;
+    }
+
+    public Color getNormalColor() {
+        return normalColor;
     }
 
     public File getDisplayFile() {
@@ -564,7 +562,7 @@ public class FileItemPanel extends JPanel {
                 gifPane.add(so, JLayeredPane.MODAL_LAYER);
             }
             if (hasTypeOvl) {
-                TypeOverlay so =new TypeOverlay(ext, fileType);
+                TypeOverlay so = new TypeOverlay(ext, fileType);
                 so.setBounds(0, 0, boxSize, boxSize);
                 gifPane.add(so, JLayeredPane.MODAL_LAYER);
             }
@@ -850,8 +848,6 @@ public class FileItemPanel extends JPanel {
     }
 
 
-
-
     public void applyAnimatedGifVisibility() {
         // Só precisa recriar se o arquivo for GIF animado
         String ext = fileInfo.getExtension();
@@ -867,7 +863,10 @@ public class FileItemPanel extends JPanel {
 
             int idx = -1;
             for (int i = 0; i < getComponentCount(); i++) {
-                if (getComponent(i) == iconSlot) { idx = i; break; }
+                if (getComponent(i) == iconSlot) {
+                    idx = i;
+                    break;
+                }
             }
             if (idx < 0) return;
 
@@ -880,6 +879,7 @@ public class FileItemPanel extends JPanel {
             repaint();
         });
     }
+
     /**
      * Carrega a imagem em baixa resolução e retorna com proporção original.
      * NÃO força quadrado — deixa fitInsideSquare() fazer o encaixe.
@@ -1278,19 +1278,15 @@ public class FileItemPanel extends JPanel {
         return fileInfo;
     }
 
-    public enum Preset {
-        RAPIDO,
-        MEDIO,
-        ALTA_QUALIDADE
-    }
-
-
     /**
      * Ativa o modo de transferência neste card:
      * exibe o checkbox de seleção e registra o clique no TransferService.
      */
     public void enableTransferMode(TransferService tm) {
         this.transferService = tm;
+
+        // Recria DragAction com referência ao TransferService
+        dragAction = new DragAction(() -> displayFile, this, tm);
 
         if (selectionCheckbox == null) {
             selectionCheckbox = new SelectionCheckbox();
@@ -1308,7 +1304,10 @@ public class FileItemPanel extends JPanel {
                 // Converte iconSlot em JLayeredPane
                 int idx = -1;
                 for (int i = 0; i < getComponentCount(); i++) {
-                    if (getComponent(i) == iconSlot) { idx = i; break; }
+                    if (getComponent(i) == iconSlot) {
+                        idx = i;
+                        break;
+                    }
                 }
                 if (idx >= 0) {
                     int bs = this.thumbSize;
@@ -1367,14 +1366,27 @@ public class FileItemPanel extends JPanel {
         }
 
         TransferActionMenu menu = new TransferActionMenu(new TransferActionMenu.ActionListener() {
-            @Override public void onCopy()   { requestTransfer(TransferMode.COPY);   }
-            @Override public void onMove()   { requestTransfer(TransferMode.MOVE);   }
-            @Override public void onDelete() { requestDelete();                        }
+            @Override
+            public void onCopy() {
+                requestTransfer(TransferMode.COPY);
+            }
+
+            @Override
+            public void onMove() {
+                requestTransfer(TransferMode.MOVE);
+            }
+
+            @Override
+            public void onDelete() {
+                requestDelete();
+            }
         });
         menu.show(this, e.getX(), e.getY());
     }
 
-    /** Abre o seletor de destino e executa COPY ou MOVE. */
+    /**
+     * Abre o seletor de destino e executa COPY ou MOVE.
+     */
     private void requestTransfer(TransferMode mode) {
         Window owner = SwingUtilities.getWindowAncestor(this);
         new DestinationChooserDialog(owner, mode,
@@ -1396,6 +1408,7 @@ public class FileItemPanel extends JPanel {
             public void onProgress(int done, int t, String file) {
                 progress.update(done, t, file);
             }
+
             @Override
             public void onCompleted(int success, int failed) {
                 progress.dispose();
@@ -1405,6 +1418,7 @@ public class FileItemPanel extends JPanel {
                 // Dispara refresh no ResultsPanel via callback no FileExplorerSwing
                 resultsPanel.getFileExplorerSwing().performCurrentSearch();
             }
+
             @Override
             public void onError(String message) {
                 progress.dispose();
@@ -1414,7 +1428,9 @@ public class FileItemPanel extends JPanel {
         });
     }
 
-    /** Apagar com confirmação. */
+    /**
+     * Apagar com confirmação.
+     */
     private void requestDelete() {
         Window owner = SwingUtilities.getWindowAncestor(this);
         int n = transferService.getSelectedCount();
@@ -1432,12 +1448,14 @@ public class FileItemPanel extends JPanel {
             public void onProgress(int done, int t, String file) {
                 progress.update(done, t, file);
             }
+
             @Override
             public void onCompleted(int success, int failed) {
                 progress.dispose();
                 JOptionPane.showMessageDialog(owner, "✅ " + success + " apagado(s).");
                 resultsPanel.getFileExplorerSwing().performCurrentSearch();
             }
+
             @Override
             public void onError(String m) {
                 progress.dispose();
@@ -1447,7 +1465,9 @@ public class FileItemPanel extends JPanel {
         });
     }
 
-    /** Remove o checkbox e desativa listeners de transferência. */
+    /**
+     * Remove o checkbox e desativa listeners de transferência.
+     */
     public void disableTransferMode() {
         this.transferService = null;
         if (selectionCheckbox != null) {
@@ -1457,6 +1477,15 @@ public class FileItemPanel extends JPanel {
         }
         revalidate();
         repaint();
+
+   // Restaura DragAction sem TransferService
+   dragAction = new DragAction(() -> displayFile, this, null);
+    }
+
+    public enum Preset {
+        RAPIDO,
+        MEDIO,
+        ALTA_QUALIDADE
     }
 
 }
