@@ -28,12 +28,26 @@ public class IconService {
     private static final Map<String, String> NAMED_ICONS = new HashMap<>();
 
     static {
-
+// "odt", "xls", "xlsx", "ppt", "pptx",
+//                "csv", "xml", "json", "md", "log", "srt" , "ass", "sub" , "vtt"
 //        EXTENSION_ICONS.put("exe", "/icons/ext/executable/exe.png");
         EXTENSION_ICONS.put("doc", "/icons/types/document.png");
         EXTENSION_ICONS.put("docx", "/icons/types/document.png");
         EXTENSION_ICONS.put("txt", "/icons/types/document.png");
         EXTENSION_ICONS.put("rtf", "/icons/types/document.png");
+        EXTENSION_ICONS.put("odt", "/icons/types/document.png");
+        EXTENSION_ICONS.put("xls", "/icons/types/document.png");
+        EXTENSION_ICONS.put("xlsx", "/icons/types/document.png");
+        EXTENSION_ICONS.put("ppt", "/icons/types/document.png");
+        EXTENSION_ICONS.put("pptx", "/icons/types/document.png");
+        EXTENSION_ICONS.put("csv", "/icons/types/document.png");
+        EXTENSION_ICONS.put("json", "/icons/types/document.png");
+        EXTENSION_ICONS.put("md", "/icons/types/document.png");
+        EXTENSION_ICONS.put("log", "/icons/types/document.png");
+        EXTENSION_ICONS.put("srt", "/icons/types/document.png");
+        EXTENSION_ICONS.put("ass", "/icons/types/document.png");
+        EXTENSION_ICONS.put("sub", "/icons/types/document.png");
+        EXTENSION_ICONS.put("vtt", "/icons/types/document.png");
 
 
         EXTENSION_ICONS.put("m3u", "/icons/types/audio.png");

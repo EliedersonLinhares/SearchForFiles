@@ -25,7 +25,7 @@ public enum FileType {
 
         EXTENSIONS.put(DOCUMENT, Set.of(
                 "pdf", "doc", "docx", "txt", "rtf", "odt", "xls", "xlsx", "ppt", "pptx",
-                "csv", "xml", "json", "md", "log"
+                "csv", "xml", "json", "md", "log", "srt" , "ass", "sub" , "vtt"
         ));
 
         EXTENSIONS.put(COMPRESSED, Set.of(

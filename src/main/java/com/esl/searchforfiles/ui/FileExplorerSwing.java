@@ -195,7 +195,7 @@ public class FileExplorerSwing extends JFrame {
                 centerPanel, subFolderPanel);
         rightSplit.setResizeWeight(1.0);      // resultados expande, subpastas fixo
 
-        rightSplit.setDividerSize(12);
+        rightSplit.setDividerSize(4);
         rightSplit.setContinuousLayout(true);
         // Divider location em pixels após o frame estar visível (veja abaixo)
 

@@ -1,10 +1,5 @@
 package com.esl.searchforfiles.database;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-
 public class DatabaseSchema {
     public static final String CREATE_FILE_INDEX_TABLE = """
         CREATE TABLE IF NOT EXISTS file_index (

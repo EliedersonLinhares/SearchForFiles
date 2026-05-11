@@ -14,23 +14,61 @@ public class SearchCriteria {
     private String sortBy = "name";
     private String sortOrder = "ASC";
     private int limit = 3000;
-
-    // Getters
-    public String getNamePattern() { return namePattern; }
-    public String getExtension() { return extension; }
-    public FileType getFileType() { return fileType; }
-    public Long getMinSize() { return minSize; }
-    public Long getMaxSize() { return maxSize; }
-    public String getParentPath() { return parentPath; }
-    public boolean isIncludeSubfolders() { return includeSubfolders; }
-    public String getDriveFilter() { return driveFilter; }
-    public Long getModifiedAfter() { return modifiedAfter; }
-    public Long getModifiedBefore() { return modifiedBefore; }
-    public String getSortBy() { return sortBy; }
-    public String getSortOrder() { return sortOrder; }
-    public int getLimit() { return limit; }
     private Integer minRating;  // ex: 3 = busca arquivos com 3+ estrelas
     private String tag;         // ex: "ferias"
+
+    // Getters
+    public String getNamePattern() {
+        return namePattern;
+    }
+
+    public String getExtension() {
+        return extension;
+    }
+
+    public FileType getFileType() {
+        return fileType;
+    }
+
+    public Long getMinSize() {
+        return minSize;
+    }
+
+    public Long getMaxSize() {
+        return maxSize;
+    }
+
+    public String getParentPath() {
+        return parentPath;
+    }
+
+    public boolean isIncludeSubfolders() {
+        return includeSubfolders;
+    }
+
+    public String getDriveFilter() {
+        return driveFilter;
+    }
+
+    public Long getModifiedAfter() {
+        return modifiedAfter;
+    }
+
+    public Long getModifiedBefore() {
+        return modifiedBefore;
+    }
+
+    public String getSortBy() {
+        return sortBy;
+    }
+
+    public String getSortOrder() {
+        return sortOrder;
+    }
+
+    public int getLimit() {
+        return limit;
+    }
 
     public Integer getMinRating() {
         return minRating;
@@ -113,20 +151,13 @@ public class SearchCriteria {
         return this;
     }
 
-//    public String toCacheKey() {
-//        return String.format("adv:%s:%s:%s:%d:%d:%s:%b:%s:%d:%d:%s:%s",
-//                namePattern, extension, fileType, minSize, maxSize,
-//                parentPath, includeSubfolders, driveFilter,
-//                modifiedAfter, modifiedBefore, sortBy, sortOrder);
-//    }
-// toCacheKey() — acrescente os novos campos ao final da string:
-public String toCacheKey() {
-    return String.format("adv:%s:%s:%s:%d:%d:%s:%b:%s:%d:%d:%s:%s:%d:%s",
-            namePattern, extension, fileType, minSize, maxSize,
-            parentPath, includeSubfolders, driveFilter,
-            modifiedAfter, modifiedBefore, sortBy, sortOrder,
-            minRating != null ? minRating : 0,
-            tag != null ? tag : "");
-}
+    public String toCacheKey() {
+        return String.format("adv:%s:%s:%s:%d:%d:%s:%b:%s:%d:%d:%s:%s:%d:%s",
+                namePattern, extension, fileType, minSize, maxSize,
+                parentPath, includeSubfolders, driveFilter,
+                modifiedAfter, modifiedBefore, sortBy, sortOrder,
+                minRating != null ? minRating : 0,
+                tag != null ? tag : "");
+    }
 
 }

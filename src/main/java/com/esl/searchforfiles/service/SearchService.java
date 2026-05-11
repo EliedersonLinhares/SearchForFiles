@@ -293,22 +293,6 @@ public class SearchService {
     /**
      * Extrai informações de arquivo de um ResultSet
      */
-
-//    private FileInfo extractFileInfo(ResultSet rs) throws SQLException {
-//        FileInfo fi = new FileInfo(
-//                rs.getString("path"),
-//                rs.getString("name"),
-//                rs.getString("extension"),
-//                FileType.valueOf(rs.getString("file_type")),
-//                rs.getLong("size"),
-//                rs.getLong("last_modified"),
-//                rs.getBoolean("is_directory")
-//        );
-//        fi.setRating(rs.getInt("rating"));   // NOVO — coluna adicionada na migração
-//        // Tags são carregadas sob demanda via dbManager.getTagsForFile()
-//        return fi;
-//    }
-
 // ── 2. extractFileInfo() — usa effective_rating ──────────────────
     private FileInfo extractFileInfo(ResultSet rs) throws SQLException {
         FileInfo fi = new FileInfo(
@@ -371,29 +355,6 @@ public class SearchService {
 
         return new SearchResult(results, pagination);
     }
-    /**
-     * Conta total de resultados sem limite
-     * NOVO MÉTODO
-//     */
-//    private long countResults(SearchCriteria criteria) throws SQLException {
-//        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM file_index WHERE 1=1");
-//        List<Object> params = new ArrayList<>();
-//
-//        // Aplica os mesmos filtros da busca principal
-//        addCriteriaToQuery(sql, params, criteria);
-//
-//        try (PreparedStatement pstmt = dbManager.getConnection().prepareStatement(sql.toString())) {
-//            setParameters(pstmt, params);
-//
-//            try (ResultSet rs = pstmt.executeQuery()) {
-//                if (rs.next()) {
-//                    return rs.getLong(1);
-//                }
-//            }
-//        }
-//
-//        return 0;
-//    }
 
 // ── 5. countResults() — usa SEARCH_BASE_SQL para consistência ────
     private long countResults(SearchCriteria criteria) throws SQLException {
@@ -416,48 +377,6 @@ public class SearchService {
             }
         }
     }
-
-    /**
-     * Executa query com paginação (LIMIT e OFFSET)
-     * NOVO MÉTODO
-//     */
-//    private List<FileInfo> executePagedQuery(SearchCriteria criteria, int offset, int limit)
-//            throws SQLException {
-//
-//        StringBuilder sql = new StringBuilder("SELECT * FROM file_index WHERE 1=1");
-//        List<Object> params = new ArrayList<>();
-//
-//        // Aplica filtros
-//        addCriteriaToQuery(sql, params, criteria);
-//
-//        // Ordenação
-//        sql.append(" ORDER BY ").append(criteria.getSortBy())
-//                .append(" ").append(criteria.getSortOrder());
-//
-//        // PAGINAÇÃO: LIMIT e OFFSET
-//        sql.append(" LIMIT ? OFFSET ?");
-//
-//        List<FileInfo> results = new ArrayList<>();
-//
-//        try (PreparedStatement pstmt = dbManager.getConnection().prepareStatement(sql.toString())) {
-//            // Define parâmetros dos filtros
-//            setParameters(pstmt, params);
-//
-//            // Define LIMIT e OFFSET
-//            int paramIndex = params.size() + 1;
-//            pstmt.setInt(paramIndex, limit);
-//            pstmt.setInt(paramIndex + 1, offset);
-//
-//            try (ResultSet rs = pstmt.executeQuery()) {
-//                while (rs.next()) {
-//                    results.add(extractFileInfo(rs));
-//                }
-//            }
-//        }
-//
-//        return results;
-//    }
-
 
 // ── 6. executePagedQuery() — usa SEARCH_BASE_SQL ─────────────────
     private List<FileInfo> executePagedQuery(SearchCriteria criteria,
@@ -489,80 +408,6 @@ public class SearchService {
         }
         return results;
     }
-
-
-    /**
-     * Adiciona critérios à query SQL
-     * NOVO MÉTODO (extraído para reutilização)
-//     */
-//    private void addCriteriaToQuery(StringBuilder sql, List<Object> params, SearchCriteria criteria) {
-//        if (criteria.getNamePattern() != null && !criteria.getNamePattern().isEmpty()) {
-//            sql.append(" AND name LIKE ?");
-//            params.add(criteria.getNamePattern().replace("*", "%").replace("?", "_"));
-//        }
-//
-//        if (criteria.getExtension() != null && !criteria.getExtension().isEmpty()) {
-//            sql.append(" AND extension = ?");
-//            params.add(criteria.getExtension().toLowerCase());
-//        }
-//
-//        if (criteria.getFileType() != null && criteria.getFileType() != FileType.ALL) {
-//            sql.append(" AND file_type = ?");
-//            params.add(criteria.getFileType().name());
-//        }
-//
-//        if (criteria.getMinSize() != null) {
-//            sql.append(" AND size >= ?");
-//            params.add(criteria.getMinSize());
-//        }
-//
-//        if (criteria.getMaxSize() != null) {
-//            sql.append(" AND size <= ?");
-//            params.add(criteria.getMaxSize());
-//        }
-//
-//        if (criteria.getParentPath() != null && !criteria.getParentPath().isEmpty()) {
-//            if (criteria.isIncludeSubfolders()) {
-//                sql.append(" AND path LIKE ?");
-//                params.add(criteria.getParentPath() + "%");
-//            } else {
-//                sql.append(" AND parent_path = ?");
-//                params.add(criteria.getParentPath());
-//            }
-//        }
-//
-//        if (criteria.getDriveFilter() != null && !criteria.getDriveFilter().isEmpty()) {
-//            String driveLetter = criteria.getDriveFilter().toUpperCase().replaceAll("[:\\\\]", "");
-//            sql.append(" AND path LIKE ?");
-//            params.add(driveLetter + ":\\%");
-//        }
-//
-//        if (criteria.getModifiedAfter() != null) {
-//            sql.append(" AND last_modified >= ?");
-//            params.add(criteria.getModifiedAfter());
-//        }
-//
-//        if (criteria.getModifiedBefore() != null) {
-//            sql.append(" AND last_modified <= ?");
-//            params.add(criteria.getModifiedBefore());
-//        }
-//
-//        if (criteria.getMinRating() != null) {
-//            sql.append(" AND rating >= ?");
-//            params.add(criteria.getMinRating());
-//        }
-//
-//        if (criteria.getTag() != null && !criteria.getTag().isEmpty()) {
-//            sql.append("""
-//         AND path IN (
-//             SELECT ft.file_path FROM file_tags ft
-//             JOIN tags t ON t.id = ft.tag_id
-//             WHERE t.name = ? COLLATE NOCASE
-//         )
-//    """);
-//            params.add(criteria.getTag());
-//        }
-//    }
 
 
     private void addCriteriaToQuery(StringBuilder sql, List<Object> params,

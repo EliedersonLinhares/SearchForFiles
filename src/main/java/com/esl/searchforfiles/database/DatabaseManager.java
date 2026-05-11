@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.DosFileAttributes;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -64,18 +65,6 @@ public class DatabaseManager {
         }
     }
 
-    // --- RATING ---
-
-//    public void setRating(String path, int stars) throws SQLException {
-//        if (stars < 0 || stars > 5) throw new IllegalArgumentException("Rating deve ser entre 0 e 5");
-//        String sql = "UPDATE file_index SET rating = ? WHERE path = ?";
-//        try (PreparedStatement p = conn.prepareStatement(sql)) {
-//            p.setInt(1, stars);
-//            p.setString(2, path);
-//            p.executeUpdate();
-//        }
-//    }
-
 // --- TAGS ---
 
     public void createTag(String tagName) throws SQLException {
@@ -85,19 +74,6 @@ public class DatabaseManager {
             p.executeUpdate();
         }
     }
-
-//    public void addTagToFile(String path, String tagName) throws SQLException {
-//        createTag(tagName); // garante que a tag existe
-//        String sql = """
-//        INSERT OR IGNORE INTO file_tags (file_path, tag_id)
-//        SELECT ?, id FROM tags WHERE name = ? COLLATE NOCASE
-//    """;
-//        try (PreparedStatement p = conn.prepareStatement(sql)) {
-//            p.setString(1, path);
-//            p.setString(2, tagName);
-//            p.executeUpdate();
-//        }
-//    }
 
     public void removeTagFromFile(String path, String tagName) throws SQLException {
         String sql = """
@@ -110,24 +86,6 @@ public class DatabaseManager {
             p.executeUpdate();
         }
     }
-//
-//    public List<String> getTagsForFile(String path) throws SQLException {
-//        String sql = """
-//                    SELECT t.name FROM tags t
-//                    JOIN file_tags ft ON ft.tag_id = t.id
-//                    WHERE ft.file_path = ?
-//                    ORDER BY t.name
-//                """;
-//        List<String> tags = new ArrayList<>();
-//        try (PreparedStatement p = conn.prepareStatement(sql)) {
-//            p.setString(1, path);
-//            try (ResultSet rs = p.executeQuery()) {
-//                while (rs.next()) tags.add(rs.getString("name"));
-//            }
-//        }
-//        return tags;
-//    }
-
 
     public List<String> getTagsForFile(String path) throws SQLException {
 
@@ -146,18 +104,18 @@ public class DatabaseManager {
 
         // Tenta buscar pela identity primeiro
         String sqlByIdentity = """
-        SELECT DISTINCT t.name
-        FROM tags t
-        JOIN file_tags ft ON ft.tag_id = t.id
-        JOIN file_identity fi ON fi.id = ft.identity_id
-        WHERE fi.ntfs_file_id = (
-            SELECT ntfs_file_id FROM file_index WHERE path = ?
-        )
-        OR fi.fingerprint = (
-            SELECT fingerprint FROM file_index WHERE path = ?
-        )
-        ORDER BY t.name COLLATE NOCASE
-    """;
+                    SELECT DISTINCT t.name
+                    FROM tags t
+                    JOIN file_tags ft ON ft.tag_id = t.id
+                    JOIN file_identity fi ON fi.id = ft.identity_id
+                    WHERE fi.ntfs_file_id = (
+                        SELECT ntfs_file_id FROM file_index WHERE path = ?
+                    )
+                    OR fi.fingerprint = (
+                        SELECT fingerprint FROM file_index WHERE path = ?
+                    )
+                    ORDER BY t.name COLLATE NOCASE
+                """;
 
         List<String> tags = new ArrayList<>();
         try (PreparedStatement p = conn.prepareStatement(sqlByIdentity)) {
@@ -171,11 +129,11 @@ public class DatabaseManager {
         // Fallback: busca pelo path direto (dados legados sem identity_id)
         if (tags.isEmpty()) {
             String sqlByPath = """
-            SELECT t.name FROM tags t
-            JOIN file_tags ft ON ft.tag_id = t.id
-            WHERE ft.file_path = ?
-            ORDER BY t.name COLLATE NOCASE
-        """;
+                        SELECT t.name FROM tags t
+                        JOIN file_tags ft ON ft.tag_id = t.id
+                        WHERE ft.file_path = ?
+                        ORDER BY t.name COLLATE NOCASE
+                    """;
             try (PreparedStatement p = conn.prepareStatement(sqlByPath)) {
                 p.setString(1, path);
                 try (ResultSet rs = p.executeQuery()) {
@@ -186,7 +144,6 @@ public class DatabaseManager {
 
         return tags;
     }
-
 
 
     public List<String> getAllTags() throws SQLException {
@@ -226,139 +183,63 @@ public class DatabaseManager {
      * Indexa um arquivo com validações robustas
      * CORRIGIDO: Trata casos onde getFileName() retorna null
      */
-//    public synchronized void indexFile(Path file, BasicFileAttributes attrs) throws SQLException {
-//        // VALIDAÇÃO 1: Path não pode ser nulo
-//        if (file == null) {
-//            return;
-//        }
-//
-//        String path = file.toAbsolutePath().toString();
-//
-//        // VALIDAÇÃO 2: getFileName() pode retornar null para raiz de drive
-//        Path fileNamePath = file.getFileName();
-//        String name;
-//
-//        if (fileNamePath == null) {
-//            // Caso especial: raiz de drive (C:\, D:\, etc.)
-//            name = path; // Usa o caminho completo como nome
-//        } else {
-//            name = fileNamePath.toString();
-//        }
-//
-//        // VALIDAÇÃO 3: Nome não pode ser vazio
-//        if (name == null || name.isEmpty()) {
-//            System.err.println("⚠️  Arquivo ignorado (nome vazio): " + path);
-//            return;
-//        }
-//
-//        String extension = PathUtils.getExtension(name);
-//        FileType fileType = FileTypeDetector.detect(name, attrs.isDirectory());
-//        long size = attrs.size();
-//        long lastModified = attrs.lastModifiedTime().toMillis();
-//
-//        // VALIDAÇÃO 4: getParent() também pode retornar null
-//        Path parentPath = file.getParent();
-//        String parentPathStr = (parentPath != null) ? parentPath.toString() : "";
-//
-//        boolean isDirectory = attrs.isDirectory();
-//        long indexedAt = System.currentTimeMillis();
-//
-////        String sql = """
-////            INSERT OR REPLACE INTO file_index
-////            (path, name, extension, file_type, size, last_modified, parent_path, is_directory, indexed_at)
-////            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-////        """;
-//
-//        // NOVO: calcula identidade
-//        String ntfsId = NtfsFileIdReader.readFileId(file);
-//        String fingerprint = FingerprintCalculator.calculate(file, attrs);
-//
-//        String sql = """
-//                    INSERT OR REPLACE INTO file_index
-//                    (path, name, extension, file_type, size, last_modified,
-//                     parent_path, is_directory, indexed_at, ntfs_file_id, fingerprint)
-//                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-//                """;
-//
-//        try (PreparedStatement p = conn.prepareStatement(sql)) {
-//            p.setString(1, path);
-//            p.setString(2, name);
-//            p.setString(3, extension);
-//            p.setString(4, fileType.name());
-//            p.setLong(5, size);
-//            p.setLong(6, lastModified);
-//            p.setString(7, parentPathStr);
-//            p.setBoolean(8, isDirectory);
-//            p.setLong(9, indexedAt);
-//            p.setString(10, ntfsId);        // NOVO
-//            p.setString(11, fingerprint);   // NOVO
-//            p.executeUpdate();
-//        }
-//
-//        // NOVO: garante que a identity existe na tabela file_identity
-//        if (fingerprint != null) {
-//            upsertIdentity(ntfsId, fingerprint, path);
-//        }
-//    }
+    public synchronized void indexFile(Path file,
+                                       BasicFileAttributes attrs) throws SQLException {
+        if (file == null) return;
 
+        String path = file.toAbsolutePath().toString();
+        Path fileNamePath = file.getFileName();
+        String name = fileNamePath != null ? fileNamePath.toString() : path;
+        if (name.isEmpty()) return;
 
+        String extension = PathUtils.getExtension(name);
+        FileType fileType = FileTypeDetector.detect(name, attrs.isDirectory());
+        long size = attrs.size();
+       // long lastModified = attrs.lastModifiedTime().toMillis();
+        long lastModified = resolveLastModified(file, attrs); // ← única mudança necessária
+        Path parentPath = file.getParent();
+        String parentStr = parentPath != null ? parentPath.toString() : "";
+        boolean isDirectory = attrs.isDirectory();
+        long indexedAt = System.currentTimeMillis();
+        String ntfsId = NtfsFileIdReader.readFileId(file);
+        String fingerprint = FingerprintCalculator.calculate(file, attrs);
 
-public synchronized void indexFile(Path file,
-                                   BasicFileAttributes attrs) throws SQLException {
-    if (file == null) return;
+        // NOVO: garante identity e atualiza last_path
+        long identityId = -1;
+        if (fingerprint != null) {
+            identityId = upsertIdentity(ntfsId, fingerprint, path);
+        }
 
-    String path = file.toAbsolutePath().toString();
-    Path fileNamePath = file.getFileName();
-    String name = fileNamePath != null ? fileNamePath.toString() : path;
-    if (name.isEmpty()) return;
+        // NOVO: busca rating atual da identity para preservar
+        int existingRating = 0;
+        if (identityId > 0) {
+            existingRating = getRatingByIdentity(identityId);
+        }
 
-    String    extension    = PathUtils.getExtension(name);
-    FileType  fileType     = FileTypeDetector.detect(name, attrs.isDirectory());
-    long      size         = attrs.size();
-    long      lastModified = attrs.lastModifiedTime().toMillis();
-    Path      parentPath   = file.getParent();
-    String    parentStr    = parentPath != null ? parentPath.toString() : "";
-    boolean   isDirectory  = attrs.isDirectory();
-    long      indexedAt    = System.currentTimeMillis();
-    String    ntfsId       = NtfsFileIdReader.readFileId(file);
-    String    fingerprint  = FingerprintCalculator.calculate(file, attrs);
+        String sql = """
+                    INSERT OR REPLACE INTO file_index
+                    (path, name, extension, file_type, size, last_modified,
+                     parent_path, is_directory, indexed_at,
+                     ntfs_file_id, fingerprint, rating)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """;
 
-    // NOVO: garante identity e atualiza last_path
-    long identityId = -1;
-    if (fingerprint != null) {
-        identityId = upsertIdentity(ntfsId, fingerprint, path);
+        try (PreparedStatement p = conn.prepareStatement(sql)) {
+            p.setString(1, path);
+            p.setString(2, name);
+            p.setString(3, extension);
+            p.setString(4, fileType.name());
+            p.setLong(5, size);
+            p.setLong(6, lastModified);
+            p.setString(7, parentStr);
+            p.setBoolean(8, isDirectory);
+            p.setLong(9, indexedAt);
+            p.setString(10, ntfsId);
+            p.setString(11, fingerprint);
+            p.setInt(12, existingRating); // NOVO: preserva rating
+            p.executeUpdate();
+        }
     }
-
-    // NOVO: busca rating atual da identity para preservar
-    int existingRating = 0;
-    if (identityId > 0) {
-        existingRating = getRatingByIdentity(identityId);
-    }
-
-    String sql = """
-        INSERT OR REPLACE INTO file_index
-        (path, name, extension, file_type, size, last_modified,
-         parent_path, is_directory, indexed_at,
-         ntfs_file_id, fingerprint, rating)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """;
-
-    try (PreparedStatement p = conn.prepareStatement(sql)) {
-        p.setString(1,  path);
-        p.setString(2,  name);
-        p.setString(3,  extension);
-        p.setString(4,  fileType.name());
-        p.setLong(5,    size);
-        p.setLong(6,    lastModified);
-        p.setString(7,  parentStr);
-        p.setBoolean(8, isDirectory);
-        p.setLong(9,    indexedAt);
-        p.setString(10, ntfsId);
-        p.setString(11, fingerprint);
-        p.setInt(12,    existingRating); // NOVO: preserva rating
-        p.executeUpdate();
-    }
-}
 
 
     // Busca rating pela identity (não pelo path)
@@ -505,7 +386,6 @@ public synchronized void indexFile(Path file,
             migrateLegacyRatings();
 
 
-
             // Adiciona colunas (ignora se já existem)
             executeSafe(stmt, DatabaseSchema.ALTER_FILE_INDEX_NTFS);
             executeSafe(stmt, DatabaseSchema.ALTER_FILE_INDEX_FP);
@@ -548,8 +428,8 @@ public synchronized void indexFile(Path file,
                     BasicFileAttributes attrs =
                             Files.readAttributes(p, BasicFileAttributes.class);
 
-                    String newFp   = FingerprintCalculator.calculate(p, attrs);
-                    String ntfsId  = NtfsFileIdReader.readFileId(p);
+                    String newFp = FingerprintCalculator.calculate(p, attrs);
+                    String ntfsId = NtfsFileIdReader.readFileId(p);
 
                     // Atualiza fingerprint na file_index
                     updateFileIndexIdentity(path, ntfsId, newFp);
@@ -575,7 +455,7 @@ public synchronized void indexFile(Path file,
         if (ntfsId == null || fingerprint == null) return;
 
         Long idByNtfs = findIdentityByNtfs(ntfsId);
-        Long idByFp   = findIdentityByFingerprint(fingerprint);
+        Long idByFp = findIdentityByFingerprint(fingerprint);
 
         if (idByNtfs == null || idByFp == null || idByNtfs.equals(idByFp)) {
             // Sem duplicata — apenas garante que o upsert está correto
@@ -584,15 +464,15 @@ public synchronized void indexFile(Path file,
         }
 
         // Há duas identidades diferentes — consolida na mais antiga (menor id)
-        long keepId   = Math.min(idByNtfs, idByFp);
+        long keepId = Math.min(idByNtfs, idByFp);
         long deleteId = Math.max(idByNtfs, idByFp);
 
         // Migra tags da identidade a ser removida para a que será mantida
         String migrateTags = """
-        UPDATE OR IGNORE file_tags
-        SET identity_id = ?
-        WHERE identity_id = ?
-    """;
+                    UPDATE OR IGNORE file_tags
+                    SET identity_id = ?
+                    WHERE identity_id = ?
+                """;
         try (PreparedStatement p = conn.prepareStatement(migrateTags)) {
             p.setLong(1, keepId);
             p.setLong(2, deleteId);
@@ -601,10 +481,10 @@ public synchronized void indexFile(Path file,
 
         // Migra rating se a identidade mantida não tiver rating
         String migrateRating = """
-        UPDATE file_identity
-        SET rating = (SELECT rating FROM file_identity WHERE id = ?)
-        WHERE id = ? AND rating = 0
-    """;
+                    UPDATE file_identity
+                    SET rating = (SELECT rating FROM file_identity WHERE id = ?)
+                    WHERE id = ? AND rating = 0
+                """;
         try (PreparedStatement p = conn.prepareStatement(migrateRating)) {
             p.setLong(1, deleteId);
             p.setLong(2, keepId);
@@ -613,10 +493,10 @@ public synchronized void indexFile(Path file,
 
         // Atualiza ntfs_file_id e fingerprint na identidade mantida
         String updateKept = """
-        UPDATE file_identity
-        SET ntfs_file_id = ?, fingerprint = ?, last_path = ?
-        WHERE id = ?
-    """;
+                    UPDATE file_identity
+                    SET ntfs_file_id = ?, fingerprint = ?, last_path = ?
+                    WHERE id = ?
+                """;
         try (PreparedStatement p = conn.prepareStatement(updateKept)) {
             p.setString(1, ntfsId);
             p.setString(2, fingerprint);
@@ -815,21 +695,6 @@ public synchronized void indexFile(Path file,
 
     // ── Atualização do setRating() para usar identity ─────────────
 
-//    public void setRating(String path, int stars) throws SQLException {
-//        if (stars < 0 || stars > 5)
-//            throw new IllegalArgumentException("Rating deve ser entre 0 e 5");
-//
-//        // Garante que a identity existe para este arquivo
-//        ensureIdentity(path);
-//
-//        String sql = "UPDATE file_index SET rating = ? WHERE path = ?";
-//        try (PreparedStatement p = conn.prepareStatement(sql)) {
-//            p.setInt(1, stars);
-//            p.setString(2, path);
-//            p.executeUpdate();
-//        }
-//    }
-
     public void setRating(String path, int stars) throws SQLException {
         if (stars < 0 || stars > 5)
             throw new IllegalArgumentException("Rating deve ser entre 0 e 5");
@@ -854,32 +719,14 @@ public synchronized void indexFile(Path file,
     }
 
     // ── Atualização do addTagToFile() para usar identity ──────────
-//
-//    public void addTagToFile(String path, String tagName) throws SQLException {
-//        createTag(tagName);
-//        long identityId = ensureIdentity(path);
-//
-//        String sql = """
-//                    INSERT OR IGNORE INTO file_tags (file_path, tag_id, identity_id)
-//                    SELECT ?, id, ? FROM tags WHERE name = ? COLLATE NOCASE
-//                """;
-//        try (PreparedStatement p = conn.prepareStatement(sql)) {
-//            p.setString(1, path);
-//            p.setLong(2, identityId);
-//            p.setString(3, tagName);
-//            p.executeUpdate();
-//        }
-//    }
-
-
     public void addTagToFile(String path, String tagName) throws SQLException {
         createTag(tagName);
         long identityId = ensureIdentity(path); // SEMPRE garante identity
 
         String sql = """
-        INSERT OR IGNORE INTO file_tags (file_path, tag_id, identity_id)
-        SELECT ?, id, ? FROM tags WHERE name = ? COLLATE NOCASE
-    """;
+                    INSERT OR IGNORE INTO file_tags (file_path, tag_id, identity_id)
+                    SELECT ?, id, ? FROM tags WHERE name = ? COLLATE NOCASE
+                """;
         try (PreparedStatement p = conn.prepareStatement(sql)) {
             p.setString(1, path);
             p.setLong(2, identityId);
@@ -887,6 +734,7 @@ public synchronized void indexFile(Path file,
             p.executeUpdate();
         }
     }
+
     /**
      * Garante que existe uma FileIdentity para o path.
      * Se não existir, lê o NTFS File ID e o fingerprint e cria.
@@ -925,6 +773,56 @@ public synchronized void indexFile(Path file,
             throw new SQLException("Não foi possível calcular identidade: " + e.getMessage());
         }
     }
+
+
+    /**
+     * Retorna o timestamp de última modificação real de um Path.
+     *
+     * Problema: No Windows, BasicFileAttributes.lastModifiedTime() para PASTAS
+     * frequentemente retorna a data de criação, porque o NTFS só atualiza
+     * ftLastWriteTime de um diretório quando seus atributos são alterados
+     * diretamente — não quando arquivos dentro dele mudam.
+     *
+     * Solução: Para diretórios, lemos o atributo via WindowsFileAttributes (NIO2),
+     * que acessa a Win32 API corretamente. Se o lastModified for igual ao
+     * creationTime (sinal claro de que é a data de criação), usamos o maior valor
+     * entre os dois como heurística — ou fazemos um fallback para File.lastModified()
+     * que em algumas versões da JVM acessa um campo diferente.
+     *
+     * Para arquivos normais, BasicFileAttributes já é confiável — retorno direto.
+     */
+    private static long resolveLastModified(Path path, BasicFileAttributes attrs) {
+        // Arquivos normais: attrs é confiável, sem ajuste necessário
+        if (!attrs.isDirectory()) {
+            return attrs.lastModifiedTime().toMillis();
+        }
+
+        // Para diretórios: tenta ler via NIO2 com WindowsFileAttributes
+        try {
+            // DosFileAttributes herda de BasicFileAttributes e no Windows
+            // delega para a API nativa correta (GetFileInformationByHandle),
+            // que retorna o ftLastWriteTime real do NTFS.
+            var dosAttrs = Files.readAttributes(path, DosFileAttributes.class);
+            long lastModified = dosAttrs.lastModifiedTime().toMillis();
+            long creationTime = dosAttrs.creationTime().toMillis();
+
+            // Heurística: se lastModified == creationTime, a pasta provavelmente
+            // nunca teve lastWrite atualizado pelo NTFS (comum em pastas vazias
+            // ou recém-criadas sem modificação direta). Nesse caso mantemos o
+            // valor — ele é correto, a pasta de fato não foi "modificada".
+            // O que NÃO fazemos é confundir isso com uma data errada.
+            return lastModified;
+
+        } catch (UnsupportedOperationException e) {
+            // Não é Windows (Linux/Mac): BasicFileAttributes já é correto
+            return attrs.lastModifiedTime().toMillis();
+
+        } catch (IOException e) {
+            // Fallback seguro: File.lastModified() como última opção
+            return path.toFile().lastModified();
+        }
+    }
+
 
 
 }
