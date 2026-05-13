@@ -25,6 +25,9 @@ public class ConfigManager {
     public static final String KEY_SHOW_STAR_RATING = "showStarRating";
     public static final String KEY_SHOW_TYPE_FILE = "showTypeFile";
     public static final String KEY_SHOW_ANIMATED_GIF = "showAnimatedGif";
+    public static final String KEY_SUBFOLDER_SORT_FIELD = "subfolder_sort_field";
+    public static final String KEY_SUBFOLDER_SORT_ORDER = "subfolder_sort_order";
+
     public static final String KEY_SEARCH_HISTORY = "search_history";
     public static final String KEY_TAG_HISTORY = "tag_history";
 
@@ -44,6 +47,8 @@ public class ConfigManager {
         DEFAULTS.put(KEY_SHOW_STAR_RATING, "true");
         DEFAULTS.put(KEY_SHOW_TYPE_FILE, "true");
         DEFAULTS.put(KEY_SHOW_ANIMATED_GIF, "true");
+        DEFAULTS.put(KEY_SUBFOLDER_SORT_FIELD, "name");
+        DEFAULTS.put(KEY_SUBFOLDER_SORT_ORDER, "ASC");
 
     }
 
@@ -302,6 +307,24 @@ public class ConfigManager {
     }
     public void saveShowAnimatedGif(boolean showAnimatedGif) {setBoolean(KEY_SHOW_ANIMATED_GIF, showAnimatedGif);}
 
+
+
+    // -------------------------------------------------------------------------
+    // Atalhos específicos para definições do subFolderPanel
+    // -------------------------------------------------------------------------
+    public String getSubfolderSortField() {
+        return get(KEY_SUBFOLDER_SORT_FIELD);
+    }
+    public void saveSubfolderSortField(String field) {
+        set(KEY_SUBFOLDER_SORT_FIELD, field);
+    }
+
+    public String getSubfolderSortOrder() {
+        return get(KEY_SUBFOLDER_SORT_ORDER);
+    }
+    public void saveSubfolderSortOrder(String order) {
+        set(KEY_SUBFOLDER_SORT_ORDER, order);
+    }
 
 
     // -------------------------------------------------------------------------

@@ -5,6 +5,8 @@ import com.esl.searchforfiles.service.SyncService;
 
 import javax.swing.*;
 import java.awt.*;
+import java.beans.PropertyChangeListener;
+import java.beans.PropertyChangeSupport;
 
 public class BottomIndicatorPanel {
 
@@ -12,6 +14,7 @@ public class BottomIndicatorPanel {
     private JLabel syncIndicator; // NOVO
     private JLabel statusLabel;
     private final  FileExplorerSwing fileExplorerSwing;
+    private boolean working = false;
 
     public JLabel getStatusLabel() {
         return statusLabel;
@@ -22,10 +25,24 @@ public class BottomIndicatorPanel {
     }
 
     public BottomIndicatorPanel(FileExplorerSwing fileExplorerSwing){
-
         this.fileExplorerSwing = fileExplorerSwing;
     }
 
+    public boolean isWorking() {
+        return working;
+    }
+
+    private final PropertyChangeSupport suporte = new PropertyChangeSupport(this);
+    public void addPropertyChangeListener(PropertyChangeListener listener) {
+        suporte.addPropertyChangeListener(listener);
+    }
+
+    public void setWorking(boolean novoEstado) {
+        boolean antigo = this.working;
+        this.working = novoEstado;
+        // Notifica quem estiver ouvindo se o valor mudou
+        suporte.firePropertyChange("working", antigo, novoEstado);
+    }
 
     /**
      * Cria painel de status com indicador de auto-refresh
@@ -128,7 +145,7 @@ public class BottomIndicatorPanel {
                                 result.getDeleted()
                         );
                         showSyncIndicator(message);
-
+                        setWorking(false);
                         String statusText = "📂 " + fileExplorerSwing.getSelectedPath() + " | " + result.getSummary();
                         String monitoringStatus = fileExplorerSwing.getController().getMonitoringStatus();
                         if (!monitoringStatus.isEmpty()) {
@@ -139,6 +156,7 @@ public class BottomIndicatorPanel {
                     } else {
                         // CASO 3: Pasta indexada sem mudanças
                         showSyncIndicator("✅ Sincronizado");
+                        setWorking(false);
                         updateStatusLabel();
                     }
 
@@ -150,6 +168,7 @@ public class BottomIndicatorPanel {
             public void onSyncError(Exception e) {
                 SwingUtilities.invokeLater(() -> {
                     showSyncIndicator("❌ Erro na sincronização");
+                    setWorking(false);
                     hideSyncIndicator(true);
                 });
             }
@@ -163,6 +182,7 @@ public class BottomIndicatorPanel {
     void showAutoRefreshIndicator() {
         autoRefreshIndicator.setText("🔄 Atualizando...");
         autoRefreshIndicator.setVisible(true);
+        setWorking(true);
 
         // Esconde após 2 segundos
         Timer timer = new Timer(2000, e -> {

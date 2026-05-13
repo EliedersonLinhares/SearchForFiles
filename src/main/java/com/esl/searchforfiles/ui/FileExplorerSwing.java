@@ -111,6 +111,7 @@ public class FileExplorerSwing extends JFrame {
         searchPanel.setThumbnailSizeListener(resultsPanel::setThumbnailSize);
 
 
+
         //  add(searchPanel, BorderLayout.NORTH);
         // Envolve o searchPanel num wrapper com BorderLayout para que o
         // WrapLayout interno recalcule a altura e o NORTH se expanda ao fazer wrap.
@@ -185,7 +186,7 @@ public class FileExplorerSwing extends JFrame {
         //centerPanel.add(paginationPanel, BorderLayout.SOUTH);
 
         // === PAINEL DIREITO (subpastas) ===
-        subFolderPanel = new SubFolderPanel(this);
+        subFolderPanel = new SubFolderPanel(this,configManager);
         subFolderPanel.setFolderClickListener(folder ->
                 navigateTo(folder.getAbsolutePath(), true));
 
@@ -230,6 +231,26 @@ public class FileExplorerSwing extends JFrame {
         // antes de exibir os resultados
         navigateTo(selectedPath, true);  // selectedPath = "C:\" por padrão
 
+//        JPanel blockPanel = new JPanel();
+//        JLabel label = new JLabel("Processando... Por favor, aguarde.");
+//        label.setForeground(Color.WHITE);
+//        label.setFont(new Font("Arial", Font.BOLD, 16));
+//        blockPanel.add(label);
+//        setGlassPane(blockPanel);
+
+
+        // Ouve a mudança em tempo real
+        bottomIndicatorPanel.addPropertyChangeListener(evt -> {
+            if (!"working".equals(evt.getPropertyName())) {
+                boolean novoValor = (boolean) evt.getNewValue();
+
+                // Garante a atualização na Thread correta do Swing
+                SwingUtilities.invokeLater(() -> {
+                    setEnabled(novoValor);
+                });
+            }
+        });
+
     }
 
     public ResultsPanel getResultsPanel() {
@@ -265,8 +286,6 @@ public class FileExplorerSwing extends JFrame {
         }
     }
 
-
-
     /**
      * Navega para o caminho informado.
      *
@@ -281,6 +300,7 @@ public class FileExplorerSwing extends JFrame {
 
         searchPanel.updateNavigationState(navigationHistory);
         bottomIndicatorPanel.showSyncIndicator("🔄 Verificando mudanças...");
+        bottomIndicatorPanel.setWorking(true);
 
         // Subpastas carregam independentemente
         subFolderPanel.loadSubfolders(selectedPath, controller);
@@ -303,6 +323,7 @@ public class FileExplorerSwing extends JFrame {
         bottomIndicatorPanel.showAutoRefreshIndicator();
 
         System.out.println("🔄 Sistema de arquivos modificado - Auto-refresh ativado");
+
     }
 
     /**
