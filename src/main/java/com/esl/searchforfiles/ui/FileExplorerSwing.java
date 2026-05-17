@@ -1,6 +1,7 @@
 package com.esl.searchforfiles.ui;
 
 
+import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
 import com.esl.searchforfiles.configuration.ConfigManager;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.PaginationInfo;
@@ -35,6 +36,7 @@ public class FileExplorerSwing extends JFrame {
     private BottomIndicatorPanel bottomIndicatorPanel;
     private IndexFilterService indexFilterService;
     private TransferService transferService;
+    private final EditModeManager editModeManager = new EditModeManager();
 
     private String selectedPath = "C:\\";
     private int currentPage = 1; // NOVO
@@ -614,4 +616,19 @@ public class FileExplorerSwing extends JFrame {
     }
 
 
+    /**
+     * Alterna o modo de edição de imagens.
+     * Conecte ao botão "Editar imagens" na SearchPanel.
+     */
+    public void toggleEditMode() {
+        if (editModeManager.isEditModeActive()) {
+            resultsPanel.exitEditMode();
+        } else {
+            // Garante que o modo de transferência não fique ativo ao mesmo tempo
+            if (transferService.isTransferModeActive()) {
+                resultsPanel.exitTransferMode();
+            }
+            resultsPanel.enterEditMode(editModeManager);
+        }
+    }
 }

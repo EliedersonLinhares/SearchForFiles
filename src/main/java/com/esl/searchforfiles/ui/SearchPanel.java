@@ -24,6 +24,7 @@ public class SearchPanel extends JPanel {
     private final JButton searchButton;
     private final JButton indexButton;
     private final JButton transferButton;
+    private final JButton editModeBtn;
 
     // NOVO ▼
     private final JComboBox<String> ratingFilterCombo;   // "Qualquer", "1+", "2+", …, "5"
@@ -159,6 +160,11 @@ public class SearchPanel extends JPanel {
         transferButton.setToolTipText("Ativar modo de transferência de arquivos");
         transferButton.addActionListener(e -> fileExplorerSwing.toggleTransferMode());
 
+        editModeBtn = new JButton("🖼 Editar imagens");
+        editModeBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        editModeBtn.setToolTipText("Ativar modo de edição de Imagens");
+        editModeBtn.addActionListener(e -> fileExplorerSwing.toggleEditMode());
+
 
 // Envolve todo o conteúdo num painel com WrapLayout
         JPanel wrapPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 5, 4));
@@ -210,6 +216,7 @@ public class SearchPanel extends JPanel {
 
 // ── Grupo 7: Ações ────────────────────────────────────────────────────────────
         wrapPanel.add(transferButton);
+        wrapPanel.add(editModeBtn);
         wrapPanel.add(searchButton);
         wrapPanel.add(indexButton);
 
@@ -420,4 +427,7 @@ public class SearchPanel extends JPanel {
     public interface IndexListener {
         void onIndexRequest();
     }
+
+
+
 }

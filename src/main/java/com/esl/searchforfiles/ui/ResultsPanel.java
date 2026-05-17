@@ -1,5 +1,7 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
+import com.esl.searchforfiles.actions.imageEditor.ImageEditorFrame;
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.others.ThumbnailSize;
@@ -36,6 +38,8 @@ public class ResultsPanel extends JPanel {
     private KeyEventDispatcher keyDispatcher;
     private TransferService transferService;
     private JToolBar transferToolBar;
+    private EditModeManager editModeManager;
+    private JToolBar editToolBar;
 
     public ResultsPanel(FileExplorerSwing fileExplorerSwing) {
         this.fileExplorerSwing = fileExplorerSwing;
@@ -62,6 +66,8 @@ public class ResultsPanel extends JPanel {
         scrollPane.getVerticalScrollBar().setUnitIncrement(20);
         vBar = scrollPane.getVerticalScrollBar();
         add(scrollPane, BorderLayout.CENTER);
+
+
 
         // Listener para redimensionamento
         // CORREÇÃO: Listener otimizado para redimensionamento fluido
@@ -378,6 +384,7 @@ public class ResultsPanel extends JPanel {
         gridPanel.repaint();
 
         reapplyTransferModeIfActive();
+        reapplyEditModeIfActive();
 
         // NOVO: requisita foco após renderizar
         // invokeLater garante que o layout já terminou antes de pedir foco
@@ -624,6 +631,108 @@ public class ResultsPanel extends JPanel {
         exitBtn.setFont(new Font("SansSerif", Font.PLAIN, 14));
         exitBtn.setForeground(new Color(255, 80, 80));
         exitBtn.addActionListener(e -> exitTransferMode());
+        bar.add(exitBtn);
+
+        return bar;
+    }
+
+
+    public void enterEditMode(EditModeManager em) {
+        this.editModeManager = em;
+        em.enterEditMode();
+
+        if (editToolBar == null) {
+            editToolBar = buildEditToolBar(em);
+            add(editToolBar, BorderLayout.NORTH);
+            revalidate();
+        }
+        applyEditModeToItems(em);
+    }
+
+    public void exitEditMode() {
+        if (editModeManager != null) editModeManager.exitEditMode();
+        editModeManager = null;
+
+        if (editToolBar != null) {
+            remove(editToolBar);
+            editToolBar = null;
+            revalidate();
+        }
+        for (FileItemPanel item : currentItems) item.disableEditMode();
+        repaint();
+    }
+
+    private void applyEditModeToItems(EditModeManager em) {
+        for (FileItemPanel item : currentItems) item.enableEditMode(em);
+    }
+
+    /** Reaplica o modo de edição após re-render do grid. */
+    private void reapplyEditModeIfActive() {
+        if (editModeManager != null && editModeManager.isEditModeActive()) {
+            applyEditModeToItems(editModeManager);
+        }
+    }
+
+
+    private JToolBar buildEditToolBar(EditModeManager em) {
+        JToolBar bar = new JToolBar();
+        bar.setFloatable(false);
+        bar.setBackground(new Color(20, 80, 60));
+
+        JLabel lbl = new JLabel("  🖼  Modo de Edição");
+        lbl.setForeground(Color.WHITE);
+        lbl.setFont(lbl.getFont().deriveFont(Font.BOLD));
+        bar.add(lbl);
+
+        bar.addSeparator();
+
+        JButton selectAll = new JButton("Selecionar todos");
+        selectAll.addActionListener(e -> {
+            List<File> files = currentItems.stream()
+                    .map(FileItemPanel::getDisplayFile)
+                    .toList();
+            em.selectAll(files);
+            currentItems.forEach(item -> {
+                if (EditModeManager.isAccepted(item.getDisplayFile())
+                        && item.editSelectionCheckbox != null)
+                    item.editSelectionCheckbox.setSelected(true);
+            });
+        });
+        bar.add(selectAll);
+
+        JButton clearSel = new JButton("Limpar seleção");
+        clearSel.addActionListener(e -> {
+            em.clearSelection();
+            currentItems.forEach(item -> {
+                if (item.editSelectionCheckbox != null)
+                    item.editSelectionCheckbox.setSelected(false);
+            });
+        });
+        bar.add(clearSel);
+
+        bar.addSeparator();
+
+        JButton openEditor = new JButton("🖊 Abrir com o editor");
+        openEditor.setForeground(new Color(60, 180, 130));
+        openEditor.addActionListener(e -> {
+            if (em.getSelectedCount() == 0) {
+                JOptionPane.showMessageDialog(
+                        SwingUtilities.getWindowAncestor(this),
+                        "Selecione ao menos uma imagem.",
+                        "Aviso", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            new ImageEditorFrame(
+                    SwingUtilities.getWindowAncestor(this),
+                    new ArrayList<>(em.getSelectedFiles()));
+        });
+        bar.add(openEditor);
+
+        bar.addSeparator();
+
+        JButton exitBtn = new JButton("✕ Sair");
+        exitBtn.setForeground(new Color(255, 80, 80));
+        exitBtn.addActionListener(e -> exitEditMode());
         bar.add(exitBtn);
 
         return bar;

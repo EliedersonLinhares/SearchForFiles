@@ -1,5 +1,6 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.configuration.FileTransferHandler;
 import com.esl.searchforfiles.model.FileInfo;
@@ -84,6 +85,8 @@ public class FileItemPanel extends JPanel {
     private AnimatedGifThumb animatedGifThumb;
     private JComponent iconSlot;
     private TransferService transferService;
+    SelectionCheckbox editSelectionCheckbox;   // package-private para acesso da toolbar
+    private EditModeManager editModeManager;   // renomeie o campo de transferência se necessário
 
     public FileItemPanel(File file, FileInfo fileInfo, int width, int height, int thumbSize, ResultsPanel resultsPanel) {
 
@@ -1486,6 +1489,71 @@ public class FileItemPanel extends JPanel {
         RAPIDO,
         MEDIO,
         ALTA_QUALIDADE
+    }
+
+
+    public void enableEditMode(EditModeManager em) {
+        // Só mostra checkbox em arquivos aceitos pelo modo de edição
+        if (!EditModeManager.isAccepted(displayFile)) return;
+
+        this.editModeManager = em;  // use um campo separado, ex.: editManager
+
+        if (editSelectionCheckbox == null) {
+            editSelectionCheckbox = new SelectionCheckbox();
+            // Borda verde para diferenciar do modo de transferência (azul)
+            editSelectionCheckbox.setBackground(new Color(0, 150, 100, 60));
+            editSelectionCheckbox.setBounds(4, 4, 22, 22);
+            editSelectionCheckbox.setSelected(em.isSelected(displayFile));
+            editSelectionCheckbox.addActionListener(e -> em.toggleSelection(displayFile));
+
+            if (iconSlot instanceof JLayeredPane lp) {
+                lp.add(editSelectionCheckbox, JLayeredPane.DRAG_LAYER);
+            } else {
+                int idx = -1;
+                for (int i = 0; i < getComponentCount(); i++) {
+                    if (getComponent(i) == iconSlot) { idx = i; break; }
+                }
+                if (idx >= 0) {
+                    int bs = this.thumbSize;
+                    JLayeredPane lp = new JLayeredPane();
+                    lp.setPreferredSize(new Dimension(bs, bs));
+                    lp.setMaximumSize(new Dimension(bs, bs));
+                    lp.setAlignmentX(Component.CENTER_ALIGNMENT);
+                    iconSlot.setBounds(0, 0, bs, bs);
+                    lp.add(iconSlot, JLayeredPane.DEFAULT_LAYER);
+                    lp.add(editSelectionCheckbox, JLayeredPane.DRAG_LAYER);
+                    remove(idx);
+                    add(lp, idx);
+                    iconSlot = lp;
+                    revalidate();
+                    repaint();
+                }
+            }
+        }
+
+        // Clique no card alterna seleção
+        addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (editModeManager == null || !editModeManager.isEditModeActive()) return;
+                if (!EditModeManager.isAccepted(displayFile)) return;
+                if (e.getClickCount() == 1 && !e.isPopupTrigger()) {
+                    em.toggleSelection(displayFile);
+                    if (editSelectionCheckbox != null)
+                        editSelectionCheckbox.setSelected(em.isSelected(displayFile));
+                }
+            }
+        });
+    }
+
+    public void disableEditMode() {
+        if (editSelectionCheckbox != null) {
+            if (editSelectionCheckbox.getParent() != null)
+                editSelectionCheckbox.getParent().remove(editSelectionCheckbox);
+            editSelectionCheckbox = null;
+        }
+        revalidate();
+        repaint();
     }
 
 }
