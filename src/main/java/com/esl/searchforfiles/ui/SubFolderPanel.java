@@ -2,18 +2,17 @@ package com.esl.searchforfiles.ui;
 
 
 import com.esl.searchforfiles.configuration.ConfigManager;
-import com.esl.searchforfiles.configuration.FileTransferHandler;
-import com.esl.searchforfiles.configuration.TransferDropHelper;
+import com.esl.searchforfiles.actions.fileTransfer.FileTransferHandler;
+import com.esl.searchforfiles.actions.fileTransfer.TransferDropHelper;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.model.SearchCriteria;
 import com.esl.searchforfiles.service.IconService;
-import com.esl.searchforfiles.service.TransferService;
+import com.esl.searchforfiles.actions.fileTransfer.TransferService;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import javax.swing.filechooser.FileSystemView;
 import java.awt.*;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.dnd.*;

@@ -1,4 +1,4 @@
-package com.esl.searchforfiles.model;
+package com.esl.searchforfiles.actions.fileTransfer;
 
 public enum TransferMode {
     COPY("Copiar"),

@@ -10,6 +10,7 @@ public class ActionCardPanel extends JPanel {
     private final ImageEditAction action;
     private final JCheckBox checkBox;
     private final JLabel summaryLabel;
+    private Runnable onToggle;   // ← novo campo opcional
 
     public ActionCardPanel(ImageEditAction action, Consumer<ActionCardPanel> onRemove) {
         this.action = action;
@@ -27,7 +28,11 @@ public class ActionCardPanel extends JPanel {
         checkBox.setForeground(Color.WHITE);
         checkBox.setBackground(new Color(42, 42, 42));
         checkBox.setFont(checkBox.getFont().deriveFont(Font.BOLD, 12f));
-        checkBox.addActionListener(e -> action.setEnabled(checkBox.isSelected()));
+       // checkBox.addActionListener(e -> action.setEnabled(checkBox.isSelected()));
+        checkBox.addActionListener(e -> {
+            action.setEnabled(checkBox.isSelected());
+            resetAction();   // ← linha adicionada
+        });
         header.add(checkBox, BorderLayout.CENTER);
 
         JButton closeBtn = new JButton("✕");
@@ -38,7 +43,10 @@ public class ActionCardPanel extends JPanel {
         closeBtn.setBorder(BorderFactory.createLineBorder(new Color(90, 90, 90)));
         closeBtn.setFocusPainted(false);
         closeBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        closeBtn.addActionListener(e -> onRemove.accept(this));
+        closeBtn.addActionListener(e -> {
+            onRemove.accept(this);
+            resetAction();
+        });
         header.add(closeBtn, BorderLayout.EAST);
 
         // ── Corpo ───────────────────────────────────────────────────
@@ -51,6 +59,12 @@ public class ActionCardPanel extends JPanel {
         add(summaryLabel, BorderLayout.CENTER);
     }
 
+    public void resetAction() {
+        if (onToggle != null) onToggle.run();   // ← linha adicionada
+    }
+
+    /** Define um callback extra para quando o checkbox for clicado. */
+    public void setOnToggle(Runnable r) { this.onToggle = r; }
     public ImageEditAction getAction() { return action; }
 
     /** Atualiza o texto resumido após mudança de parâmetros. */

@@ -1,4 +1,4 @@
-package com.esl.searchforfiles.ui;
+package com.esl.searchforfiles.actions.fileTransfer;
 
 
 import javax.swing.*;

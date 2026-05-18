@@ -1,7 +1,5 @@
-package com.esl.searchforfiles.ui;
+package com.esl.searchforfiles.actions.fileTransfer;
 
-
-import com.esl.searchforfiles.model.TransferMode;
 
 import javax.swing.*;
 import java.awt.*;

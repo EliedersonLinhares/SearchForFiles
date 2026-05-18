@@ -1,8 +1,7 @@
-package com.esl.searchforfiles.ui;
+package com.esl.searchforfiles.actions.fileTransfer;
 
 
 import com.esl.searchforfiles.model.FileType;
-import com.esl.searchforfiles.model.TransferMode;
 import com.esl.searchforfiles.service.IconService;
 
 import javax.swing.*;

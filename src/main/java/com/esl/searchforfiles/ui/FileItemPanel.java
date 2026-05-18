@@ -1,13 +1,11 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.actions.fileTransfer.*;
 import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
-import com.esl.searchforfiles.configuration.FileTransferHandler;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.FileType;
-import com.esl.searchforfiles.model.TransferMode;
 import com.esl.searchforfiles.service.IconService;
-import com.esl.searchforfiles.service.TransferService;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.PDFRenderer;

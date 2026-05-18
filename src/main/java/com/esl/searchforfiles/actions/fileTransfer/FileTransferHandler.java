@@ -1,4 +1,4 @@
-package com.esl.searchforfiles.configuration;
+package com.esl.searchforfiles.actions.fileTransfer;
 
 import com.esl.searchforfiles.ui.FileItemPanel;
 import org.jetbrains.annotations.NotNull;

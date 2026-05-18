@@ -1,11 +1,8 @@
-package com.esl.searchforfiles.configuration;
+package com.esl.searchforfiles.actions.fileTransfer;
 
 
-import com.esl.searchforfiles.model.TransferMode;
-import com.esl.searchforfiles.service.TransferService;
 import com.esl.searchforfiles.ui.FileExplorerSwing;
 import com.esl.searchforfiles.ui.SearchController;
-import com.esl.searchforfiles.ui.TransferProgressDialog;
 
 import javax.swing.*;
 import java.awt.*;

@@ -5,7 +5,7 @@ import com.esl.searchforfiles.actions.imageEditor.ImageEditorFrame;
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.others.ThumbnailSize;
-import com.esl.searchforfiles.service.TransferService;
+import com.esl.searchforfiles.actions.fileTransfer.TransferService;
 
 import javax.swing.*;
 import java.awt.*;

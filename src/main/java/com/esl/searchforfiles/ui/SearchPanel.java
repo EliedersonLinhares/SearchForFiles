@@ -4,7 +4,7 @@ import com.esl.searchforfiles.configuration.WrapLayout;
 import com.esl.searchforfiles.model.OrderBy;
 import com.esl.searchforfiles.model.SortOption;
 import com.esl.searchforfiles.others.ThumbnailSize;
-import com.esl.searchforfiles.service.TransferService;
+import com.esl.searchforfiles.actions.fileTransfer.TransferService;
 
 import javax.swing.*;
 import java.awt.*;

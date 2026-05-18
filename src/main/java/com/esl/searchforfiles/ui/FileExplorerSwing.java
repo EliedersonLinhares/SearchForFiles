@@ -8,9 +8,9 @@ import com.esl.searchforfiles.model.PaginationInfo;
 import com.esl.searchforfiles.others.ThumbnailSize;
 import com.esl.searchforfiles.service.FavoritesService;
 import com.esl.searchforfiles.service.IndexFilterService;
-import com.esl.searchforfiles.service.SyncService;
-import com.esl.searchforfiles.service.TransferService;
+import com.esl.searchforfiles.actions.fileTransfer.TransferService;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
@@ -143,10 +143,12 @@ public class FileExplorerSwing extends JFrame {
                 }
             }
 
+
             @Override
             public void onFileRightClick(File file, FileInfo fileInfo,
                                          Component source, int x, int y,
                                          FileItemPanel itemPanel) {
+
                 FileContextMenu menu = new FileContextMenu(
                         file, fileInfo, source, controller.getDbManager(), itemPanel,
                         path -> navigateTo(path, true),
@@ -157,7 +159,9 @@ public class FileExplorerSwing extends JFrame {
                             performCurrentSearch();
                         }, FileExplorerSwing.this, favoritesService
                 );
-                menu.show(source, x, y);
+                if (!editModeManager.isEditModeActive()) {
+                    menu.show(source, x, y);
+                }
             }
         });
 
@@ -252,6 +256,11 @@ public class FileExplorerSwing extends JFrame {
                 });
             }
         });
+
+        String[] formatos = ImageIO.getWriterFormatNames();
+        for (String formato : formatos) {
+            System.out.println(formato);
+        }
 
     }
 
