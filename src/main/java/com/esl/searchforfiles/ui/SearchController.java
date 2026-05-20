@@ -49,6 +49,9 @@ public class SearchController {
     private static final long MAX_FOLDER_SIZE = 50_000;
     private final IndexFilterService indexFilterService;
 
+    public MonitoringService getMonitoringService() {
+        return monitoringService;
+    }
 
     private volatile boolean transferInProgress = false;
 

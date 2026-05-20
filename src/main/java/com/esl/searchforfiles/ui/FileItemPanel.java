@@ -2,6 +2,8 @@ package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.actions.fileTransfer.*;
 import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
+import com.esl.searchforfiles.actions.renameFile.RenameMode;
+import com.esl.searchforfiles.actions.renameFile.RenameModeManager;
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.FileType;
@@ -85,6 +87,8 @@ public class FileItemPanel extends JPanel {
     private TransferService transferService;
     SelectionCheckbox editSelectionCheckbox;   // package-private para acesso da toolbar
     private EditModeManager editModeManager;   // renomeie o campo de transferência se necessário
+    SelectionCheckbox renameSelectionCheckbox; // package-private
+    private RenameModeManager renameModeManager;
 
     public FileItemPanel(File file, FileInfo fileInfo, int width, int height, int thumbSize, ResultsPanel resultsPanel) {
 
@@ -1343,53 +1347,21 @@ public class FileItemPanel extends JPanel {
                         selectionCheckbox.setSelected(tm.isSelected(displayFile));
                 }
             }
-
-            @Override
-            public void mousePressed(java.awt.event.MouseEvent e) {
-                if (!tm.isTransferModeActive()) return;
-                if (e.isPopupTrigger()) showTransferMenu(e);
-            }
-
-            @Override
-            public void mouseReleased(java.awt.event.MouseEvent e) {
-                if (!tm.isTransferModeActive()) return;
-                if (e.isPopupTrigger()) showTransferMenu(e);
-            }
         });
-    }
-
-    private void showTransferMenu(java.awt.event.MouseEvent e) {
-        // Se o item clicado não está selecionado, seleciona-o automaticamente
-        if (!transferService.isSelected(displayFile)) {
-            transferService.toggleSelection(displayFile);
-            if (selectionCheckbox != null)
-                selectionCheckbox.setSelected(true);
-        }
-
-        TransferActionMenu menu = new TransferActionMenu(new TransferActionMenu.ActionListener() {
-            @Override
-            public void onCopy() {
-                requestTransfer(TransferMode.COPY);
-            }
-
-            @Override
-            public void onMove() {
-                requestTransfer(TransferMode.MOVE);
-            }
-
-            @Override
-            public void onDelete() {
-                requestDelete();
-            }
-        });
-        menu.show(this, e.getX(), e.getY());
     }
 
     /**
      * Abre o seletor de destino e executa COPY ou MOVE.
      */
-    private void requestTransfer(TransferMode mode) {
+    public void requestTransfer(TransferMode mode) {
         Window owner = SwingUtilities.getWindowAncestor(this);
+
+        int n = transferService.getSelectedCount();
+        if(n <= 0){
+            System.out.println("Nenhum item selecionado");
+            return;
+        }
+
         new DestinationChooserDialog(owner, mode,
                 transferService.getSelectedCount(),
                 dest -> performTransfer(mode, dest))
@@ -1432,9 +1404,15 @@ public class FileItemPanel extends JPanel {
     /**
      * Apagar com confirmação.
      */
-    private void requestDelete() {
+    public void requestDelete() {
         Window owner = SwingUtilities.getWindowAncestor(this);
         int n = transferService.getSelectedCount();
+
+        if(n <= 0){
+            System.out.println("Nenhum item selecionado");
+            return;
+        }
+
         int opt = JOptionPane.showConfirmDialog(owner,
                 "Apagar " + n + " item(s) permanentemente?\nEsta ação não pode ser desfeita.",
                 "Confirmar exclusão", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
@@ -1550,6 +1528,73 @@ public class FileItemPanel extends JPanel {
                 editSelectionCheckbox.getParent().remove(editSelectionCheckbox);
             editSelectionCheckbox = null;
         }
+        revalidate();
+        repaint();
+    }
+
+
+    public void enableRenameMode(RenameModeManager rm) {
+        if (!rm.accepts(displayFile)) return;
+
+        this.renameModeManager = rm;
+
+        if (renameSelectionCheckbox == null) {
+            renameSelectionCheckbox = new SelectionCheckbox();
+            // Cor laranja para arquivos, amarelo-torrado para pastas
+            Color bg = rm.getMode() == RenameMode.FILES
+                    ? new Color(60, 120, 30, 70)
+                    : new Color(140, 80, 10, 70);
+            renameSelectionCheckbox.setBackground(bg);
+            renameSelectionCheckbox.setBounds(4, 4, 22, 22);
+            renameSelectionCheckbox.setSelected(rm.isSelected(displayFile));
+            renameSelectionCheckbox.addActionListener(e ->
+                    rm.toggleSelection(displayFile));
+
+            if (iconSlot instanceof JLayeredPane lp) {
+                lp.add(renameSelectionCheckbox, JLayeredPane.DRAG_LAYER);
+            } else {
+                int idx = -1;
+                for (int i = 0; i < getComponentCount(); i++) {
+                    if (getComponent(i) == iconSlot) { idx = i; break; }
+                }
+                if (idx >= 0) {
+                    int bs = this.thumbSize;
+                    JLayeredPane lp = new JLayeredPane();
+                    lp.setPreferredSize(new Dimension(bs, bs));
+                    lp.setMaximumSize(new Dimension(bs, bs));
+                    lp.setAlignmentX(Component.CENTER_ALIGNMENT);
+                    iconSlot.setBounds(0, 0, bs, bs);
+                    lp.add(iconSlot, JLayeredPane.DEFAULT_LAYER);
+                    lp.add(renameSelectionCheckbox, JLayeredPane.DRAG_LAYER);
+                    remove(idx);
+                    add(lp, idx);
+                    iconSlot = lp;
+                    revalidate();
+                    repaint();
+                }
+            }
+        }
+
+        addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) {
+                if (renameModeManager == null || !renameModeManager.isActive()) return;
+                if (!rm.accepts(displayFile)) return;
+                if (e.getClickCount() == 1 && !e.isPopupTrigger()) {
+                    rm.toggleSelection(displayFile);
+                    if (renameSelectionCheckbox != null)
+                        renameSelectionCheckbox.setSelected(rm.isSelected(displayFile));
+                }
+            }
+        });
+    }
+
+    public void disableRenameMode() {
+        if (renameSelectionCheckbox != null) {
+            if (renameSelectionCheckbox.getParent() != null)
+                renameSelectionCheckbox.getParent().remove(renameSelectionCheckbox);
+            renameSelectionCheckbox = null;
+        }
+        renameModeManager = null;
         revalidate();
         repaint();
     }

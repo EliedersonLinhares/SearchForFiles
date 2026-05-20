@@ -3,6 +3,7 @@ package com.esl.searchforfiles.actions.imageEditor;
 
 import com.esl.searchforfiles.actions.imageEditor.actions.AdjustActionCardPanel;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageAdjustAction;
+import com.esl.searchforfiles.ui.ResultsPanel;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -16,6 +17,7 @@ import java.util.function.IntFunction;
 
 public class ImageEditorFrame extends JFrame {
 
+    private final ResultsPanel resultsPanel;
 
     // Resolução máxima do proxy de preview (px no lado maior)
     private static final int PREVIEW_MAX_PX = 1200;
@@ -42,8 +44,9 @@ public class ImageEditorFrame extends JFrame {
     private JPanel actionsContainer;   // BoxLayout vertical
     private final ImageSaveManager saveManager = new ImageSaveManager(this);
 
-    public ImageEditorFrame(Window owner, List<File> imageFiles) {
+    public ImageEditorFrame(Window owner, ResultsPanel resultsPanel, List<File> imageFiles) {
         super("Editor de imagens — " + imageFiles.size() + " imagem(s) selecionada(s)");
+        this.resultsPanel = resultsPanel;
         this.imageFiles = new ArrayList<>(imageFiles);
 
 
@@ -61,6 +64,9 @@ public class ImageEditorFrame extends JFrame {
             public void windowClosed(java.awt.event.WindowEvent e) {
                 if (owner != null) owner.setEnabled(true);
                 owner.toFront();
+//                if(!resultsPanel.getFileExplorerSwing().getController().getMonitoringService().isMonitoring()){
+//                    resultsPanel.getFileExplorerSwing().getController().getMonitoringService().startMonitoring();
+//                }
             }
         });
 

@@ -2,6 +2,8 @@ package com.esl.searchforfiles.ui;
 
 
 import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
+import com.esl.searchforfiles.actions.renameFile.RenameMode;
+import com.esl.searchforfiles.actions.renameFile.RenameModeManager;
 import com.esl.searchforfiles.configuration.ConfigManager;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.PaginationInfo;
@@ -45,6 +47,10 @@ public class FileExplorerSwing extends JFrame {
     private SubFolderPanel subFolderPanel;           // NOVO
     private boolean showSubfolderContents = false; // NOVO — controlado pelo menu
 
+   private final RenameModeManager renameModeFiles   =
+           new RenameModeManager(RenameMode.FILES);
+   private final RenameModeManager renameModeFolders=
+           new RenameModeManager(RenameMode.FOLDERS);
 
     public SearchController getController() {
         return controller;
@@ -159,7 +165,7 @@ public class FileExplorerSwing extends JFrame {
                             performCurrentSearch();
                         }, FileExplorerSwing.this, favoritesService
                 );
-                if (!editModeManager.isEditModeActive()) {
+                if (!editModeManager.isEditModeActive() && !transferService.isTransferModeActive()) {
                     menu.show(source, x, y);
                 }
             }
@@ -282,6 +288,7 @@ public class FileExplorerSwing extends JFrame {
 
 
     public void toggleTransferMode() {
+        deactivateOtherModes(transferService);
         if (transferService.isTransferModeActive()) {
             resultsPanel.exitTransferMode();
             // Remove referência dos painéis laterais
@@ -630,6 +637,7 @@ public class FileExplorerSwing extends JFrame {
      * Conecte ao botão "Editar imagens" na SearchPanel.
      */
     public void toggleEditMode() {
+        deactivateOtherModes(editModeManager);
         if (editModeManager.isEditModeActive()) {
             resultsPanel.exitEditMode();
         } else {
@@ -639,5 +647,41 @@ public class FileExplorerSwing extends JFrame {
             }
             resultsPanel.enterEditMode(editModeManager);
         }
+    }
+
+
+    /** Botão "Renomear arquivos" */
+    public void toggleRenameModeFiles() {
+        deactivateOtherModes(renameModeFiles);
+        if (renameModeFiles.isActive()) {
+            resultsPanel.exitRenameMode();
+        } else {
+            resultsPanel.enterRenameMode(renameModeFiles);
+        }
+    }
+
+    /** Botão "Renomear pastas" */
+    public void toggleRenameModeFolders() {
+        deactivateOtherModes(renameModeFolders);
+        if (renameModeFolders.isActive()) {
+            resultsPanel.exitRenameMode();
+        } else {
+            resultsPanel.enterRenameMode(renameModeFolders);
+        }
+    }
+
+    /**
+     * Garante que apenas um modo fica ativo por vez.
+     * Chame antes de ativar qualquer modo.
+     */
+    private void deactivateOtherModes(Object keepActive) {
+        if (keepActive != transferService && transferService.isTransferModeActive())
+            resultsPanel.exitTransferMode();
+        if (keepActive != editModeManager && editModeManager.isEditModeActive())
+            resultsPanel.exitEditMode();
+        if (keepActive != renameModeFiles && renameModeFiles.isActive())
+            resultsPanel.exitRenameMode();
+        if (keepActive != renameModeFolders && renameModeFolders.isActive())
+            resultsPanel.exitRenameMode();
     }
 }

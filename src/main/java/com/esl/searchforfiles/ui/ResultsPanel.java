@@ -1,11 +1,15 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.actions.fileTransfer.TransferMode;
+import com.esl.searchforfiles.actions.fileTransfer.TransferService;
 import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
 import com.esl.searchforfiles.actions.imageEditor.ImageEditorFrame;
+import com.esl.searchforfiles.actions.renameFile.RenameFrame;
+import com.esl.searchforfiles.actions.renameFile.RenameMode;
+import com.esl.searchforfiles.actions.renameFile.RenameModeManager;
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.others.ThumbnailSize;
-import com.esl.searchforfiles.actions.fileTransfer.TransferService;
 
 import javax.swing.*;
 import java.awt.*;
@@ -13,6 +17,7 @@ import java.awt.event.*;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Painel para exibir resultados da busca em grid
@@ -40,6 +45,9 @@ public class ResultsPanel extends JPanel {
     private JToolBar transferToolBar;
     private EditModeManager editModeManager;
     private JToolBar editToolBar;
+    private FileItemPanel item;
+    private RenameModeManager renameModeManager;
+    private JToolBar renameToolBar;
 
     public ResultsPanel(FileExplorerSwing fileExplorerSwing) {
         this.fileExplorerSwing = fileExplorerSwing;
@@ -68,7 +76,6 @@ public class ResultsPanel extends JPanel {
         add(scrollPane, BorderLayout.CENTER);
 
 
-
         // Listener para redimensionamento
         // CORREÇÃO: Listener otimizado para redimensionamento fluido
         setupResizeListener();
@@ -77,6 +84,7 @@ public class ResultsPanel extends JPanel {
         setupCacheContextMenu();
 
         setupKeyboardScroll();
+
     }
 
     public FileExplorerSwing getFileExplorerSwing() {
@@ -348,7 +356,7 @@ public class ResultsPanel extends JPanel {
             File file = new File(fileInfo.getPath());
             if (!file.exists()) continue;
 
-            FileItemPanel item = new FileItemPanel(
+            item = new FileItemPanel(
                     file, fileInfo, dynamicWidth, cardHeight,
                     currentThumbSize.thumbPx, this);
             item.setBounds(x, y, dynamicWidth, cardHeight);
@@ -385,6 +393,7 @@ public class ResultsPanel extends JPanel {
 
         reapplyTransferModeIfActive();
         reapplyEditModeIfActive();
+        reapplyRenameModeIfActive();
 
         // NOVO: requisita foco após renderizar
         // invokeLater garante que o layout já terminou antes de pedir foco
@@ -523,22 +532,9 @@ public class ResultsPanel extends JPanel {
         this.clickListener = listener;
     }
 
-    public enum MessageType {
-        WELCOME, LOADING, NO_RESULTS, ERROR
-    }
-
-    public interface FileItemClickListener {
-        void onFileDoubleClick(File file);
-
-        void onFileRightClick(File file, FileInfo fileInfo,
-                              Component source, int x, int y,
-                              FileItemPanel itemPanel); // NOVO
-    }
-
-
-
-
-    /** Chamado por FileExplorerSwing quando o botão "Selecionar" é pressionado. */
+    /**
+     * Chamado por FileExplorerSwing quando o botão "Selecionar" é pressionado.
+     */
     public void enterTransferMode(TransferService tm) {
         this.transferService = tm;
         tm.enterTransferMode();
@@ -594,8 +590,7 @@ public class ResultsPanel extends JPanel {
 
         JLabel lbl = new JLabel("  ✂️  Modo de Transferência  ");
         lbl.setForeground(Color.WHITE);
-        lbl.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        //lbl.setFont(lbl.getFont().deriveFont(Font.BOLD,14));
+        lbl.setFont(new Font("SansSerif", Font.BOLD, 14));
         bar.add(lbl);
 
         bar.addSeparator();
@@ -624,6 +619,24 @@ public class ResultsPanel extends JPanel {
             });
         });
         bar.add(clearSel);
+        bar.addSeparator();
+        JButton copy = new JButton("Copiar");
+        copy.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        copy.setForeground(new Color(33, 150, 243));
+        copy.addActionListener(e -> item.requestTransfer(TransferMode.COPY));
+
+        bar.add(copy);
+        JButton move = new JButton("Mover");
+        move.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        move.setForeground(new Color(33, 150, 243));
+        move.addActionListener(e -> item.requestTransfer(TransferMode.MOVE));
+        bar.add(move);
+
+        JButton delete = new JButton("Apagar");
+        delete.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        delete.setForeground(new Color(33, 150, 243));
+        delete.addActionListener(e -> item.requestDelete());
+        bar.add(delete);
 
         bar.addSeparator();
 
@@ -635,7 +648,6 @@ public class ResultsPanel extends JPanel {
 
         return bar;
     }
-
 
     public void enterEditMode(EditModeManager em) {
         this.editModeManager = em;
@@ -666,13 +678,14 @@ public class ResultsPanel extends JPanel {
         for (FileItemPanel item : currentItems) item.enableEditMode(em);
     }
 
-    /** Reaplica o modo de edição após re-render do grid. */
+    /**
+     * Reaplica o modo de edição após re-render do grid.
+     */
     private void reapplyEditModeIfActive() {
         if (editModeManager != null && editModeManager.isEditModeActive()) {
             applyEditModeToItems(editModeManager);
         }
     }
-
 
     private JToolBar buildEditToolBar(EditModeManager em) {
         JToolBar bar = new JToolBar();
@@ -681,12 +694,14 @@ public class ResultsPanel extends JPanel {
 
         JLabel lbl = new JLabel("  🖼  Modo de Edição");
         lbl.setForeground(Color.WHITE);
+        lbl.setFont(new Font("SansSerif", Font.PLAIN, 14));
         lbl.setFont(lbl.getFont().deriveFont(Font.BOLD));
         bar.add(lbl);
 
         bar.addSeparator();
 
         JButton selectAll = new JButton("Selecionar todos");
+        selectAll.setFont(new Font("SansSerif", Font.PLAIN, 14));
         selectAll.addActionListener(e -> {
             List<File> files = currentItems.stream()
                     .map(FileItemPanel::getDisplayFile)
@@ -701,6 +716,7 @@ public class ResultsPanel extends JPanel {
         bar.add(selectAll);
 
         JButton clearSel = new JButton("Limpar seleção");
+        clearSel.setFont(new Font("SansSerif", Font.PLAIN, 14));
         clearSel.addActionListener(e -> {
             em.clearSelection();
             currentItems.forEach(item -> {
@@ -713,7 +729,11 @@ public class ResultsPanel extends JPanel {
         bar.addSeparator();
 
         JButton openEditor = new JButton("🖊 Abrir com o editor");
-        openEditor.setForeground(new Color(60, 180, 130));
+        openEditor.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        openEditor.setForeground(new Color(33, 150, 243));
+        openEditor.setBorder(BorderFactory.createLineBorder(new Color(33, 150, 243), 2));
+        openEditor.setBorderPainted(true);
+        openEditor.setFocusPainted(false);
         openEditor.addActionListener(e -> {
             if (em.getSelectedCount() == 0) {
                 JOptionPane.showMessageDialog(
@@ -722,8 +742,12 @@ public class ResultsPanel extends JPanel {
                         "Aviso", JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
+//            if(fileExplorerSwing.getController().getMonitoringService().isMonitoring()){
+//                fileExplorerSwing.getController().getMonitoringService().stopMonitoring();
+//            }
             new ImageEditorFrame(
                     SwingUtilities.getWindowAncestor(this),
+                    this,
                     new ArrayList<>(em.getSelectedFiles()));
         });
         bar.add(openEditor);
@@ -731,8 +755,132 @@ public class ResultsPanel extends JPanel {
         bar.addSeparator();
 
         JButton exitBtn = new JButton("✕ Sair");
+        exitBtn.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        ;
         exitBtn.setForeground(new Color(255, 80, 80));
         exitBtn.addActionListener(e -> exitEditMode());
+        bar.add(exitBtn);
+
+        return bar;
+    }
+
+    public enum MessageType {
+        WELCOME, LOADING, NO_RESULTS, ERROR
+    }
+
+
+    public interface FileItemClickListener {
+        void onFileDoubleClick(File file);
+
+        void onFileRightClick(File file, FileInfo fileInfo,
+                              Component source, int x, int y,
+                              FileItemPanel itemPanel); // NOVO
+    }
+
+
+    public void enterRenameMode(RenameModeManager rm) {
+        this.renameModeManager = rm;
+        rm.enterMode();
+
+        if (renameToolBar == null) {
+            renameToolBar = buildRenameToolBar(rm);
+            add(renameToolBar, BorderLayout.NORTH);
+            revalidate();
+        }
+        applyRenameModeToItems(rm);
+    }
+
+    public void exitRenameMode() {
+        if (renameModeManager != null) renameModeManager.exitMode();
+        renameModeManager = null;
+
+        if (renameToolBar != null) {
+            remove(renameToolBar);
+            renameToolBar = null;
+            revalidate();
+        }
+        for (FileItemPanel item : currentItems) item.disableRenameMode();
+        repaint();
+    }
+
+    private void applyRenameModeToItems(RenameModeManager rm) {
+        for (FileItemPanel item : currentItems) item.enableRenameMode(rm);
+    }
+
+
+    // Adicione ao final de renderGrid(), após reapplyEditModeIfActive():
+    private void reapplyRenameModeIfActive() {
+        if (renameModeManager != null && renameModeManager.isActive())
+            applyRenameModeToItems(renameModeManager);
+    }
+
+    private JToolBar buildRenameToolBar(RenameModeManager rm) {
+        JToolBar bar = new JToolBar();
+        bar.setFloatable(false);
+        bar.setBackground(rm.getMode() == RenameMode.FILES
+                ? new Color(30, 55, 20) : new Color(55, 35, 10));
+
+        JLabel lbl = new JLabel("  " + rm.getMode().toolbarLabel + "  ");
+        lbl.setForeground(Color.WHITE);
+        lbl.setFont(new Font("SansSerif", Font.BOLD, 13));
+        bar.add(lbl);
+        bar.addSeparator();
+
+        JButton selectAll = new JButton("Selecionar todos");
+        selectAll.addActionListener(e -> {
+            List<File> files = currentItems.stream()
+                    .map(FileItemPanel::getDisplayFile).toList();
+            rm.selectAll(files);
+            currentItems.forEach(item -> {
+                if (rm.accepts(item.getDisplayFile())
+                        && item.renameSelectionCheckbox != null)
+                    item.renameSelectionCheckbox.setSelected(true);
+            });
+        });
+        bar.add(selectAll);
+
+        JButton clearSel = new JButton("Limpar seleção");
+        clearSel.addActionListener(e -> {
+            rm.clearSelection();
+            currentItems.forEach(item -> {
+                if (item.renameSelectionCheckbox != null)
+                    item.renameSelectionCheckbox.setSelected(false);
+            });
+        });
+        bar.add(clearSel);
+        bar.addSeparator();
+
+        JButton renameBtn = new JButton("✏ Renomear");
+        renameBtn.setForeground(new Color(120, 210, 120));
+        renameBtn.addActionListener(e -> {
+            if (rm.getSelectedCount() == 0) {
+                JOptionPane.showMessageDialog(
+                        SwingUtilities.getWindowAncestor(this),
+                        "Selecione ao menos um item.", "Aviso",
+                        JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            // Converte File → FileInfo para o RenameFrame
+            List<FileInfo> infos = rm.getSelectedFiles().stream()
+                    .map(f -> {
+                        // Busca o FileInfo correspondente nos items renderizados
+                        return currentItems.stream()
+                                .filter(p -> p.getDisplayFile().equals(f))
+                                .map(FileItemPanel::getFileInfo)
+                                .findFirst().orElse(null);
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            new RenameFrame(SwingUtilities.getWindowAncestor(this),
+                    rm.getMode(), infos);
+        });
+        bar.add(renameBtn);
+        bar.addSeparator();
+
+        JButton exitBtn = new JButton("✕ Sair");
+        exitBtn.setForeground(new Color(255, 80, 80));
+        exitBtn.addActionListener(e -> exitRenameMode());
         bar.add(exitBtn);
 
         return bar;

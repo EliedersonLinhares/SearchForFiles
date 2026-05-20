@@ -25,6 +25,8 @@ public class SearchPanel extends JPanel {
     private final JButton indexButton;
     private final JButton transferButton;
     private final JButton editModeBtn;
+    private final JButton renameFilesBtn;
+    private final JButton renameFoldersBtn;
 
     // NOVO ▼
     private final JComboBox<String> ratingFilterCombo;   // "Qualquer", "1+", "2+", …, "5"
@@ -166,6 +168,17 @@ public class SearchPanel extends JPanel {
         editModeBtn.addActionListener(e -> fileExplorerSwing.toggleEditMode());
 
 
+        renameFilesBtn = new JButton("🗒 Renomear arquivos");
+        renameFilesBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        renameFilesBtn.setToolTipText("Ativar modo para renomear arquivos");
+        renameFilesBtn.addActionListener(e -> fileExplorerSwing.toggleRenameModeFiles());
+
+        renameFoldersBtn = new JButton("📁 Renomear pastas");
+        renameFoldersBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        renameFoldersBtn.setToolTipText("Ativar modo para renomear pastas");
+        renameFoldersBtn.addActionListener(e -> fileExplorerSwing.toggleRenameModeFolders());
+
+
 // Envolve todo o conteúdo num painel com WrapLayout
         JPanel wrapPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 5, 4));
 
@@ -217,6 +230,8 @@ public class SearchPanel extends JPanel {
 // ── Grupo 7: Ações ────────────────────────────────────────────────────────────
         wrapPanel.add(transferButton);
         wrapPanel.add(editModeBtn);
+        wrapPanel.add(renameFilesBtn);
+        wrapPanel.add(renameFoldersBtn);
         wrapPanel.add(searchButton);
         wrapPanel.add(indexButton);
 
