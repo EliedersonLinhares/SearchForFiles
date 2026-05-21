@@ -57,6 +57,10 @@ public class FileExplorerSwing extends JFrame {
     }
     public BottomIndicatorPanel getBottomIndicatorPanel() {return bottomIndicatorPanel;}
 
+    public SearchPanel getSearchPanel() {
+        return searchPanel;
+    }
+
     public TransferService getTransferService() {
         return transferService;
     }

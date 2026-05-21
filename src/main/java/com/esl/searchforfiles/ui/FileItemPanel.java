@@ -44,7 +44,7 @@ import static com.esl.searchforfiles.ui.AnimatedGifThumb.isAnimatedGif;
  */
 public class FileItemPanel extends JPanel {
 
-    static final Map<String, ImageIcon> ICON_CACHE = new ConcurrentHashMap<>();
+    public static final Map<String, ImageIcon> ICON_CACHE = new ConcurrentHashMap<>();
     // No topo da classe
     private static final ThumbnailCacheManager THUMBNAIL_CACHE = new ThumbnailCacheManager();
     private static final ExecutorService THUMBNAIL_EXECUTOR = Executors.newFixedThreadPool(2);

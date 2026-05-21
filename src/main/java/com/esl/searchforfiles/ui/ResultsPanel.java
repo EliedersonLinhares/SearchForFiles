@@ -528,6 +528,7 @@ public class ResultsPanel extends JPanel {
         }
     }
 
+
     public void setFileItemClickListener(FileItemClickListener listener) {
         this.clickListener = listener;
     }
@@ -731,8 +732,8 @@ public class ResultsPanel extends JPanel {
         JButton openEditor = new JButton("🖊 Abrir com o editor");
         openEditor.setFont(new Font("SansSerif", Font.PLAIN, 14));
         openEditor.setForeground(new Color(33, 150, 243));
-        openEditor.setBorder(BorderFactory.createLineBorder(new Color(33, 150, 243), 2));
-        openEditor.setBorderPainted(true);
+      //  openEditor.setBorder(BorderFactory.createLineBorder(new Color(33, 150, 243), 2));
+       // openEditor.setBorderPainted(true);
         openEditor.setFocusPainted(false);
         openEditor.addActionListener(e -> {
             if (em.getSelectedCount() == 0) {
@@ -742,9 +743,6 @@ public class ResultsPanel extends JPanel {
                         "Aviso", JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
-//            if(fileExplorerSwing.getController().getMonitoringService().isMonitoring()){
-//                fileExplorerSwing.getController().getMonitoringService().stopMonitoring();
-//            }
             new ImageEditorFrame(
                     SwingUtilities.getWindowAncestor(this),
                     this,
@@ -822,11 +820,12 @@ public class ResultsPanel extends JPanel {
 
         JLabel lbl = new JLabel("  " + rm.getMode().toolbarLabel + "  ");
         lbl.setForeground(Color.WHITE);
-        lbl.setFont(new Font("SansSerif", Font.BOLD, 13));
+        lbl.setFont(new Font("SansSerif", Font.BOLD, 14));
         bar.add(lbl);
         bar.addSeparator();
 
         JButton selectAll = new JButton("Selecionar todos");
+        selectAll.setFont(new Font("SansSerif", Font.PLAIN, 14));
         selectAll.addActionListener(e -> {
             List<File> files = currentItems.stream()
                     .map(FileItemPanel::getDisplayFile).toList();
@@ -840,6 +839,7 @@ public class ResultsPanel extends JPanel {
         bar.add(selectAll);
 
         JButton clearSel = new JButton("Limpar seleção");
+        clearSel.setFont(new Font("SansSerif", Font.PLAIN, 14));
         clearSel.addActionListener(e -> {
             rm.clearSelection();
             currentItems.forEach(item -> {
@@ -851,6 +851,7 @@ public class ResultsPanel extends JPanel {
         bar.addSeparator();
 
         JButton renameBtn = new JButton("✏ Renomear");
+        renameBtn.setFont(new Font("SansSerif", Font.PLAIN, 14));
         renameBtn.setForeground(new Color(120, 210, 120));
         renameBtn.addActionListener(e -> {
             if (rm.getSelectedCount() == 0) {
@@ -873,12 +874,13 @@ public class ResultsPanel extends JPanel {
                     .toList();
 
             new RenameFrame(SwingUtilities.getWindowAncestor(this),
-                    rm.getMode(), infos);
+                    rm.getMode(), infos, this);
         });
         bar.add(renameBtn);
         bar.addSeparator();
 
         JButton exitBtn = new JButton("✕ Sair");
+        exitBtn.setFont(new Font("SansSerif", Font.PLAIN, 14));
         exitBtn.setForeground(new Color(255, 80, 80));
         exitBtn.addActionListener(e -> exitRenameMode());
         bar.add(exitBtn);

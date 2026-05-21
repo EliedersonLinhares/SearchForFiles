@@ -374,7 +374,7 @@ public class SearchPanel extends JPanel {
         return field;
     }
 
-    private void triggerIndex() {
+    public void triggerIndex() {
         if (indexListener != null) {
             indexListener.onIndexRequest();
         }

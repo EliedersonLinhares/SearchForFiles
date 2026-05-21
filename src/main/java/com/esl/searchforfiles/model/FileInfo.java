@@ -4,8 +4,8 @@ import java.util.Collections;
 import java.util.List;
 
 public class FileInfo {
-    private final String path;
-    private final String name;
+    private  String path;
+    private  String name;
     private final String extension;
     private final FileType fileType;
     private final long size;
@@ -57,6 +57,9 @@ public class FileInfo {
     public int getRating() {
         return rating;
     }
+
+    public void setPath(String path) {this.path = path;}
+    public void setName(String name) {this.name = name;}
 
     public void setRating(int r) {
         this.rating = r;

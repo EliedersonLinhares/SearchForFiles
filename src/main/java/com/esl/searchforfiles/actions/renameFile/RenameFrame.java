@@ -2,43 +2,70 @@ package com.esl.searchforfiles.actions.renameFile;
 
 
 import com.esl.searchforfiles.model.FileInfo;
+import com.esl.searchforfiles.ui.ResultsPanel;
 
 import javax.swing.*;
-import javax.swing.event.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
-import java.awt.event.*;
-import java.util.LinkedHashSet;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.*;
 import java.util.List;
-import java.util.Set;
 
 public class RenameFrame extends JFrame {
 
-    private final RenameMode      mode;
-    private final List<FileInfo>  items;
+    private final RenameMode mode;
+    private final List<FileInfo> items;
     private final RenameTableModel tableModel;
-
-    private JTextField  nameField;
-    private JList<RenameTag> tagList;
-    private JTable      table;
-
     private final Set<String> usedTags = new LinkedHashSet<>();
 
-    public RenameFrame(Window owner, RenameMode mode, List<FileInfo> items) {
+    // Guarda o resultado de cada linha após a operação:
+    // null  = ainda não processado
+   // true  = renomeado com sucesso
+   // false = falhou ou pulado
+    private final Map<Integer, Boolean> rowResults = new LinkedHashMap<>();
+    private volatile boolean cancelRename = false;
+    private JTextField nameField;
+    private JList<RenameTag> tagList;
+    private JTable table;
+
+    private final ResultsPanel resultsPanel;
+    private boolean renamedActionPerformed = false;
+
+
+    public RenameFrame(Window owner, RenameMode mode, List<FileInfo> items, ResultsPanel resultsPanel) {
         super(mode.label + " — " + items.size() + " item(s) selecionado(s)");
-        this.mode       = mode;
-        this.items      = items;
+        this.mode = mode;
+        this.items = items;
+        this.resultsPanel = resultsPanel;
         this.tableModel = new RenameTableModel(mode, items);
 
         if (owner != null) owner.setEnabled(false);
         addWindowListener(new WindowAdapter() {
-            @Override public void windowClosed(WindowEvent e) {
-                if (owner != null) { owner.setEnabled(true); owner.toFront(); }
+            @Override
+            public void windowClosed(WindowEvent e) {
+                if (owner != null) {
+                    owner.setEnabled(true);
+                    owner.toFront();
+                }
+                if(renamedActionPerformed) {
+                    resultsPanel.getFileExplorerSwing().getSearchPanel().triggerSearch();
+                }
+                resultsPanel.exitRenameMode();
             }
         });
 
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setSize(920, 580);
+        setSize(1400, 800);
         setMinimumSize(new Dimension(680, 420));
         setLocationRelativeTo(owner);
         setLayout(new BorderLayout());
@@ -52,6 +79,7 @@ public class RenameFrame extends JFrame {
         add(split, BorderLayout.CENTER);
 
         setVisible(true);
+        renamedActionPerformed = false;
     }
 
     // ── Painel esquerdo ────────────────────────────────────────────
@@ -71,9 +99,20 @@ public class RenameFrame extends JFrame {
                 BorderFactory.createEmptyBorder(4, 6, 4, 6)));
 
         nameField.getDocument().addDocumentListener(new DocumentListener() {
-            @Override public void insertUpdate(DocumentEvent e)  { syncTable(); }
-            @Override public void removeUpdate(DocumentEvent e)  { syncTable(); }
-            @Override public void changedUpdate(DocumentEvent e) { syncTable(); }
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                syncTable();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                syncTable();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                syncTable();
+            }
         });
 
         // Label + campo numa faixa compacta no topo
@@ -102,7 +141,8 @@ public class RenameFrame extends JFrame {
         tagList.setCellRenderer(new TagCellRenderer());
         tagList.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         tagList.addMouseListener(new MouseAdapter() {
-            @Override public void mouseClicked(MouseEvent e) {
+            @Override
+            public void mouseClicked(MouseEvent e) {
                 RenameTag tag = tagList.getSelectedValue();
                 if (tag == null) return;
                 insertAtCaret(tag.code);
@@ -121,7 +161,7 @@ public class RenameFrame extends JFrame {
         centerArea.add(tagHeader, BorderLayout.NORTH);
         centerArea.add(tagScroll, BorderLayout.CENTER);
 
-        panel.add(topArea,    BorderLayout.NORTH);
+        panel.add(topArea, BorderLayout.NORTH);
         panel.add(centerArea, BorderLayout.CENTER);
 
         // Botões inferiores
@@ -132,7 +172,10 @@ public class RenameFrame extends JFrame {
         JButton renameBtn = makeBtn("Renomear", mode.accentColor);
         renameBtn.addActionListener(e -> onRename());
         JButton closeBtn = makeBtn("Fechar", new Color(90, 90, 90));
-        closeBtn.addActionListener(e -> dispose());
+        closeBtn.addActionListener(e -> {
+            dispose();
+
+        } );
 
         btnRow.add(renameBtn);
         btnRow.add(closeBtn);
@@ -151,7 +194,7 @@ public class RenameFrame extends JFrame {
         table.setBackground(new Color(45, 45, 45));
         table.setForeground(new Color(210, 210, 210));
         table.setGridColor(new Color(65, 65, 65));
-        table.setRowHeight(ThumbnailCellRenderer.ROW_HEIGHT);   // ← ajuste via ROW_HEIGHT
+        table.setRowHeight(ThumbnailCellRenderer.ROW_HEIGHT);
         table.setFont(new Font("SansSerif", Font.PLAIN, 12));
         table.setSelectionBackground(new Color(50, 80, 130));
         table.setShowHorizontalLines(true);
@@ -166,9 +209,9 @@ public class RenameFrame extends JFrame {
                 BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(70, 70, 70)));
         table.getTableHeader().setReorderingAllowed(false);
 
-        // Coluna de thumbnail (FILES) — largura calculada a partir de THUMB_SIZE
+        // Coluna de thumbnail (FILES)
         if (mode == RenameMode.FILES) {
-            int colW = ThumbnailCellRenderer.THUMB_SIZE + 12;  // ← ajuste via THUMB_SIZE
+            int colW = ThumbnailCellRenderer.THUMB_SIZE + 12;
             table.getColumnModel().getColumn(0).setCellRenderer(thumbRenderer);
             table.getColumnModel().getColumn(0).setMinWidth(colW);
             table.getColumnModel().getColumn(0).setMaxWidth(colW);
@@ -186,15 +229,20 @@ public class RenameFrame extends JFrame {
             table.getColumnModel().getColumn(2).setPreferredWidth(220);
         }
 
-        // Renderer "Novo nome" — verde
-        int newNameCol = mode == RenameMode.FILES ? 2 : 1;
-        table.getColumnModel().getColumn(newNameCol)
-                .setCellRenderer(new NewNameCellRenderer());
+        // Renderers de resultado — aplicados após a operação de renomeação
+        ResultCellRenderer  resultRenderer  = new ResultCellRenderer();
+        CompositeNameRenderer nameRenderer  = new CompositeNameRenderer();
 
-        // Renderer "Caminho" — cinza menor
-        int pathCol = mode == RenameMode.FILES ? 3 : 2;
-        table.getColumnModel().getColumn(pathCol)
-                .setCellRenderer(new PathCellRenderer());
+        if (mode == RenameMode.FILES) {
+            // col 0 = thumb (já configurado acima)
+            table.getColumnModel().getColumn(1).setCellRenderer(resultRenderer);  // nome atual
+            table.getColumnModel().getColumn(2).setCellRenderer(nameRenderer);    // novo nome
+            table.getColumnModel().getColumn(3).setCellRenderer(resultRenderer);  // caminho
+        } else {
+            table.getColumnModel().getColumn(0).setCellRenderer(resultRenderer);  // nome atual
+            table.getColumnModel().getColumn(1).setCellRenderer(nameRenderer);    // novo nome
+            table.getColumnModel().getColumn(2).setCellRenderer(resultRenderer);  // caminho
+        }
 
         // Drag & drop para reordenar linhas
         new TableRowDragHandler(table, tableModel);
@@ -211,7 +259,9 @@ public class RenameFrame extends JFrame {
 
     // ── Lógica ─────────────────────────────────────────────────────
 
-    /** Sincroniza a tabela com o texto atual do campo. */
+    /**
+     * Sincroniza a tabela com o texto atual do campo.
+     */
 
     private void syncTable() {
         recalcUsedTags();
@@ -230,12 +280,15 @@ public class RenameFrame extends JFrame {
             if (text.contains(code)) usedTags.add(code);
         }
     }
-    /** Insere o código da tag na posição do cursor do nameField. */
+
+    /**
+     * Insere o código da tag na posição do cursor do nameField.
+     */
 
     private void insertAtCaret(String code) {
         if (usedTags.contains(code)) return; // já em uso, ignora
 
-        int    pos     = nameField.getCaretPosition();
+        int pos = nameField.getCaretPosition();
         String current = nameField.getText();
         String updated = current.substring(0, pos) + code + current.substring(pos);
         nameField.setText(updated);
@@ -245,9 +298,6 @@ public class RenameFrame extends JFrame {
 
 
 
-    /**
-     * Placeholder — lógica de renomeação em lote será implementada futuramente.
-     */
     private void onRename() {
         if (nameField.getText().isBlank()) {
             JOptionPane.showMessageDialog(this,
@@ -255,10 +305,172 @@ public class RenameFrame extends JFrame {
                     "Aviso", JOptionPane.WARNING_MESSAGE);
             return;
         }
-        JOptionPane.showMessageDialog(this,
-                "Renomeação em lote ainda não implementada.",
-                "Em breve", JOptionPane.INFORMATION_MESSAGE);
+
+        // Monta prévia completa para confirmação
+        List<FileInfo> items    = tableModel.getItems();
+        List<String>   previews = new ArrayList<>();
+        for (int i = 0; i < items.size(); i++)
+            previews.add(tableModel.previewName(i));
+
+        // Verifica se algum novo nome ficou em branco
+        long blanks = previews.stream().filter(String::isBlank).count();
+        if (blanks > 0) {
+            JOptionPane.showMessageDialog(this,
+                    blanks + " item(s) resultariam em nome vazio. Revise o padrão.",
+                    "Aviso", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int opt = JOptionPane.showConfirmDialog(this,
+                "Renomear " + items.size() + " item(s)?\n\n"
+                        + "Esta ação não pode ser desfeita.",
+                "Confirmar renomeação",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+        if (opt != JOptionPane.YES_OPTION) return;
+
+        // Limpa resultados anteriores e inicia worker
+        rowResults.clear();
+        table.repaint();
+        executeRename(items, previews);
     }
+
+
+    // ═══════════════════════════════════════════════════════════════════
+// executeRename() — NOVO
+// SwingWorker que processa cada item sequencialmente,
+// publicando o resultado de cada linha para a EDT em tempo real.
+// ═══════════════════════════════════════════════════════════════════
+    private void executeRename(List<FileInfo> items, List<String> newNames) {
+
+        // Desabilita o botão durante a operação
+        // (referência guardada para reabilitar no done())
+//        Component[] btns = ((JPanel) ((BorderLayout) ((JPanel) getContentPane()
+//                .getComponent(0)).getLayout())
+//                .getLayoutComponent(BorderLayout.SOUTH))
+//                .getComponents();
+        // Abordagem mais segura: desabilita todos os botões do painel sul
+        JPanel leftPanel = (JPanel) ((JSplitPane) getContentPane()
+                .getComponent(0)).getLeftComponent();
+        JPanel btnRow = (JPanel) ((BorderLayout) leftPanel.getLayout())
+                .getLayoutComponent(BorderLayout.SOUTH);
+        Arrays.stream(btnRow.getComponents()).forEach(c -> c.setEnabled(false));
+
+        // Callback para conflito — precisa rodar na EDT e bloquear o worker
+        // Usamos um array de 1 elemento para passar o resultado entre threads
+        new SwingWorker<Void, int[]>() {
+            // int[] = { rowIndex, 1=sucesso / 0=falha }
+
+            @Override
+            protected Void doInBackground() {
+                for (int i = 0; i < items.size(); i++) {
+                    FileInfo fi      = items.get(i);
+                    String   newName = newNames.get(i);
+                    boolean  ok      = renameItem(fi, newName, i);
+                    publish(new int[]{i, ok ? 1 : 0});
+                }
+                return null;
+            }
+
+            @Override
+            protected void process(List<int[]> chunks) {
+                for (int[] chunk : chunks) {
+                    int  row    = chunk[0];
+                    boolean ok  = chunk[1] == 1;
+                    rowResults.put(row, ok);
+                    // Repinta apenas a linha processada
+                    table.repaint(table.getCellRect(row, 0, true)
+                            .union(table.getCellRect(row,
+                                    table.getColumnCount() - 1, true)));
+                }
+            }
+
+            @Override
+            protected void done() {
+                Arrays.stream(btnRow.getComponents()).forEach(c -> c.setEnabled(true));
+
+                long success = rowResults.values().stream().filter(v -> v).count();
+                long failed  = rowResults.values().stream().filter(v -> !v).count();
+
+                String msg = "✅ " + success + " renomeado(s)";
+                if (failed > 0) msg += "\n⚠️ " + failed + " com erro — veja as linhas em vermelho.";
+                JOptionPane.showMessageDialog(RenameFrame.this, msg,
+                        "Resultado", JOptionPane.INFORMATION_MESSAGE);
+                renamedActionPerformed = true;
+            }
+        }.execute();
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════════
+// renameItem() — NOVO
+// Executa a renomeação de um único item.
+// Lida com conflitos perguntando ao usuário na EDT (via invokeAndWait).
+// Retorna true se renomeado com sucesso, false se pulado/falhou.
+// ═══════════════════════════════════════════════════════════════════
+    private boolean renameItem(FileInfo fi, String newName, int rowIndex) {
+        try {
+            Path source = Paths.get(fi.getPath());
+            Path dest   = source.resolveSibling(newName);
+
+            // Sem mudança real — pula silenciosamente
+            if (source.equals(dest)) return true;
+
+            if (Files.exists(dest)) {
+                // Conflito — pergunta ao usuário na EDT e aguarda resposta
+                int[] answer = {-1}; // 0=sobrescrever, 1=pular, 2=cancelar tudo
+                try {
+                    SwingUtilities.invokeAndWait(() ->
+                            answer[0] = showConflictDialog(fi.getName(), newName));
+                } catch (Exception e) {
+                    return false;
+                }
+
+                switch (answer[0]) {
+                    case 0 -> { /* sobrescrever — continua abaixo */ }
+                    case 1 -> { return false; } // pular este item
+                    case 2 -> { cancelAll();   return false; }
+                    default -> { return false; }
+                }
+            }
+
+            Files.move(source, dest, StandardCopyOption.REPLACE_EXISTING);
+            // Atualiza o path no FileInfo para refletir o novo nome
+            fi.setPath(dest.toString());
+            fi.setName(newName);
+            return true;
+
+        } catch (IOException e) {
+            System.err.println("Erro ao renomear " + fi.getName()
+                    + " → " + newName + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════════
+// showConflictDialog() — NOVO
+// Exibido na EDT quando o nome de destino já existe.
+// Retorna: 0=sobrescrever, 1=pular, 2=cancelar tudo.
+// ═══════════════════════════════════════════════════════════════════
+    private int showConflictDialog(String originalName, String newName) {
+        String msg = "O arquivo \"" + newName + "\" já existe.\n\n"
+                + "Origem:  " + originalName + "\n"
+                + "Destino: " + newName + "\n\n"
+                + "O que deseja fazer?";
+
+        String[] options = {"Sobrescrever", "Pular este", "Cancelar restantes"};
+        int choice = JOptionPane.showOptionDialog(
+                RenameFrame.this, msg, "Conflito de nome",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE,
+                null, options, options[1]); // padrão = "Pular este"
+
+        return choice < 0 ? 1 : choice; // fechar = pular
+    }
+
+
+    private void cancelAll() { cancelRename = true; }
+
 
     // ── Helpers ────────────────────────────────────────────────────
     private JLabel sectionLabel(String text) {
@@ -284,31 +496,9 @@ public class RenameFrame extends JFrame {
 
     // ── Cell renderers internos ────────────────────────────────────
 
-    /** Renderiza a coluna "Novo nome" em verde. */
-    private static class NewNameCellRenderer extends DefaultTableCellRenderer {
-        @Override
-        public Component getTableCellRendererComponent(JTable t, Object v,
-                                                       boolean sel, boolean foc, int r, int c) {
-            super.getTableCellRendererComponent(t, v, sel, foc, r, c);
-            setForeground(sel ? Color.WHITE : new Color(100, 200, 120));
-            setFont(getFont().deriveFont(Font.BOLD));
-            return this;
-        }
-    }
-
-    /** Renderiza a coluna "Caminho" em cinza menor. */
-    private static class PathCellRenderer extends DefaultTableCellRenderer {
-        @Override
-        public Component getTableCellRendererComponent(JTable t, Object v,
-                                                       boolean sel, boolean foc, int r, int c) {
-            super.getTableCellRendererComponent(t, v, sel, foc, r, c);
-            setForeground(sel ? Color.WHITE : new Color(120, 120, 120));
-            setFont(getFont().deriveFont(11f));
-            return this;
-        }
-    }
-
-    /** Renderiza cada tag com seu código em destaque. */
+    /**
+     * Renderiza cada tag com seu código em destaque.
+     */
 
     private class TagCellRenderer extends DefaultListCellRenderer {
 
@@ -354,6 +544,100 @@ public class RenameFrame extends JFrame {
                     ? Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR)
                     : Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
+            return this;
+        }
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════════
+// ResultCellRenderer — NOVO (classe interna de RenameFrame)
+// Colore as linhas da tabela conforme o resultado:
+//   verde  = sucesso
+//   vermelho = falha
+//   normal = ainda não processado
+// Aplica-se a TODAS as colunas exceto a de thumbnail.
+// ═══════════════════════════════════════════════════════════════════
+    private class ResultCellRenderer extends DefaultTableCellRenderer {
+
+        @Override
+        public Component getTableCellRendererComponent(JTable t, Object value,
+                                                       boolean isSelected, boolean hasFocus, int row, int col) {
+
+            super.getTableCellRendererComponent(t, value, isSelected,
+                    hasFocus, row, col);
+
+            Boolean result = rowResults.get(row);
+
+            if (result == null) {
+                // Ainda não processado — visual padrão
+                setBackground(isSelected
+                        ? new Color(50, 80, 130)
+                        : new Color(45, 45, 45));
+                setForeground(new Color(210, 210, 210));
+
+            } else if (result) {
+                // Sucesso — fundo verde escuro
+                setBackground(isSelected
+                        ? new Color(30, 90, 30)
+                        : new Color(28, 60, 28));
+                setForeground(new Color(140, 220, 140));
+
+            } else {
+                // Falha — fundo vermelho escuro
+                setBackground(isSelected
+                        ? new Color(100, 30, 30)
+                        : new Color(70, 25, 25));
+                setForeground(new Color(220, 120, 120));
+            }
+
+            setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
+            return this;
+        }
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════════
+// CompositeNameRenderer — NOVO (classe interna)
+// Na coluna "Novo nome": verde quando não processado (prévia),
+// herda a cor de resultado (verde/vermelho) após processamento.
+// ═══════════════════════════════════════════════════════════════════
+    private class CompositeNameRenderer extends DefaultTableCellRenderer {
+
+        @Override
+        public Component getTableCellRendererComponent(JTable t, Object value,
+                                                       boolean isSelected, boolean hasFocus, int row, int col) {
+
+            super.getTableCellRendererComponent(t, value, isSelected,
+                    hasFocus, row, col);
+
+            Boolean result = rowResults.get(row);
+
+            if (result == null) {
+                // Ainda não processado — texto verde (prévia)
+                setBackground(isSelected
+                        ? new Color(50, 80, 130)
+                        : new Color(45, 45, 45));
+                setForeground(isSelected
+                        ? Color.WHITE
+                        : new Color(100, 200, 120));
+                setFont(getFont().deriveFont(Font.BOLD));
+
+            } else if (result) {
+                setBackground(isSelected
+                        ? new Color(30, 90, 30)
+                        : new Color(28, 60, 28));
+                setForeground(new Color(140, 220, 140));
+                setFont(getFont().deriveFont(Font.BOLD));
+
+            } else {
+                setBackground(isSelected
+                        ? new Color(100, 30, 30)
+                        : new Color(70, 25, 25));
+                setForeground(new Color(220, 120, 120));
+                setFont(getFont().deriveFont(Font.PLAIN));
+            }
+
+            setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
             return this;
         }
     }

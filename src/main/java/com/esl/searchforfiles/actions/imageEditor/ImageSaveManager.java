@@ -8,12 +8,14 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
 
 public class ImageSaveManager {
 
     private final Component parent;
     private File lastDirectory = null;
+
 
     public ImageSaveManager(Component parent) {
         this.parent = parent;
@@ -33,7 +35,7 @@ public class ImageSaveManager {
     public void saveAll(List<BufferedImage> images,
                         List<File> files,
                         UnaryOperator<BufferedImage> actions,
-                        Runnable onDone) {
+                        Consumer<List<File>> onDone) {
 
         List<String> unsupported = new ArrayList<>();
         for (File f : files) {
@@ -70,87 +72,6 @@ public class ImageSaveManager {
         writeBatch(images, targets, actions, onDone);
     }
 
-//    /**
-//     * "Salvar como": usuário escolhe pasta e formato via JnaFileChooser,
-//     * depois salva todas as imagens lá.
-//     *
-//     * @param images       imagens originais
-//     * @param files        arquivos originais (usados para montar nomes de saída)
-//     * @param originalDir  pasta dos originais (para aviso especial de sobrescrita)
-//     * @param actions      função que aplica as ações sobre cada imagem
-//     * @param onDone       callback chamado na EDT ao término
-//     */
-//    public void saveAllAs(List<BufferedImage> images,
-//                          List<File> files,
-//                          File originalDir,
-//                          Function<BufferedImage, BufferedImage> actions,
-//                          Runnable onDone) {
-//
-//        // ── Escolha de formato antes do chooser ────────────────────
-//        String[] fmtOptions = {"JPEG", "PNG"};
-//        int fmtChoice = JOptionPane.showOptionDialog(parent,
-//                "Escolha o formato de saída para todas as imagens:",
-//                "Salvar como",
-//                JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
-//                null, fmtOptions, fmtOptions[0]);
-//        if (fmtChoice < 0) return;
-//
-//        String fmt = fmtChoice == 0 ? "jpg" : "png";
-//        String ext = fmt;
-//
-//        // ── Escolha de pasta via JnaFileChooser ────────────────────
-//        JnaFileChooser fc = new JnaFileChooser(
-//                lastDirectory != null ? lastDirectory : originalDir);
-//        fc.setDefaultFileName("imagens_editadas." + ext);
-//        fc.setDefaultFileName("Nome das imagens serão os originais");
-//        fc.setMultiSelectionEnabled(false);
-//        fc.addFilter(fmtChoice == 0 ? "JPEG (*.jpg)" : "PNG (*.png)", ext);
-//
-//        if (!fc.showSaveDialog((Window) SwingUtilities.getWindowAncestor(parent)))
-//            return;
-//
-//        File chosen = fc.getSelectedFile();
-//        if (chosen == null) return;
-//        File destDir = chosen.getParentFile();
-//        lastDirectory = destDir;
-//
-//        JFileChooser chooser = new JFileChooser();
-//// Define que o usuário só pode selecionar DIRETÓRIOS
-//        chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-//
-//        int retorno = chooser.showOpenDialog(null);
-//
-//        if (retorno == JFileChooser.APPROVE_OPTION) {
-//            File diretorioSelecionado = chooser.getSelectedFile();
-//            System.out.println("Diretório escolhido: " + diretorioSelecionado.getAbsolutePath());
-//        }
-//
-//        // ── Monta destinos e detecta colisões ──────────────────────
-//        List<SaveTarget> targets = new ArrayList<>();
-//        List<String> willOverwrite = new ArrayList<>();
-//
-//        for (int i = 0; i < files.size(); i++) {
-//            File dest = new File(destDir, baseName(files.get(i).getName()) + "." + ext);
-//            targets.add(new SaveTarget(i, dest, fmt));
-//            if (dest.exists()) willOverwrite.add(dest.getName());
-//        }
-//
-//        if (!willOverwrite.isEmpty()) {
-//            String hint = canonicalQuietly(destDir).equals(
-//                    canonicalQuietly(originalDir))
-//                    ? "A pasta escolhida é a mesma dos originais."
-//                    : "A pasta de destino já contém arquivos com o mesmo nome.";
-//            int confirm = JOptionPane.showConfirmDialog(parent,
-//                    "<html>" + hint + " Os seguintes arquivos serão sobrescritos:<br><br>"
-//                            + String.join("<br>", willOverwrite)
-//                            + "<br><br>Deseja continuar?</html>",
-//                    "Confirmar sobrescrita", JOptionPane.YES_NO_OPTION,
-//                    JOptionPane.WARNING_MESSAGE);
-//            if (confirm != JOptionPane.YES_OPTION) return;
-//        }
-//
-//        writeBatch(images, targets, actions, onDone);
-//    }
 
     /**
      * "Salvar como": usuário escolhe pasta e formato via JnaFileChooser,
@@ -176,7 +97,7 @@ public class ImageSaveManager {
                           List<File> files,
                           File originalDir,
                           UnaryOperator<BufferedImage> actions,
-                          Runnable onDone) {
+                          Consumer<List<File>> onDone) {
 
         // ── Escolha de formato ─────────────────────────────────────
         String[] fmtOptions = {"JPEG", "PNG"};
@@ -237,7 +158,7 @@ public class ImageSaveManager {
     private void writeBatch(List<BufferedImage> images,
                             List<SaveTarget> targets,
                             UnaryOperator<BufferedImage> actions,
-                            Runnable onDone) {
+                            Consumer<List<File>> onDone) {
 
         int total = targets.size();
 
@@ -261,6 +182,10 @@ public class ImageSaveManager {
         progress.setVisible(true);
 
         new SwingWorker<List<String>, Integer>() {
+
+            // Lista acumulada dos arquivos salvos com sucesso
+            final List<File> savedFiles = new ArrayList<>();
+
             @Override
             protected List<String> doInBackground() {
                 List<String> errors = new ArrayList<>();
@@ -271,6 +196,7 @@ public class ImageSaveManager {
                         result = prepareForFormat(result, t.format());
                         if (!ImageIO.write(result, t.format(), t.file()))
                             throw new IOException("Sem writer para: " + t.format());
+                        savedFiles.add(t.file()); // ← registra somente os bem-sucedidos
                     } catch (Exception ex) {
                         errors.add(t.file().getName() + ": " + ex.getMessage());
                     }
@@ -300,7 +226,9 @@ public class ImageSaveManager {
                 } catch (Exception ex) {
                     showError("Erro inesperado:\n" + ex.getMessage());
                 }
-                if (onDone != null) SwingUtilities.invokeLater(onDone);
+                // Passa a lista real de arquivos salvos para o callback
+                if (onDone != null)
+                    SwingUtilities.invokeLater(() -> onDone.accept(savedFiles));
             }
         }.execute();
     }

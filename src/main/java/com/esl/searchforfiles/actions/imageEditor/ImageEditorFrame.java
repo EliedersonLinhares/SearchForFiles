@@ -3,6 +3,7 @@ package com.esl.searchforfiles.actions.imageEditor;
 
 import com.esl.searchforfiles.actions.imageEditor.actions.AdjustActionCardPanel;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageAdjustAction;
+import com.esl.searchforfiles.ui.FileItemPanel;
 import com.esl.searchforfiles.ui.ResultsPanel;
 
 import javax.imageio.ImageIO;
@@ -12,7 +13,9 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.IntFunction;
 
 public class ImageEditorFrame extends JFrame {
@@ -43,6 +46,8 @@ public class ImageEditorFrame extends JFrame {
     // ── Painel direito (ações) ─────────────────────────────────────
     private JPanel actionsContainer;   // BoxLayout vertical
     private final ImageSaveManager saveManager = new ImageSaveManager(this);
+    private final Set<File> editedFiles = new LinkedHashSet<>();
+    private boolean editActionPerformed = false;
 
     public ImageEditorFrame(Window owner, ResultsPanel resultsPanel, List<File> imageFiles) {
         super("Editor de imagens — " + imageFiles.size() + " imagem(s) selecionada(s)");
@@ -64,9 +69,11 @@ public class ImageEditorFrame extends JFrame {
             public void windowClosed(java.awt.event.WindowEvent e) {
                 if (owner != null) owner.setEnabled(true);
                 owner.toFront();
-//                if(!resultsPanel.getFileExplorerSwing().getController().getMonitoringService().isMonitoring()){
-//                    resultsPanel.getFileExplorerSwing().getController().getMonitoringService().startMonitoring();
-//                }
+                invalidateEditedThumbs();
+                if(editActionPerformed) {
+                    resultsPanel.getFileExplorerSwing().getSearchPanel().triggerSearch();
+                }
+                resultsPanel.exitEditMode();
             }
         });
 
@@ -74,6 +81,7 @@ public class ImageEditorFrame extends JFrame {
         buildUI();
         showImage(0);
         setVisible(true);
+        editActionPerformed = false;
     }
 
     // ── Carregamento assíncrono das imagens ────────────────────────
@@ -88,6 +96,37 @@ public class ImageEditorFrame extends JFrame {
                 previews.add(null);
             }
         }
+    }
+
+
+    // ═══════════════════════════════════════════════════════════════════
+// invalidateEditedThumbs() — NOVO em ImageEditorFrame
+// Remove do ICON_CACHE todas as chaves relacionadas aos arquivos
+// editados e pede ao ResultsPanel que re-renderize os cards.
+// ═══════════════════════════════════════════════════════════════════
+    private void invalidateEditedThumbs() {
+        if (editedFiles.isEmpty()) return;
+
+        for (File f : editedFiles) {
+            String absPath = f.getAbsolutePath();
+
+            // Remove todas as variantes de chave usadas pelo FileItemPanel
+            // (prefixos definidos em loadThumbnailFit, loadVideoThumbnailFit, etc.)
+            FileItemPanel.ICON_CACHE.keySet().removeIf(key ->
+                    key.contains(absPath));
+
+            // Remove também do cache em disco do ThumbnailCacheManager
+            FileItemPanel.getThumbnailCacheManager()
+                    .removeCachedThumbnail(f, FileItemPanel.ICON_CACHE.size());
+        }
+
+        // Pede ao ResultsPanel para re-renderizar o grid com o cache limpo
+        if (resultsPanel != null)
+            SwingUtilities.invokeLater(resultsPanel::refresh);
+    }
+
+    public void markAsEdited(File file) {
+        if (file != null) editedFiles.add(file);
     }
 
     /**
@@ -591,373 +630,14 @@ public class ImageEditorFrame extends JFrame {
                 .toList();
     }
 
-
-// ═══════════════════════════════════════════════════════════════════
-// 2. saveCurrentImage()  —  sobrescreve o arquivo original
-// ═══════════════════════════════════════════════════════════════════
-
-    private void saveCurrentImage() {
-        File target = imageFiles.get(currentIndex);
-
-        int confirm = JOptionPane.showConfirmDialog(this,
-                "<html>Sobrescrever o arquivo original?<br><b>" + target.getName() + "</b></html>",
-                "Confirmar salvamento",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.WARNING_MESSAGE);
-        if (confirm != JOptionPane.YES_OPTION) return;
-
-        // Detecta formato pelo nome do arquivo original
-        String fmt = extensionOf(target.getName());
-        if (!fmt.equals("jpg") && !fmt.equals("jpeg") && !fmt.equals("png")) {
-            JOptionPane.showMessageDialog(this,
-                    "Formato não suportado para escrita: " + fmt.toUpperCase()
-                            + ".\nUse \"Salvar como\" para escolher JPEG ou PNG.",
-                    "Formato inválido", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        writeImage(images.get(currentIndex), target, fmt.equals("png") ? "png" : "jpeg");
-    }
-
-
-// ═══════════════════════════════════════════════════════════════════
-// 3. saveCurrentImageAs()  —  escolha de destino e formato
-// ═══════════════════════════════════════════════════════════════════
-
-    private void saveCurrentImageAs() {
-        // ── Diálogo de formato ─────────────────────────────────────────
-        String[] options = {"JPEG", "PNG"};
-        int fmtChoice = JOptionPane.showOptionDialog(this,
-                "Escolha o formato de saída:",
-                "Salvar como",
-                JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
-                null, options, options[0]);
-        if (fmtChoice < 0) return;                      // cancelado
-        String fmt      = fmtChoice == 0 ? "jpeg" : "png";
-        String ext      = fmtChoice == 0 ? "jpg"  : "png";
-
-        // ── Seletor de arquivo ─────────────────────────────────────────
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Salvar como");
-        chooser.setSelectedFile(new File(
-                imageFiles.get(currentIndex).getParent(),
-                baseName(imageFiles.get(currentIndex).getName()) + "_edit." + ext));
-        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
-                options[fmtChoice] + " (*." + ext + ")", ext));
-        chooser.setAcceptAllFileFilterUsed(false);
-
-        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
-
-        File chosen = chooser.getSelectedFile();
-
-        // Garante extensão correta
-        if (!chosen.getName().toLowerCase().endsWith("." + ext)) {
-            chosen = new File(chosen.getAbsolutePath() + "." + ext);
-        }
-
-        // ── Verifica sobrescrita na pasta dos originais ────────────────
-        File originalDir = imageFiles.get(currentIndex).getParentFile();
-        if (chosen.getParentFile().equals(originalDir) && chosen.exists()) {
-            int confirm = JOptionPane.showConfirmDialog(this,
-                    "<html>O arquivo já existe na pasta dos originais:<br><b>"
-                            + chosen.getName() + "</b><br>Deseja sobrescrever?</html>",
-                    "Confirmar sobrescrita",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.WARNING_MESSAGE);
-            if (confirm != JOptionPane.YES_OPTION) return;
-        } else if (chosen.exists()) {
-            // Arquivo existe fora da pasta dos originais — aviso genérico
-            int confirm = JOptionPane.showConfirmDialog(this,
-                    "<html>O arquivo já existe:<br><b>" + chosen.getName()
-                            + "</b><br>Deseja sobrescrever?</html>",
-                    "Confirmar sobrescrita",
-                    JOptionPane.YES_NO_OPTION);
-            if (confirm != JOptionPane.YES_OPTION) return;
-        }
-
-        writeImage(images.get(currentIndex), chosen, fmt);
-    }
-
-
-// ═══════════════════════════════════════════════════════════════════
-// 4. writeImage()  —  aplica ações e grava em disco (SwingWorker)
-// ═══════════════════════════════════════════════════════════════════
-
-    /**
-     * Aplica as ações habilitadas sobre a imagem ORIGINAL (não o proxy)
-     * e salva no arquivo de destino. Roda em background para não travar a EDT.
-     */
-    private void writeImage(BufferedImage original, File dest, String format) {
-        // Diálogo de progresso simples (sem barra — só bloqueia interação)
-        JDialog progress = new JDialog(this, "Salvando…", false);
-        progress.setSize(280, 80);
-        progress.setLocationRelativeTo(this);
-        progress.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
-        progress.setResizable(false);
-        JLabel lbl = new JLabel("Aplicando efeitos e salvando…", SwingConstants.CENTER);
-        lbl.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        progress.add(lbl);
-        progress.setVisible(true);
-
-        new SwingWorker<Void, Void>() {
-            @Override
-            protected Void doInBackground() throws Exception {
-                BufferedImage result = applyEnabledActions(original);
-
-                // ImageIO exige TYPE_INT_RGB para JPEG (sem canal alpha)
-                if (format.equals("jpeg")) {
-                    BufferedImage rgb = new BufferedImage(
-                            result.getWidth(), result.getHeight(),
-                            BufferedImage.TYPE_INT_RGB);
-                    Graphics2D g2 = rgb.createGraphics();
-                    g2.drawImage(result, 0, 0, null);
-                    g2.dispose();
-                    result = rgb;
-                }
-
-                if (!ImageIO.write(result, format, dest)) {
-                    throw new IOException("ImageIO não encontrou writer para: " + format);
-                }
-                return null;
-            }
-
-            @Override
-            protected void done() {
-                progress.dispose();
-                try {
-                    get();   // relança exceção se houver
-                    JOptionPane.showMessageDialog(ImageEditorFrame.this,
-                            "Arquivo salvo:\n" + dest.getAbsolutePath(),
-                            "Salvo com sucesso", JOptionPane.INFORMATION_MESSAGE);
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(ImageEditorFrame.this,
-                            "Erro ao salvar:\n" + ex.getCause().getMessage(),
-                            "Erro", JOptionPane.ERROR_MESSAGE);
-                }
-            }
-        }.execute();
-    }
-
-
-// ═══════════════════════════════════════════════════════════════════
-// 5. Helpers de nome de arquivo
-// ═══════════════════════════════════════════════════════════════════
-
-    /** "foto.JPG" → "jpg" */
-    private static String extensionOf(String filename) {
-        int dot = filename.lastIndexOf('.');
-        return dot >= 0 ? filename.substring(dot + 1).toLowerCase() : "";
-    }
-
-    /** "foto.jpg" → "foto" */
-    private static String baseName(String filename) {
-        int dot = filename.lastIndexOf('.');
-        return dot >= 0 ? filename.substring(0, dot) : filename;
-    }
-
-
-    private void saveAllImages() {
-        int total = imageFiles.size();
-
-        int confirm = JOptionPane.showConfirmDialog(this,
-                "<html>Sobrescrever <b>" + total + "</b> arquivo(s) original(is) com as alterações?</html>",
-                "Confirmar salvamento",
-                JOptionPane.YES_NO_OPTION,
-                JOptionPane.WARNING_MESSAGE);
-        if (confirm != JOptionPane.YES_OPTION) return;
-
-        // Valida formatos antes de começar
-        List<String> unsupported = new ArrayList<>();
-        for (File f : imageFiles) {
-            String ext = extensionOf(f.getName());
-            if (!ext.equals("jpg") && !ext.equals("jpeg") && !ext.equals("png"))
-                unsupported.add(f.getName());
-        }
-        if (!unsupported.isEmpty()) {
-            int proceed = JOptionPane.showConfirmDialog(this,
-                    "<html>Os arquivos abaixo têm formato não suportado para escrita"
-                            + " e serão <b>ignorados</b>:<br><br>"
-                            + String.join("<br>", unsupported)
-                            + "<br><br>Continuar com os demais?</html>",
-                    "Formatos não suportados",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.WARNING_MESSAGE);
-            if (proceed != JOptionPane.YES_OPTION) return;
-        }
-
-        writeBatch(dest -> {
-            // Para cada índice, destino = próprio arquivo original
-            String ext = extensionOf(imageFiles.get(dest).getName());
-            String fmt = ext.equals("png") ? "png" : "jpeg";
-            return new SaveTarget(imageFiles.get(dest), fmt);
-        }, total, unsupported);
-    }
-
-
-// ═══════════════════════════════════════════════════════════════════
-// 2. saveCurrentImageAs()  →  saveAllImagesAs()
-//    Usuário escolhe pasta e formato; salva todos lá
-// ═══════════════════════════════════════════════════════════════════
-
-    private void saveAllImagesAs() {
-        // ── Escolha de formato ─────────────────────────────────────────
-        String[] fmtOptions = {"JPEG", "PNG"};
-        int fmtChoice = JOptionPane.showOptionDialog(this,
-                "Escolha o formato de saída para todas as imagens:",
-                "Salvar como",
-                JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
-                null, fmtOptions, fmtOptions[0]);
-        if (fmtChoice < 0) return;
-        String fmt = fmtChoice == 0 ? "jpeg" : "png";
-        String ext = fmtChoice == 0 ? "jpg"  : "png";
-
-        // ── Escolha de pasta de destino ────────────────────────────────
-        JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Escolha a pasta de destino");
-        chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-        chooser.setCurrentDirectory(imageFiles.get(0).getParentFile());
-        if (chooser.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
-
-        File destDir = chooser.getSelectedFile();
-        File originalDir = imageFiles.get(0).getParentFile();
-
-        // ── Verifica colisões na pasta escolhida ───────────────────────
-        List<String> willOverwrite = new ArrayList<>();
-        for (File src : imageFiles) {
-            File candidate = new File(destDir, baseName(src.getName()) + "." + ext);
-            if (candidate.exists()) willOverwrite.add(candidate.getName());
-        }
-
-        if (!willOverwrite.isEmpty()) {
-            String warning = destDir.equals(originalDir)
-                    ? "A pasta escolhida é a mesma dos originais."
-                    : "A pasta de destino já contém arquivos com o mesmo nome.";
-            int confirm = JOptionPane.showConfirmDialog(this,
-                    "<html>" + warning + " Os seguintes arquivos serão sobrescritos:<br><br>"
-                            + String.join("<br>", willOverwrite)
-                            + "<br><br>Deseja continuar?</html>",
-                    "Confirmar sobrescrita",
-                    JOptionPane.YES_NO_OPTION,
-                    JOptionPane.WARNING_MESSAGE);
-            if (confirm != JOptionPane.YES_OPTION) return;
-        }
-
-        int total = imageFiles.size();
-        writeBatch(idx -> {
-            File src  = imageFiles.get(idx);
-            File dest = new File(destDir, baseName(src.getName()) + "." + ext);
-            return new SaveTarget(dest, fmt);
-        }, total, List.of());
-    }
-
-
-// ═══════════════════════════════════════════════════════════════════
-// 3. writeBatch()  —  processa e grava todas as imagens em background
-// ═══════════════════════════════════════════════════════════════════
-
-    /** Associa arquivo de destino e formato para cada índice do lote. */
-    private record SaveTarget(File file, String format) {}
-
-    /**
-     * @param targetResolver  dado o índice, retorna destino + formato
-     * @param total           número de imagens a processar
-     * @param skip            nomes a pular (formatos não suportados no saveAllImages)
-     */
-    private void writeBatch(IntFunction<SaveTarget> targetResolver,
-                            int total, List<String> skip) {
-
-        // ── Diálogo de progresso ───────────────────────────────────────
-        JDialog progress = new JDialog(this, "Salvando…", false);
-        progress.setSize(360, 110);
-        progress.setLocationRelativeTo(this);
-        progress.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
-        progress.setResizable(false);
-
-        JLabel statusLabel = new JLabel("Iniciando…", SwingConstants.CENTER);
-        JProgressBar bar   = new JProgressBar(0, total);
-        bar.setStringPainted(true);
-
-        JPanel pp = new JPanel(new BorderLayout(8, 8));
-        pp.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
-        pp.add(statusLabel, BorderLayout.NORTH);
-        pp.add(bar,         BorderLayout.CENTER);
-        progress.add(pp);
-        progress.setVisible(true);
-
-        // ── Worker ─────────────────────────────────────────────────────
-        new SwingWorker<List<String>, Integer>() {    // publica índice concluído
-
-            final List<String> errors = new ArrayList<>();
-
-            @Override
-            protected List<String> doInBackground() {
-                for (int i = 0; i < total; i++) {
-                    File src = imageFiles.get(i);
-                    if (skip.contains(src.getName())) { publish(i); continue; }
-
-                    SaveTarget t = targetResolver.apply(i);
-                    try {
-                        BufferedImage result = applyEnabledActions(images.get(i));
-
-                        if (t.format().equals("jpeg")) {
-                            BufferedImage rgb = new BufferedImage(
-                                    result.getWidth(), result.getHeight(),
-                                    BufferedImage.TYPE_INT_RGB);
-                            Graphics2D g2 = rgb.createGraphics();
-                            g2.drawImage(result, 0, 0, null);
-                            g2.dispose();
-                            result = rgb;
-                        }
-
-                        if (!ImageIO.write(result, t.format(), t.file()))
-                            throw new IOException("Sem writer para: " + t.format());
-
-                    } catch (Exception ex) {
-                        errors.add(src.getName() + ": " + ex.getMessage());
-                    }
-                    publish(i);   // notifica progresso
-                }
-                return errors;
-            }
-
-            @Override
-            protected void process(List<Integer> chunks) {
-                int last = chunks.get(chunks.size() - 1);
-                bar.setValue(last + 1);
-                statusLabel.setText("Salvando " + (last + 1) + " de " + total + "…");
-            }
-
-            @Override
-            protected void done() {
-                progress.dispose();
-                try {
-                    List<String> errs = get();
-                    if (errs.isEmpty()) {
-                        JOptionPane.showMessageDialog(ImageEditorFrame.this,
-                                total + " imagem(s) salva(s) com sucesso.",
-                                "Concluído", JOptionPane.INFORMATION_MESSAGE);
-                    } else {
-                        JOptionPane.showMessageDialog(ImageEditorFrame.this,
-                                "<html>Concluído com " + errs.size() + " erro(s):<br><br>"
-                                        + String.join("<br>", errs) + "</html>",
-                                "Erros ao salvar", JOptionPane.WARNING_MESSAGE);
-                    }
-                } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(ImageEditorFrame.this,
-                            "Erro inesperado:\n" + ex.getMessage(),
-                            "Erro", JOptionPane.ERROR_MESSAGE);
-                }
-            }
-        }.execute();
-    }
-
     private void saveAllImages2() {
         saveManager.saveAll(
                 images,
                 imageFiles,
                 this::applyEnabledActions,
-                null   // onDone: nenhuma ação extra necessária após salvar
+               this::onSaveDone
         );
+        editActionPerformed = true;
     }
     private void saveAllImagesAs2() {
         saveManager.saveAllAs(
@@ -965,8 +645,14 @@ public class ImageEditorFrame extends JFrame {
                 imageFiles,
                 imageFiles.get(0).getParentFile(),
                 this::applyEnabledActions,
-                null
+                this::onSaveDone
         );
+        editActionPerformed = true;
+    }
+
+    // onDone() substituído por onSaveDone(List<File>)
+    private void onSaveDone(List<File> savedFiles) {
+        savedFiles.forEach(this::markAsEdited); // ← marca TODOS os salvos
     }
 
 }
