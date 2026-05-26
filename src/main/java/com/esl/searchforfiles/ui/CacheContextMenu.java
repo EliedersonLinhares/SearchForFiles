@@ -1,6 +1,7 @@
 package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
+import com.esl.searchforfiles.configuration.UIConfig;
 
 import javax.swing.*;
 import java.awt.*;
@@ -25,7 +26,7 @@ public class CacheContextMenu extends JPopupMenu {
     private void createMenuItems() {
         // ===== SEÇÃO: INFORMAÇÕES =====
         JMenuItem infoItem = new JMenuItem("📊 Informações do Cache");
-        infoItem.setFont(new Font("SansSerif", Font.BOLD, 12));
+        infoItem.setFont(UIConfig.FONT_SMALL);
         infoItem.addActionListener(e -> showCacheInfo());
         add(infoItem);
 

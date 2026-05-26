@@ -4,6 +4,7 @@ package com.esl.searchforfiles.ui;
 import com.esl.searchforfiles.configuration.ConfigManager;
 import com.esl.searchforfiles.actions.fileTransfer.FileTransferHandler;
 import com.esl.searchforfiles.actions.fileTransfer.TransferDropHelper;
+import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.model.SearchCriteria;
@@ -22,7 +23,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
+
 public class SubFolderPanel extends JPanel {
 
     private static final Color BG_COLOR     = new Color(45, 45, 45);
@@ -39,10 +40,10 @@ public class SubFolderPanel extends JPanel {
     private SearchController currentController;
 
     // ── Dados e paginação ──────────────────────────────────────────
-    private List<FileInfo> allFolders    = new ArrayList<>();
-    private List<FileInfo> filteredList  = new ArrayList<>();
-    private int            currentPage   = 0;   // 0-based
-    private boolean        resetting     = false;
+    private List<FileInfo> allFolders   = new ArrayList<>();
+    private List<FileInfo> filteredList = new ArrayList<>();
+    private int            currentPage  = 0;
+    private boolean        resetting    = false;
 
     // ── UI ─────────────────────────────────────────────────────────
     private final JPanel      listPanel;
@@ -50,6 +51,7 @@ public class SubFolderPanel extends JPanel {
     private final JLabel      titleLabel;
     private final JTextField  searchField;
     private final JLabel      pageLabel;
+    private final JLabel      emptyLabel;
     private final JButton     btnFirst, btnPrev, btnNext, btnLast;
 
     private FolderClickListener clickListener;
@@ -60,17 +62,16 @@ public class SubFolderPanel extends JPanel {
     public SubFolderPanel(FileExplorerSwing fileExplorerSwing, ConfigManager configManager) {
         this.fileExplorerSwing = fileExplorerSwing;
         this.configManager     = configManager;
-
-        // Restaura ordenação salva
         this.sortField = configManager.getSubfolderSortField();
         this.sortOrder = configManager.getSubfolderSortOrder();
+
         setLayout(new BorderLayout(0, 0));
         setBackground(BG_COLOR);
         setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, new Color(70, 70, 70)));
 
         // ── Cabeçalho ──────────────────────────────────────────────
         titleLabel = new JLabel(buildTitle());
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        titleLabel.setFont(UIConfig.FONT_SMALL);
         titleLabel.setForeground(HEADER_COLOR);
         titleLabel.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 8));
         titleLabel.setBackground(new Color(38, 38, 38));
@@ -90,7 +91,7 @@ public class SubFolderPanel extends JPanel {
         searchField.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(70, 70, 70)),
                 BorderFactory.createEmptyBorder(4, 8, 4, 8)));
-        searchField.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        searchField.setFont(UIConfig.FONT_DEFAULT);
         searchField.getDocument().addDocumentListener(new DocumentListener() {
             @Override public void insertUpdate(DocumentEvent e)  { applyFilter(); }
             @Override public void removeUpdate(DocumentEvent e)  { applyFilter(); }
@@ -110,11 +111,7 @@ public class SubFolderPanel extends JPanel {
 
         pageLabel = new JLabel("", SwingConstants.CENTER);
         pageLabel.setForeground(new Color(180, 180, 180));
-        pageLabel.setFont(new Font("SansSerif", Font.PLAIN, 10));
-
-        JPanel pagBar = new JPanel(new BorderLayout(2, 0));
-        pagBar.setBackground(new Color(38, 38, 38));
-        pagBar.setBorder(BorderFactory.createEmptyBorder(3, 4, 3, 4));
+        pageLabel.setFont(UIConfig.FONT_SMALL);
 
         JPanel btnGroup = new JPanel(new GridLayout(1, 4, 2, 0));
         btnGroup.setBackground(new Color(38, 38, 38));
@@ -123,6 +120,9 @@ public class SubFolderPanel extends JPanel {
         btnGroup.add(btnNext);
         btnGroup.add(btnLast);
 
+        JPanel pagBar = new JPanel(new BorderLayout(2, 0));
+        pagBar.setBackground(new Color(38, 38, 38));
+        pagBar.setBorder(BorderFactory.createEmptyBorder(3, 4, 3, 4));
         pagBar.add(pageLabel, BorderLayout.CENTER);
         pagBar.add(btnGroup,  BorderLayout.EAST);
 
@@ -134,12 +134,24 @@ public class SubFolderPanel extends JPanel {
         northPanel.add(pagBar,      BorderLayout.SOUTH);
         add(northPanel, BorderLayout.NORTH);
 
+        // ── Mensagem de vazio ───────────────────────────────────────
+        emptyLabel = new JLabel("Nenhuma subpasta", SwingConstants.CENTER);
+        emptyLabel.setForeground(new Color(120, 120, 120));
+        emptyLabel.setFont(UIConfig.FONT_SMALL);
+        emptyLabel.setVisible(false);
+
         // ── Lista ───────────────────────────────────────────────────
         listPanel = new JPanel();
         listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
         listPanel.setBackground(BG_COLOR);
 
-        scrollPane = new JScrollPane(listPanel);
+        // Wrapper que contém tanto a lista quanto o emptyLabel
+        JPanel centerWrapper = new JPanel(new BorderLayout());
+        centerWrapper.setBackground(BG_COLOR);
+        centerWrapper.add(emptyLabel, BorderLayout.NORTH);
+        centerWrapper.add(listPanel,  BorderLayout.CENTER);
+
+        scrollPane = new JScrollPane(centerWrapper);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.getVerticalScrollBar().setUnitIncrement(12);
         scrollPane.setBackground(BG_COLOR);
@@ -147,12 +159,12 @@ public class SubFolderPanel extends JPanel {
         add(scrollPane, BorderLayout.CENTER);
 
         setPreferredSize(new Dimension(200, 0));
-        setVisible(false);
         setTransferHandler(new FileTransferHandler());
     }
 
     // ── API pública ────────────────────────────────────────────────
 
+    public void setParentSplit(JSplitPane split) { /* mantido por compatibilidade */ }
     public void setTransferManager(TransferService tm) { this.transferService = tm; }
     public void setFolderClickListener(FolderClickListener l) { this.clickListener = l; }
 
@@ -163,6 +175,8 @@ public class SubFolderPanel extends JPanel {
         resetting = true;
         searchField.setText("");
         resetting = false;
+
+        showEmpty(false); // limpa estado enquanto carrega
 
         SwingWorker<List<FileInfo>, Void> worker = new SwingWorker<>() {
             @Override
@@ -180,33 +194,21 @@ public class SubFolderPanel extends JPanel {
                 try {
                     List<FileInfo> folders = get().stream()
                             .filter(f -> !f.getPath().equalsIgnoreCase(parentPath))
-                            .collect(Collectors.toList());
+                            .toList();
 
                     allFolders   = folders;
                     filteredList = folders;
-
-                    if (folders.isEmpty()) {
-                        setVisible(false);
-                    } else {
-                        currentPage = 0;
-                        renderCurrentPage();
-                        setVisible(true);
-                    }
-                    revalidateParent();
+                    currentPage  = 0;
+                    renderCurrentPage();
 
                 } catch (Exception ex) {
-                    setVisible(false);
-                    revalidateParent();
+                    allFolders   = new ArrayList<>();
+                    filteredList = new ArrayList<>();
+                    renderCurrentPage();
                 }
             }
         };
         worker.execute();
-    }
-
-    public void hide() {
-        if (!isVisible()) return;
-//        setVisible(false);
-        revalidateParent();
     }
 
     // ── Paginação ──────────────────────────────────────────────────
@@ -221,43 +223,52 @@ public class SubFolderPanel extends JPanel {
     }
 
     private void renderCurrentPage() {
-        int from = currentPage * PAGE_SIZE;
-        int to   = Math.min(from + PAGE_SIZE, filteredList.size());
-        List<FileInfo> page = filteredList.subList(from, to);
-
         listPanel.removeAll();
-        listPanel.add(Box.createVerticalStrut(4));
-        for (FileInfo fi : page) {
-            listPanel.add(createFolderRow(fi));
-            listPanel.add(Box.createVerticalStrut(1));
+
+        if (filteredList.isEmpty()) {
+            showEmpty(true);
+        } else {
+            showEmpty(false);
+            int from = currentPage * PAGE_SIZE;
+            int to   = Math.min(from + PAGE_SIZE, filteredList.size());
+            listPanel.add(Box.createVerticalStrut(4));
+            for (FileInfo fi : filteredList.subList(from, to)) {
+                listPanel.add(createFolderRow(fi));
+                listPanel.add(Box.createVerticalStrut(1));
+            }
+            listPanel.add(Box.createVerticalGlue());
         }
-        listPanel.add(Box.createVerticalGlue());
+
         listPanel.revalidate();
         listPanel.repaint();
-
-        // Volta ao topo
         scrollPane.getVerticalScrollBar().setValue(0);
-
         updateTitle(filteredList.size());
         updatePagination();
     }
 
+    private void showEmpty(boolean empty) {
+        String q = searchField.getText().trim();
+        emptyLabel.setText(empty
+                ? (q.isEmpty() ? "Nenhuma subpasta" : "Nenhum resultado para \"" + q + "\"")
+                : "");
+        emptyLabel.setVisible(empty);
+        listPanel.setVisible(!empty);
+    }
+
     private void updatePagination() {
-        int total = totalPages();
-        boolean multiPage = total > 1;
+        int total     = totalPages();
+        boolean multi = total > 1;
 
-        pageLabel.setText(multiPage ? (currentPage + 1) + "/" + total : "");
-        btnFirst.setEnabled(multiPage && currentPage > 0);
-        btnPrev .setEnabled(multiPage && currentPage > 0);
-        btnNext .setEnabled(multiPage && currentPage < total - 1);
-        btnLast .setEnabled(multiPage && currentPage < total - 1);
-
-        // Esconde a barra inteira se há só uma página
-        btnFirst.setVisible(multiPage);
-        btnPrev .setVisible(multiPage);
-        btnNext .setVisible(multiPage);
-        btnLast .setVisible(multiPage);
-        pageLabel.setVisible(multiPage);
+        pageLabel.setText(multi ? (currentPage + 1) + "/" + total : "");
+        btnFirst.setEnabled(multi && currentPage > 0);
+        btnPrev .setEnabled(multi && currentPage > 0);
+        btnNext .setEnabled(multi && currentPage < total - 1);
+        btnLast .setEnabled(multi && currentPage < total - 1);
+        btnFirst.setVisible(multi);
+        btnPrev .setVisible(multi);
+        btnNext .setVisible(multi);
+        btnLast .setVisible(multi);
+        pageLabel.setVisible(multi);
     }
 
     // ── Filtro ─────────────────────────────────────────────────────
@@ -267,12 +278,10 @@ public class SubFolderPanel extends JPanel {
         String q = searchField.getText().trim().toLowerCase();
         filteredList = allFolders.stream()
                 .filter(f -> f.getName().toLowerCase().contains(q))
-                .collect(Collectors.toList());
+                .toList();
         currentPage = 0;
         renderCurrentPage();
-
-        if (filteredList.isEmpty()) setVisible(false);
-        else { setVisible(true); revalidateParent(); }
+        SwingUtilities.invokeLater(searchField::requestFocusInWindow);
     }
 
     // ── Ordenação ──────────────────────────────────────────────────
@@ -319,7 +328,8 @@ public class SubFolderPanel extends JPanel {
     // ── Helpers ────────────────────────────────────────────────────
 
     private void updateTitle(int total) {
-        titleLabel.setText(buildTitle() + " (" + total + ")");
+        String suffix = filteredList.isEmpty() ? "" : " (" + total + ")";
+        titleLabel.setText(buildTitle() + suffix);
     }
 
     private String buildTitle() {
@@ -332,21 +342,15 @@ public class SubFolderPanel extends JPanel {
         return "📁 Subpastas · " + field + " " + arrow;
     }
 
-    private void revalidateParent() {
-        Container p = getParent();
-        if (p != null) p.revalidate();
-    }
-
     private JButton makePageBtn(String text) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("SansSerif", Font.BOLD, 11));
+        btn.setFont(UIConfig.FONT_SMALL);
         btn.setForeground(Color.WHITE);
         btn.setBackground(BTN_COLOR);
         btn.setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
         btn.setFocusPainted(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btn.setEnabled(false);
-
         btn.addMouseListener(new MouseAdapter() {
             @Override public void mouseEntered(MouseEvent e) {
                 if (btn.isEnabled()) btn.setBackground(HEADER_COLOR);
@@ -377,7 +381,7 @@ public class SubFolderPanel extends JPanel {
         String displayName = fi.getName().isEmpty() ? fi.getPath() : fi.getName();
         JLabel nameLabel = new JLabel(displayName);
         nameLabel.setForeground(Color.WHITE);
-        nameLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        nameLabel.setFont(UIConfig.FONT_SMALL);
         nameLabel.setToolTipText(fi.getPath());
         nameLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 

@@ -1,6 +1,7 @@
 package com.esl.searchforfiles.actions.renameFile;
 
 
+import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.ui.ResultsPanel;
 
@@ -90,7 +91,7 @@ public class RenameFrame extends JFrame {
 
         // Campo de texto no topo
         nameField = new JTextField();
-        nameField.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        nameField.setFont(UIConfig.FONT_DEFAULT);
         nameField.setBackground(new Color(55, 55, 55));
         nameField.setForeground(Color.WHITE);
         nameField.setCaretColor(Color.WHITE);
@@ -135,7 +136,7 @@ public class RenameFrame extends JFrame {
         tagList = new JList<>(listModel);
         tagList.setBackground(new Color(50, 50, 50));
         tagList.setForeground(new Color(200, 200, 200));
-        tagList.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        tagList.setFont(UIConfig.FONT_SMALL);
         tagList.setFixedCellHeight(28);
         tagList.setSelectionBackground(new Color(60, 100, 160));
         tagList.setCellRenderer(new TagCellRenderer());
@@ -195,7 +196,7 @@ public class RenameFrame extends JFrame {
         table.setForeground(new Color(210, 210, 210));
         table.setGridColor(new Color(65, 65, 65));
         table.setRowHeight(ThumbnailCellRenderer.ROW_HEIGHT);
-        table.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        table.setFont(UIConfig.FONT_SMALL);
         table.setSelectionBackground(new Color(50, 80, 130));
         table.setShowHorizontalLines(true);
         table.setShowVerticalLines(false);
@@ -204,7 +205,7 @@ public class RenameFrame extends JFrame {
         // Cabeçalho
         table.getTableHeader().setBackground(new Color(38, 38, 38));
         table.getTableHeader().setForeground(new Color(150, 150, 150));
-        table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 11));
+        table.getTableHeader().setFont(UIConfig.FONT_SMALL);
         table.getTableHeader().setBorder(
                 BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(70, 70, 70)));
         table.getTableHeader().setReorderingAllowed(false);
@@ -475,7 +476,7 @@ public class RenameFrame extends JFrame {
     // ── Helpers ────────────────────────────────────────────────────
     private JLabel sectionLabel(String text) {
         JLabel lbl = new JLabel(text);
-        lbl.setFont(new Font("SansSerif", Font.BOLD, 10));
+        lbl.setFont(UIConfig.FONT_XS_SMALL);
         lbl.setForeground(new Color(120, 120, 120));
         lbl.setBorder(BorderFactory.createEmptyBorder(4, 0, 2, 0));
         return lbl;
@@ -483,7 +484,7 @@ public class RenameFrame extends JFrame {
 
     private JButton makeBtn(String text, Color borderColor) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        btn.setFont(UIConfig.FONT_DEFAULT);
         btn.setForeground(Color.WHITE);
         btn.setBackground(new Color(55, 55, 55));
         btn.setBorder(BorderFactory.createCompoundBorder(

@@ -1,6 +1,7 @@
 package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.configuration.MultiFileTransferable;
+import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.service.IconService;
 import com.esl.searchforfiles.actions.fileTransfer.TransferService;
@@ -116,7 +117,7 @@ public class DragAction {
 
         // Badge de contagem
         String badge = String.valueOf(count);
-        g2.setFont(new Font("SansSerif", Font.BOLD, 18));
+        g2.setFont(UIConfig.FONT_TITLE);
         FontMetrics fm = g2.getFontMetrics();
         int bw = fm.stringWidth(badge) + 10;
         int bh = fm.getHeight() + 2;
@@ -171,7 +172,7 @@ public class DragAction {
         g2.drawImage(iconImg, (cardW - imgSize) / 2, 4, imgSize, imgSize, null);
 
         String name = shortName(displayFile.getName(), 12);
-        g2.setFont(new Font("SansSerif", Font.BOLD, 10));
+        g2.setFont(UIConfig.FONT_XS_SMALL);
         g2.setColor(Color.WHITE);
         FontMetrics fm = g2.getFontMetrics();
         g2.drawString(name, (cardW - fm.stringWidth(name)) / 2, imgSize + 4 + fm.getAscent());

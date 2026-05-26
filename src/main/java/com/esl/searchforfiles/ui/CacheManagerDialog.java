@@ -1,6 +1,7 @@
 package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
+import com.esl.searchforfiles.configuration.UIConfig;
 
 import javax.swing.*;
 import java.awt.*;
@@ -53,7 +54,7 @@ public class CacheManagerDialog extends JDialog {
         JPanel locationPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         locationPanel.add(new JLabel("Localização: "));
         cacheLocationLabel = new JLabel();
-        cacheLocationLabel.setFont(new Font("Monospaced", Font.PLAIN, 11));
+        cacheLocationLabel.setFont(UIConfig.FONT_SMALL);
         locationPanel.add(cacheLocationLabel);
         panel.add(locationPanel);
 
@@ -63,7 +64,7 @@ public class CacheManagerDialog extends JDialog {
         JPanel countPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         countPanel.add(new JLabel("Thumbnails salvos: "));
         thumbnailCountLabel = new JLabel("0");
-        thumbnailCountLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        thumbnailCountLabel.setFont(UIConfig.FONT_SMALL);
         countPanel.add(thumbnailCountLabel);
         panel.add(countPanel);
 
@@ -71,7 +72,7 @@ public class CacheManagerDialog extends JDialog {
         JPanel sizePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         sizePanel.add(new JLabel("Tamanho total: "));
         cacheSizeLabel = new JLabel("0 B");
-        cacheSizeLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        cacheSizeLabel.setFont(UIConfig.FONT_SMALL);
         sizePanel.add(cacheSizeLabel);
         panel.add(sizePanel);
 

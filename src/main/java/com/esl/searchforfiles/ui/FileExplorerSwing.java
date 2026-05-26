@@ -15,6 +15,10 @@ import com.esl.searchforfiles.actions.fileTransfer.TransferService;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
@@ -92,7 +96,7 @@ public class FileExplorerSwing extends JFrame {
         );
 
         try {
-            controller = new SearchController(this, indexFilterService);
+            controller = new SearchController(this, indexFilterService,this);
             controller.setFileSystemChangeListener(this::onFileSystemChanged);
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this,
@@ -211,10 +215,13 @@ public class FileExplorerSwing extends JFrame {
         JSplitPane rightSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                 centerPanel, subFolderPanel);
         rightSplit.setResizeWeight(1.0);      // resultados expande, subpastas fixo
-
         rightSplit.setDividerSize(4);
         rightSplit.setContinuousLayout(true);
         // Divider location em pixels após o frame estar visível (veja abaixo)
+
+        subFolderPanel.setParentSplit(rightSplit); // ← adicione esta linha
+
+
 
         // 2. mainSplit: leftPanel + rightSplit
         JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
@@ -232,12 +239,57 @@ public class FileExplorerSwing extends JFrame {
         showWelcomeMessage();
         setVisible(true);
 
+
+// Salva posição do divider sempre que o usuário o mover.
+// Salvamos a largura do subFolderPanel (rightSplit.getWidth() - dividerPos)
+// em vez da posição absoluta do divider, pois ela é invariante ao resize da janela.
+
+        // Flag — só salva após a inicialização estar completa
+        final boolean[] splitReady = {false};
+
+        rightSplit.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, e -> {
+            if (!splitReady[0]) return;  // ignora eventos da inicialização
+
+            int divPos = (int) e.getNewValue();
+            int totalW = rightSplit.getWidth();
+            if (divPos > 0 && totalW > 0) {
+                int subFolderWidth = totalW - divPos - rightSplit.getDividerSize();
+                if (subFolderWidth > 0)
+                    configManager.saveRightSplitPos(subFolderWidth);
+            }
+        });
+
+// ── Restaura posição salva exatamente uma vez, quando o frame estiver pronto ──
+
+
+// ── Restaura posição salva exatamente uma vez, quando o frame estiver pronto ──
+
+        addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowOpened(WindowEvent e) {
+                // windowOpened dispara uma única vez — quando o frame é exibido
+                // pela primeira vez. Nunca dispara em maximize/restore.
+                SwingUtilities.invokeLater(() -> SwingUtilities.invokeLater(() -> {
+                    int totalW = rightSplit.getWidth();
+                    if (totalW <= 0) return;
+
+                    int subFolderWidth = configManager.getRightSplitPos();
+                    if (subFolderWidth <= 0) subFolderWidth = 200;
+
+                    int divPos = totalW - subFolderWidth - rightSplit.getDividerSize();
+                    rightSplit.setDividerLocation(Math.max(0, divPos));
+
+                    // Libera o listener somente após a posição ser restaurada
+                    SwingUtilities.invokeLater(() -> splitReady[0] = true);
+                }));
+            }
+        });
         // Define divider do rightSplit após o frame estar visível
         // (só assim getWidth() tem valor real)
-        SwingUtilities.invokeLater(() -> {
-            int totalWidth = rightSplit.getWidth();
-            rightSplit.setDividerLocation((int) (totalWidth * 0.80));
-        });
+//        SwingUtilities.invokeLater(() -> {
+//            int totalWidth = rightSplit.getWidth();
+//            rightSplit.setDividerLocation((int) (totalWidth * 0.80));
+//        });
 
 
         transferService = new TransferService();
@@ -315,27 +367,26 @@ public class FileExplorerSwing extends JFrame {
      * @param pushHistory true  = navegação normal (empurra no histórico)
      *                    false = movimento pelo histórico (back/forward)
      */
-    private void navigateTo(String path, boolean pushHistory) {
-        selectedPath = path;
 
+
+    public void navigateTo(String path, boolean pushHistory) {
+        selectedPath = path;
         if (pushHistory) navigationHistory.push(path);
 
         searchPanel.updateNavigationState(navigationHistory);
         bottomIndicatorPanel.showSyncIndicator("🔄 Verificando mudanças...");
         bottomIndicatorPanel.setWorking(true);
 
-        // Subpastas carregam independentemente
+        searchPanel.clearSearchTerm();
         subFolderPanel.loadSubfolders(selectedPath, controller);
 
-        // CORREÇÃO: busca executa imediatamente com o que há no índice,
-        // sem esperar a sync terminar
         currentPage = 1;
         performCurrentSearch();
 
-        // Sync roda em paralelo e atualiza os resultados sozinha
-        // via refreshCurrentSearch() que já existe no SearchController
         controller.updateMonitoredFolder(path, bottomIndicatorPanel.createSyncCallback(path));
     }
+
+
     /**
      * Chamado quando o sistema de arquivos muda
      * NOVO MÉTODO
@@ -395,14 +446,10 @@ public class FileExplorerSwing extends JFrame {
         );
     }
 
-    public void performCurrentSearch() {
-        String searchTerm = searchPanel.getSearchTerm();
 
-        // NOVO: se há termo de busca ativo, esconde o SubFolderPanel
-        //       (busca textual é sempre recursiva por intenção do usuário)
-        if (searchTerm != null && !searchTerm.isEmpty()) {
-            subFolderPanel.hide();
-        }
+    public void performCurrentSearch() {
+        // Sem mais lógica de hide/show do subFolderPanel aqui
+        String searchTerm = searchPanel.getSearchTerm();
 
         onSearchWithPagination(
                 searchTerm,
@@ -411,7 +458,7 @@ public class FileExplorerSwing extends JFrame {
                 searchPanel.getSortOrder(),
                 configManager.getSavedStarRating(),
                 searchPanel.getTagFilter(),
-                showSubfolderContents,   // NOVO — passa flag de subpastas
+                showSubfolderContents,
                 currentPage,
                 paginationPanel.getPageSize()
         );

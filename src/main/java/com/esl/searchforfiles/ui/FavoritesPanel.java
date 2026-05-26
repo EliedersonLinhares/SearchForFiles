@@ -1,6 +1,7 @@
 package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.actions.fileTransfer.TransferDropHelper;
+import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.service.FavoritesService;
 import com.esl.searchforfiles.service.IconService;
@@ -40,7 +41,7 @@ public class FavoritesPanel extends JPanel {
 
         // JList
         favoritesList = new JList<>(listModel);
-        favoritesList.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        favoritesList.setFont(UIConfig.FONT_SMALL);
         favoritesList.setCellRenderer(new FavoritesCellRenderer());
         favoritesList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
@@ -124,7 +125,7 @@ public class FavoritesPanel extends JPanel {
         // Painel inferior com botão limpar
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
         JButton clearButton = new JButton("Limpar Todos");
-        clearButton.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        clearButton.setFont(UIConfig.FONT_DEFAULT);
         clearButton.addActionListener(e -> clearAllFavorites());
         bottomPanel.add(clearButton);
         add(bottomPanel, BorderLayout.SOUTH);

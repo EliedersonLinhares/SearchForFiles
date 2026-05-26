@@ -1,5 +1,6 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.configuration.WrapLayout;
 import com.esl.searchforfiles.model.OrderBy;
 import com.esl.searchforfiles.model.SortOption;
@@ -52,7 +53,7 @@ public class SearchPanel extends JPanel {
 
         // NOVO: botões de navegação ─────────────────────────────────
         backButton = new JButton("◀");
-        backButton.setFont(new Font("SansSerif", Font.BOLD, 13));
+        backButton.setFont(UIConfig.FONT_DEFAULT_BOLD);
         backButton.setToolTipText("Voltar (Alt+←)");
         backButton.setEnabled(false);
         backButton.setPreferredSize(new Dimension(36, 25));
@@ -61,7 +62,7 @@ public class SearchPanel extends JPanel {
         });
 
         forwardButton = new JButton("▶");
-        forwardButton.setFont(new Font("SansSerif", Font.BOLD, 13));
+        forwardButton.setFont(UIConfig.FONT_DEFAULT_BOLD);
         forwardButton.setToolTipText("Avançar (Alt+→)");
         forwardButton.setEnabled(false);
         forwardButton.setPreferredSize(new Dimension(36, 25));
@@ -76,7 +77,7 @@ public class SearchPanel extends JPanel {
         sortByCombo = new JComboBox<>(SortOption.values());
         //  sortByCombo.setSelectedItem(SortOption.DATE); // Padrão: Nome
         sortByCombo.setSelectedItem(SortOption.fromDisplayName(fileExplorerSwing.getConfigManager().getSavedSortBy())); // Padrão: Nome
-        sortByCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        sortByCombo.setFont(UIConfig.FONT_DEFAULT);
         sortByCombo.setToolTipText("Ordenar por");
         sortByCombo.setPreferredSize(new Dimension(160, 25));
         sortByCombo.addActionListener(e -> {
@@ -87,7 +88,7 @@ public class SearchPanel extends JPanel {
         // NOVO: ComboBox de ordem (crescente/decrescente)
         sortOrderCombo = new JComboBox<>(OrderBy.values());
         sortOrderCombo.setSelectedItem(OrderBy.fromDisplayName(fileExplorerSwing.getConfigManager().getSavedOrderBy())); // Padrão: Crescente
-        sortOrderCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        sortOrderCombo.setFont(UIConfig.FONT_DEFAULT);
         sortOrderCombo.setToolTipText("Ordem de classificação");
         sortOrderCombo.setPreferredSize(new Dimension(120, 25));
         sortOrderCombo.addActionListener(e -> {
@@ -97,7 +98,7 @@ public class SearchPanel extends JPanel {
 
         thumbSizeCombo = new JComboBox<>(ThumbnailSize.values());
         thumbSizeCombo.setSelectedItem(ThumbnailSize.fromLabel(fileExplorerSwing.getConfigManager().getSavedThumbnailsSize()));
-        thumbSizeCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        thumbSizeCombo.setFont(UIConfig.FONT_DEFAULT);
         thumbSizeCombo.setToolTipText("Tamanho das miniaturas");
         thumbSizeCombo.setPreferredSize(new Dimension(130, 25));
         thumbSizeCombo.addActionListener(e -> {
@@ -116,7 +117,7 @@ public class SearchPanel extends JPanel {
                 "TODOS", "AUDIO", "VIDEO", "IMAGE", "DOCUMENT", "COMPRESSED", "EXECUTABLE", "CONFIGURATION", "FOLDER"
         });
         filterBox.setSelectedItem(fileExplorerSwing.getConfigManager().getSavedFileType());
-        filterBox.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        filterBox.setFont(UIConfig.FONT_DEFAULT);
         filterBox.setToolTipText("Filtrar por tipo");
         filterBox.setPreferredSize(new Dimension(120, 25));
         filterBox.addActionListener(e -> {
@@ -127,12 +128,12 @@ public class SearchPanel extends JPanel {
 
         // Botão de busca
         searchButton = new JButton("🔍 Buscar");
-        searchButton.setFont(new Font("SansSerif", Font.BOLD, 14));
+        searchButton.setFont(UIConfig.FONT_DEFAULT_BOLD);
         searchButton.addActionListener(e -> triggerSearch());
 
         // Botão de indexar
         indexButton = new JButton("📊 Indexar");
-        indexButton.setFont(new Font("SansSerif", Font.BOLD, 14));
+        indexButton.setFont(UIConfig.FONT_DEFAULT_BOLD);
         indexButton.setToolTipText("Indexar pasta selecionada");
         indexButton.addActionListener(e -> triggerIndex());
 
@@ -141,7 +142,7 @@ public class SearchPanel extends JPanel {
                 "★ Qualquer", "★ 1+", "★★ 2+", "★★★ 3+", "★★★★ 4+", "★★★★★ 5"
         });
         ratingFilterCombo.setSelectedItem(fileExplorerSwing.getConfigManager().getSavedStarRating());
-        ratingFilterCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        ratingFilterCombo.setFont(UIConfig.FONT_DEFAULT);
         ratingFilterCombo.setToolTipText("Filtrar por avaliação mínima");
         ratingFilterCombo.setPreferredSize(new Dimension(120, 25));
         ratingFilterCombo.addActionListener(e -> {
@@ -151,30 +152,30 @@ public class SearchPanel extends JPanel {
 
         // NOVO: Campo de texto para filtro por tag ──────────────────
         tagFilterField = new JTextField();
-        tagFilterField.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        tagFilterField.setFont(UIConfig.FONT_DEFAULT);
         tagFilterField.setToolTipText("Filtrar por tag (ex: ferias)");
         tagFilterField.setPreferredSize(new Dimension(110, 25));
         tagFilterField.addActionListener(e -> triggerSearch());
 
 
         transferButton = new JButton("✂️ Selecionar");
-        transferButton.setFont(new Font("SansSerif", Font.BOLD, 14));
+        transferButton.setFont(UIConfig.FONT_DEFAULT_BOLD);
         transferButton.setToolTipText("Ativar modo de transferência de arquivos");
         transferButton.addActionListener(e -> fileExplorerSwing.toggleTransferMode());
 
         editModeBtn = new JButton("🖼 Editar imagens");
-        editModeBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        editModeBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
         editModeBtn.setToolTipText("Ativar modo de edição de Imagens");
         editModeBtn.addActionListener(e -> fileExplorerSwing.toggleEditMode());
 
 
         renameFilesBtn = new JButton("🗒 Renomear arquivos");
-        renameFilesBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        renameFilesBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
         renameFilesBtn.setToolTipText("Ativar modo para renomear arquivos");
         renameFilesBtn.addActionListener(e -> fileExplorerSwing.toggleRenameModeFiles());
 
         renameFoldersBtn = new JButton("📁 Renomear pastas");
-        renameFoldersBtn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        renameFoldersBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
         renameFoldersBtn.setToolTipText("Ativar modo para renomear pastas");
         renameFoldersBtn.addActionListener(e -> fileExplorerSwing.toggleRenameModeFolders());
 
@@ -192,7 +193,7 @@ public class SearchPanel extends JPanel {
         wrapPanel.add(searchField);
         wrapPanel.add(makeSeparator());
 
-        Font font = new Font("SansSerif", Font.PLAIN, 14);
+        Font font = UIConfig.FONT_DEFAULT;
 
 // ── Grupo 3: Ordenação ────────────────────────────────────────────────────────
         JLabel typeLabel = new JLabel("Ordenar:");
@@ -250,7 +251,7 @@ public class SearchPanel extends JPanel {
     // ── Helpers (adicione como métodos privados na classe) ────────────────────────
     private JLabel label(String text) {
         JLabel l = new JLabel(text);
-        l.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        l.setFont(UIConfig.FONT_XS_SMALL);
         return l;
     }
 
@@ -262,19 +263,6 @@ public class SearchPanel extends JPanel {
 
 
     // ── API pública nova ──────────────────────────────────────────
-
-
-
-//    public void toggleTransferMode() {
-//        if (transferService.isTransferModeActive()) {
-//         fileExplorerSwing.getResultsPanel().exitTransferMode();
-//        } else {
-//            fileExplorerSwing.getResultsPanel().enterTransferMode(transferService);
-//        }
-//    }
-
-
-    
 
     /**
      * Atualiza estado visual dos botões e do breadcrumb.
@@ -349,14 +337,15 @@ public class SearchPanel extends JPanel {
 
     private JTextField createSearchField() {
         JTextField field = new JTextField();
-        field.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        field.setText("Digite o nome do arquivo (ex: foto, *.pdf, relatorio*)");
+        field.setFont(UIConfig.FONT_DEFAULT);
+        String placeholderText = "Digite um nome para pesquisa...";
+        field.setText(placeholderText);
 
         // Placeholder behavior
         field.addFocusListener(new FocusAdapter() {
             @Override
             public void focusGained(FocusEvent e) {
-                if (field.getText().equals("Digite o nome do arquivo (ex: foto, *.pdf, relatorio*)")) {
+                if (field.getText().equals(placeholderText)) {
                     field.setText("");
                 }
             }
@@ -364,7 +353,7 @@ public class SearchPanel extends JPanel {
             @Override
             public void focusLost(FocusEvent e) {
                 if (field.getText().isEmpty()) {
-                    field.setText("Digite o nome do arquivo (ex: foto, *.pdf, relatorio*)");
+                    field.setText(placeholderText);
                 }
             }
         });
@@ -372,6 +361,10 @@ public class SearchPanel extends JPanel {
         field.addActionListener(e -> triggerSearch());
 
         return field;
+    }
+
+    public void clearSearchTerm() {
+        searchField.setText("");  // ajuste para o nome real do seu campo
     }
 
     public void triggerIndex() {
@@ -400,7 +393,7 @@ public class SearchPanel extends JPanel {
 
     public String getSearchTerm() {
         String text = searchField.getText().trim();
-        if (text.equals("Digite o nome do arquivo (ex: foto, *.pdf, relatorio*)")) {
+        if (text.equals("Digite um nome para pesquisa...")) {
             return "";
         }
         return text;

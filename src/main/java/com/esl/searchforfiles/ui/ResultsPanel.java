@@ -8,6 +8,7 @@ import com.esl.searchforfiles.actions.renameFile.RenameFrame;
 import com.esl.searchforfiles.actions.renameFile.RenameMode;
 import com.esl.searchforfiles.actions.renameFile.RenameModeManager;
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
+import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.others.ThumbnailSize;
 
@@ -476,11 +477,11 @@ public class ResultsPanel extends JPanel {
         };
 
         JLabel iconLabel = new JLabel(icon);
-        iconLabel.setFont(new Font("SansSerif", Font.PLAIN, 48));
+        iconLabel.setFont(UIConfig.FONT_MESSAGE_ICON);
         iconLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         JLabel messageLabel = new JLabel(message);
-        messageLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        messageLabel.setFont(UIConfig.FONT_MESSAGE_TEXT);
         messageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
         panel.add(Box.createVerticalGlue());
@@ -591,13 +592,13 @@ public class ResultsPanel extends JPanel {
 
         JLabel lbl = new JLabel("  ✂️  Modo de Transferência  ");
         lbl.setForeground(Color.WHITE);
-        lbl.setFont(new Font("SansSerif", Font.BOLD, 14));
+        lbl.setFont(UIConfig.FONT_TITLE);
         bar.add(lbl);
 
         bar.addSeparator();
 
         JButton selectAll = new JButton("Selecionar todos");
-        selectAll.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        selectAll.setFont(UIConfig.FONT_DEFAULT);
         selectAll.addActionListener(e -> {
             List<File> files = currentItems.stream()
                     .map(FileItemPanel::getDisplayFile)
@@ -611,7 +612,7 @@ public class ResultsPanel extends JPanel {
         bar.add(selectAll);
 
         JButton clearSel = new JButton("Limpar seleção");
-        clearSel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        clearSel.setFont(UIConfig.FONT_DEFAULT);
         clearSel.addActionListener(e -> {
             tm.clearSelection();
             currentItems.forEach(item -> {
@@ -622,19 +623,19 @@ public class ResultsPanel extends JPanel {
         bar.add(clearSel);
         bar.addSeparator();
         JButton copy = new JButton("Copiar");
-        copy.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        copy.setFont(UIConfig.FONT_DEFAULT);
         copy.setForeground(new Color(33, 150, 243));
         copy.addActionListener(e -> item.requestTransfer(TransferMode.COPY));
 
         bar.add(copy);
         JButton move = new JButton("Mover");
-        move.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        move.setFont(UIConfig.FONT_DEFAULT);
         move.setForeground(new Color(33, 150, 243));
         move.addActionListener(e -> item.requestTransfer(TransferMode.MOVE));
         bar.add(move);
 
         JButton delete = new JButton("Apagar");
-        delete.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        delete.setFont(UIConfig.FONT_DEFAULT);
         delete.setForeground(new Color(33, 150, 243));
         delete.addActionListener(e -> item.requestDelete());
         bar.add(delete);
@@ -642,7 +643,7 @@ public class ResultsPanel extends JPanel {
         bar.addSeparator();
 
         JButton exitBtn = new JButton("✕ Sair");
-        exitBtn.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        exitBtn.setFont(UIConfig.FONT_DEFAULT);
         exitBtn.setForeground(new Color(255, 80, 80));
         exitBtn.addActionListener(e -> exitTransferMode());
         bar.add(exitBtn);
@@ -695,14 +696,14 @@ public class ResultsPanel extends JPanel {
 
         JLabel lbl = new JLabel("  🖼  Modo de Edição");
         lbl.setForeground(Color.WHITE);
-        lbl.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        lbl.setFont(UIConfig.FONT_TITLE);
         lbl.setFont(lbl.getFont().deriveFont(Font.BOLD));
         bar.add(lbl);
 
         bar.addSeparator();
 
         JButton selectAll = new JButton("Selecionar todos");
-        selectAll.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        selectAll.setFont(UIConfig.FONT_DEFAULT);
         selectAll.addActionListener(e -> {
             List<File> files = currentItems.stream()
                     .map(FileItemPanel::getDisplayFile)
@@ -717,7 +718,7 @@ public class ResultsPanel extends JPanel {
         bar.add(selectAll);
 
         JButton clearSel = new JButton("Limpar seleção");
-        clearSel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        clearSel.setFont(UIConfig.FONT_DEFAULT);
         clearSel.addActionListener(e -> {
             em.clearSelection();
             currentItems.forEach(item -> {
@@ -730,7 +731,7 @@ public class ResultsPanel extends JPanel {
         bar.addSeparator();
 
         JButton openEditor = new JButton("🖊 Abrir com o editor");
-        openEditor.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        openEditor.setFont(UIConfig.FONT_DEFAULT);
         openEditor.setForeground(new Color(33, 150, 243));
       //  openEditor.setBorder(BorderFactory.createLineBorder(new Color(33, 150, 243), 2));
        // openEditor.setBorderPainted(true);
@@ -753,8 +754,7 @@ public class ResultsPanel extends JPanel {
         bar.addSeparator();
 
         JButton exitBtn = new JButton("✕ Sair");
-        exitBtn.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        ;
+        exitBtn.setFont(UIConfig.FONT_DEFAULT);
         exitBtn.setForeground(new Color(255, 80, 80));
         exitBtn.addActionListener(e -> exitEditMode());
         bar.add(exitBtn);
@@ -820,12 +820,12 @@ public class ResultsPanel extends JPanel {
 
         JLabel lbl = new JLabel("  " + rm.getMode().toolbarLabel + "  ");
         lbl.setForeground(Color.WHITE);
-        lbl.setFont(new Font("SansSerif", Font.BOLD, 14));
+        lbl.setFont(UIConfig.FONT_TITLE);
         bar.add(lbl);
         bar.addSeparator();
 
         JButton selectAll = new JButton("Selecionar todos");
-        selectAll.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        selectAll.setFont(UIConfig.FONT_DEFAULT);
         selectAll.addActionListener(e -> {
             List<File> files = currentItems.stream()
                     .map(FileItemPanel::getDisplayFile).toList();
@@ -839,7 +839,7 @@ public class ResultsPanel extends JPanel {
         bar.add(selectAll);
 
         JButton clearSel = new JButton("Limpar seleção");
-        clearSel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        clearSel.setFont(UIConfig.FONT_DEFAULT);
         clearSel.addActionListener(e -> {
             rm.clearSelection();
             currentItems.forEach(item -> {
@@ -851,7 +851,7 @@ public class ResultsPanel extends JPanel {
         bar.addSeparator();
 
         JButton renameBtn = new JButton("✏ Renomear");
-        renameBtn.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        renameBtn.setFont(UIConfig.FONT_DEFAULT);
         renameBtn.setForeground(new Color(120, 210, 120));
         renameBtn.addActionListener(e -> {
             if (rm.getSelectedCount() == 0) {
@@ -880,7 +880,7 @@ public class ResultsPanel extends JPanel {
         bar.addSeparator();
 
         JButton exitBtn = new JButton("✕ Sair");
-        exitBtn.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        exitBtn.setFont(UIConfig.FONT_DEFAULT);
         exitBtn.setForeground(new Color(255, 80, 80));
         exitBtn.addActionListener(e -> exitRenameMode());
         bar.add(exitBtn);

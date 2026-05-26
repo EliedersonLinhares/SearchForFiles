@@ -1,6 +1,7 @@
 package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
+import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.database.DatabaseManager;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.service.FavoritesService;
@@ -302,7 +303,7 @@ public class FileContextMenu extends JPopupMenu {
         if (hasCached) {
             JMenuItem cachedInfoItem = new JMenuItem("✓ Thumbnail em cache");
             cachedInfoItem.setEnabled(false);
-            cachedInfoItem.setFont(new Font("SansSerif", Font.ITALIC, 11));
+            cachedInfoItem.setFont(UIConfig.FONT_SMALL);
             cacheMenu.add(cachedInfoItem);
             cacheMenu.addSeparator();
 
@@ -318,7 +319,7 @@ public class FileContextMenu extends JPopupMenu {
         } else {
             JMenuItem noCacheItem = new JMenuItem("Sem thumbnail em cache");
             noCacheItem.setEnabled(false);
-            noCacheItem.setFont(new Font("SansSerif", Font.ITALIC, 11));
+            noCacheItem.setFont(UIConfig.FONT_SMALL);
             cacheMenu.add(noCacheItem);
             cacheMenu.addSeparator();
 

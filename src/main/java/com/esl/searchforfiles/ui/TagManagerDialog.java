@@ -1,6 +1,7 @@
 package com.esl.searchforfiles.ui;
 
 
+import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.database.DatabaseManager;
 import com.esl.searchforfiles.model.FileInfo;
 
@@ -42,7 +43,7 @@ public class TagManagerDialog extends JDialog {
 
     private JLabel buildHeader() {
         JLabel lbl = new JLabel("Arquivo: " + fileInfo.getName());
-        lbl.setFont(new Font("SansSerif", Font.BOLD, 13));
+        lbl.setFont(UIConfig.FONT_DEFAULT);
         return lbl;
     }
 
@@ -51,7 +52,7 @@ public class TagManagerDialog extends JDialog {
         listModel = new DefaultListModel<>();
         tagList   = new JList<>(listModel);
         tagList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        tagList.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        tagList.setFont(UIConfig.FONT_DEFAULT);
         tagList.setCellRenderer(new TagCellRenderer());
 
         JScrollPane scroll = new JScrollPane(tagList);

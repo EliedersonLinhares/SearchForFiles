@@ -1,6 +1,7 @@
 package com.esl.searchforfiles.ui;
 
 
+import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.database.DatabaseManager;
 
 import javax.swing.*;
@@ -48,7 +49,7 @@ public class AutocompleteTagField extends JPanel {
 
         // ── Campo de texto ────────────────────────────────────────
         textField = new JTextField();
-        textField.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        textField.setFont(UIConfig.FONT_DEFAULT);
         textField.putClientProperty("JTextField.placeholderText",  // FlatLaf / Nimbus
                 "Digite para buscar ou criar tag...");
         add(textField, BorderLayout.CENTER);
@@ -61,7 +62,7 @@ public class AutocompleteTagField extends JPanel {
         suggestionList.setForeground(POPUP_FG);
         suggestionList.setSelectionBackground(POPUP_SEL_BG);
         suggestionList.setSelectionForeground(Color.WHITE);
-        suggestionList.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        suggestionList.setFont(UIConfig.FONT_DEFAULT);
         suggestionList.setFixedCellHeight(28);
         suggestionList.setCellRenderer(new SuggestionRenderer());
 
@@ -172,7 +173,7 @@ public class AutocompleteTagField extends JPanel {
                     List<String> filtered = all.stream()
                             .filter(t -> !alreadyApplied.contains(t))
                             .limit(MAX_SUGGESTIONS)
-                            .collect(java.util.stream.Collectors.toList());
+                            .toList();
 
                     updatePopup(filtered, term);
                 } catch (Exception ex) {

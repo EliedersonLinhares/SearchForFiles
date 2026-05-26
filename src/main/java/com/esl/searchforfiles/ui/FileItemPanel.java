@@ -5,6 +5,7 @@ import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
 import com.esl.searchforfiles.actions.renameFile.RenameMode;
 import com.esl.searchforfiles.actions.renameFile.RenameModeManager;
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
+import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.service.IconService;
@@ -138,7 +139,7 @@ public class FileItemPanel extends JPanel {
 
         // Nome do arquivo
         JLabel nameLabel = new JLabel(shortName(file.getName(), 30));
-        nameLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        nameLabel.setFont(UIConfig.FONT_SMALL);
         nameLabel.setHorizontalAlignment(SwingConstants.CENTER);
         nameLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 

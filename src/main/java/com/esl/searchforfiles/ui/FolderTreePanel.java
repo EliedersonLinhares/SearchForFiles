@@ -2,6 +2,7 @@ package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.actions.fileTransfer.FileTransferHandler;
 import com.esl.searchforfiles.actions.fileTransfer.TransferDropHelper;
+import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.service.FavoritesService;
 import com.esl.searchforfiles.service.IconService;
@@ -48,7 +49,7 @@ public class FolderTreePanel extends JPanel {
 
         rootNode = new DefaultMutableTreeNode("Computador");
         folderTree = new JTree(rootNode);
-        folderTree.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        folderTree.setFont(UIConfig.FONT_SMALL);
 
         // Renderizador customizado
         folderTree.setCellRenderer(new FolderTreeCellRenderer());
@@ -255,7 +256,7 @@ public class FolderTreePanel extends JPanel {
                     // Mostra popup Mover / Copiar / Cancelar
                     TransferDropHelper.showDropMenu(
                             folderTree, files, dest, transferService,
-                            () -> fileExplorerSwing.performCurrentSearch());
+                            fileExplorerSwing::performCurrentSearch);
 
                 } catch (Exception ex) {
                     ex.printStackTrace();
@@ -383,7 +384,6 @@ public class FolderTreePanel extends JPanel {
                 setText(file.getName().isEmpty() ? file.getAbsolutePath() : file.getName());
 
            //     setIcon(fsv.getSystemIcon(file));
-
 
                 java.util.List<String> exclusion = List.of("Desktop","Downloads","Pictures","3D Objects","Documents"
                         , "Favorites", "Meus Documentos", "Music", "OneDrive", "Recent" ,"Saved Games", "Search", "Videos");

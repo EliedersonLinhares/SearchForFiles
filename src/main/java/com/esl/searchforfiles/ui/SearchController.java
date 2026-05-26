@@ -48,6 +48,7 @@ public class SearchController {
     private String currentMonitoredPath = null;
     private static final long MAX_FOLDER_SIZE = 50_000;
     private final IndexFilterService indexFilterService;
+    private final FileExplorerSwing fileExplorerSwing;
 
     public MonitoringService getMonitoringService() {
         return monitoringService;
@@ -55,10 +56,11 @@ public class SearchController {
 
     private volatile boolean transferInProgress = false;
 
-    public SearchController(JFrame parentFrame, IndexFilterService indexFilterService) throws SQLException {
+    public SearchController(JFrame parentFrame, IndexFilterService indexFilterService, FileExplorerSwing fileExplorerSwing) throws SQLException {
         this.parentFrame = parentFrame;
         this.indexFilterService = indexFilterService;
         this.searchSystem = new AdvancedFileSearch(indexFilterService);
+        this.fileExplorerSwing = fileExplorerSwing;
         this.monitoringService = searchSystem.getMonitoringService();
 
         this.syncService = new SyncService(
@@ -621,6 +623,7 @@ public class SearchController {
                     JOptionPane.showMessageDialog(parentFrame,
                             "Indexação concluída com sucesso!",
                             "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+                    fileExplorerSwing.navigateTo(path,false);
                 } catch (Exception e) {
                     callback.onIndexError(e);
                     JOptionPane.showMessageDialog(parentFrame,

@@ -1,5 +1,6 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.configuration.WrapLayout;
 import com.esl.searchforfiles.service.SyncService;
 
@@ -56,17 +57,17 @@ public class BottomIndicatorPanel {
 
         // ── Esquerda: label de status ─────────────────────────────────────────────
         statusLabel = new JLabel("📂 Local de busca: C:\\ | Sistema pronto");
-        statusLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        statusLabel.setFont(UIConfig.FONT_DEFAULT);
         statusPanel.add(statusLabel, BorderLayout.CENTER); // CENTER estica e ocupa o espaço livre
 
         // ── Direita: indicadores ──────────────────────────────────────────────────
         syncIndicator = new JLabel();
-        syncIndicator.setFont(new Font("SansSerif", Font.BOLD, 14));
+        syncIndicator.setFont(UIConfig.FONT_DEFAULT_BOLD);
         syncIndicator.setForeground(new Color(33, 150, 243));
         syncIndicator.setVisible(false);
 
         autoRefreshIndicator = new JLabel();
-        autoRefreshIndicator.setFont(new Font("SansSerif", Font.BOLD, 14));
+        autoRefreshIndicator.setFont(UIConfig.FONT_DEFAULT);
         autoRefreshIndicator.setForeground(new Color(76, 175, 80));
         autoRefreshIndicator.setVisible(false);
 

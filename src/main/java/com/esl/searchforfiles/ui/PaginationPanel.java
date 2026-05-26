@@ -1,5 +1,6 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.configuration.WrapLayout;
 import com.esl.searchforfiles.model.PaginationInfo;
 
@@ -42,7 +43,7 @@ public class PaginationPanel extends JPanel {
         });
 
         pageLabel = new JLabel("Página 1 de 1");
-        pageLabel.setFont(new Font("SansSerif", Font.BOLD, 13));
+        pageLabel.setFont(UIConfig.FONT_DEFAULT);
 
         nextButton = navButton("▶", "Próxima página");
         nextButton.addActionListener(e -> {
@@ -59,13 +60,13 @@ public class PaginationPanel extends JPanel {
         // ── Items por página ──────────────────────────────────────────────────
         pageSizeCombo = new JComboBox<>(new Integer[]{50, 100, 200, 500, 1000});
         pageSizeCombo.setSelectedItem(100);
-        pageSizeCombo.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        pageSizeCombo.setFont(UIConfig.FONT_DEFAULT);
         pageSizeCombo.setPreferredSize(new Dimension(75, 26));
         pageSizeCombo.addActionListener(e -> onPageSizeChanged());
 
         // ── Total ─────────────────────────────────────────────────────────────
         totalLabel = new JLabel("0 resultados");
-        totalLabel.setFont(new Font("SansSerif", Font.ITALIC, 14));
+        totalLabel.setFont(UIConfig.FONT_DEFAULT);
         totalLabel.setForeground(Color.GRAY);
 
         // ── Monta o layout em grupos visuais ──────────────────────────────────
@@ -81,7 +82,7 @@ public class PaginationPanel extends JPanel {
 
         // Grupo 2 — Tamanho de página
         JLabel perPage = new JLabel("Itens/pág:");
-        perPage.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        perPage.setFont(UIConfig.FONT_DEFAULT);
         add(perPage);
         add(pageSizeCombo);
 
@@ -104,7 +105,7 @@ public class PaginationPanel extends JPanel {
 
     private JButton navButton(String text, String tooltip) {
         JButton btn = new JButton(text);
-        btn.setFont(new Font("SansSerif", Font.BOLD, 15));
+        btn.setFont(UIConfig.FONT_DEFAULT);
         btn.setToolTipText(tooltip);
         btn.setPreferredSize(new Dimension(46, 26));
         btn.setMargin(new Insets(2, 6, 2, 6));
