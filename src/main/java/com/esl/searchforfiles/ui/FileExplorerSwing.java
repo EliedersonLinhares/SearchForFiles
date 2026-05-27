@@ -319,10 +319,10 @@ public class FileExplorerSwing extends JFrame {
             }
         });
 
-        String[] formatos = ImageIO.getWriterFormatNames();
-        for (String formato : formatos) {
-            System.out.println(formato);
-        }
+//        String[] formatos = ImageIO.getWriterFormatNames();
+//        for (String formato : formatos) {
+//            System.out.println(formato);
+//        }
 
     }
 
@@ -623,20 +623,6 @@ public class FileExplorerSwing extends JFrame {
         }
     }
 
-//    /**
-//     * Atualiza label de status com informação de monitoramento
-//     * NOVO MÉTODO
-//     */
-//    private void updateStatusLabel() {
-//        String monitoringStatus = controller.getMonitoringStatus();
-//        String statusText = "📂 Pasta selecionada: " + selectedPath;
-//
-//        if (!monitoringStatus.isEmpty()) {
-//            statusText += " | " + monitoringStatus;
-//        }
-//
-//        statusLabel.setText(statusText);
-//    }
 
     /**
      * Mensagem de boas-vindas

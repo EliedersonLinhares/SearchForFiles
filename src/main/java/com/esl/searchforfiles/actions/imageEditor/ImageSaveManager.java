@@ -36,24 +36,6 @@ public class ImageSaveManager {
                         List<File> files,
                         UnaryOperator<BufferedImage> actions,
                         Consumer<List<File>> onDone) {
-
-        List<String> unsupported = new ArrayList<>();
-        for (File f : files) {
-            String ext = extensionOf(f.getName());
-            if (!ext.equals("jpg") && !ext.equals("jpeg") && !ext.equals("png"))
-                unsupported.add(f.getName());
-        }
-
-        if (!unsupported.isEmpty()) {
-            int proceed = JOptionPane.showConfirmDialog(parent,
-                    "<html>Os arquivos abaixo têm formato não suportado e serão <b>ignorados</b>:<br><br>"
-                            + String.join("<br>", unsupported)
-                            + "<br><br>Continuar com os demais?</html>",
-                    "Formatos não suportados", JOptionPane.YES_NO_OPTION,
-                    JOptionPane.WARNING_MESSAGE);
-            if (proceed != JOptionPane.YES_OPTION) return;
-        }
-
         int confirm = JOptionPane.showConfirmDialog(parent,
                 "<html>Sobrescrever <b>" + files.size() + "</b> arquivo(s) original(is) com as alterações?</html>",
                 "Confirmar salvamento", JOptionPane.YES_NO_OPTION,
@@ -65,7 +47,6 @@ public class ImageSaveManager {
         for (int i = 0; i < files.size(); i++) {
             File f   = files.get(i);
             String e = extensionOf(f.getName());
-            if (unsupported.contains(f.getName())) continue;
             targets.add(new SaveTarget(i, f, e.equals("png") ? "png" : "jpg"));
         }
 
@@ -100,17 +81,23 @@ public class ImageSaveManager {
                           Consumer<List<File>> onDone) {
 
         // ── Escolha de formato ─────────────────────────────────────
-        String[] fmtOptions = {"JPEG", "PNG"};
+        String[] fmtOptions = {"JPEG", "PNG", "GIF", "BMP", "WEBP", "TIFF", "PSD"};
         int fmtChoice = JOptionPane.showOptionDialog(parent,
                 "Escolha o formato de saída para todas as imagens:",
                 "Salvar como",
                 JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
                 null, fmtOptions, fmtOptions[0]);
         if (fmtChoice < 0) return;
-
-        String fmt = fmtChoice == 0 ? "jpg" : "png";
-        String ext = fmt;
-
+        String ext = "";
+        switch(fmtChoice) {
+            case 0 ->  ext = "jpg";
+            case 1 ->  ext = "png";
+            case 2 ->  ext = "gif";
+            case 3 ->  ext = "bmp";
+            case 4 ->  ext = "webp";
+            case 5 ->  ext = "tiff";
+            case 6 ->  ext = "psd";
+        }
         // ── Escolha de pasta via JFileChooser (DIRECTORIES_ONLY) ──
         JFileChooser chooser = new JFileChooser(
                 lastDirectory != null ? lastDirectory : originalDir);
@@ -131,7 +118,7 @@ public class ImageSaveManager {
 
         for (int i = 0; i < files.size(); i++) {
             File dest = new File(destDir, baseName(files.get(i).getName()) + "." + ext);
-            targets.add(new SaveTarget(i, dest, fmt));
+            targets.add(new SaveTarget(i, dest, ext));
             if (dest.exists()) willOverwrite.add(dest.getName());
         }
 
@@ -167,7 +154,7 @@ public class ImageSaveManager {
                 "Salvando…", Dialog.ModalityType.MODELESS);
         progress.setSize(360, 110);
         progress.setLocationRelativeTo(parent);
-        progress.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+        progress.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
         progress.setResizable(false);
 
         JLabel statusLabel = new JLabel("Iniciando…", SwingConstants.CENTER);
@@ -246,13 +233,6 @@ public class ImageSaveManager {
         g2.drawImage(img, 0, 0, null);
         g2.dispose();
         return rgb;
-    }
-
-    private String resolveFormat(File file) {
-        String name = file.getName().toLowerCase();
-        if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "jpg";
-        if (name.endsWith(".png"))                           return "png";
-        return "jpg"; // padrão
     }
 
     private static String extensionOf(String filename) {

@@ -11,27 +11,26 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.IntFunction;
 
 public class ImageEditorFrame extends JFrame {
-
-    private final ResultsPanel resultsPanel;
 
     // Resolução máxima do proxy de preview (px no lado maior)
     private static final int PREVIEW_MAX_PX = 1200;
     private static final double ZOOM_STEP = 0.15;
     private static final double ZOOM_MIN = 0.1;
     private static final double ZOOM_MAX = 5.0;
+    private final ResultsPanel resultsPanel;
     // ── Imagens ────────────────────────────────────────────────────
     private final List<File> imageFiles;
     private final List<BufferedImage> images = new ArrayList<>(); // originais
     private final List<BufferedImage> previews = new ArrayList<>(); // proxies reduzidos
     private final List<ActionCardPanel> actionCards = new ArrayList<>();
+    private final ImageSaveManager saveManager = new ImageSaveManager(this);
+    private final Set<File> editedFiles = new LinkedHashSet<>();
     // ── Campo novo (junto aos outros campos da classe) ─────────────────
     private SwingWorker<ImageIcon, Void> previewWorker; // worker em curso
     private int currentIndex = 0;
@@ -45,8 +44,6 @@ public class ImageEditorFrame extends JFrame {
     private JButton prevBtn, nextBtn;
     // ── Painel direito (ações) ─────────────────────────────────────
     private JPanel actionsContainer;   // BoxLayout vertical
-    private final ImageSaveManager saveManager = new ImageSaveManager(this);
-    private final Set<File> editedFiles = new LinkedHashSet<>();
     private boolean editActionPerformed = false;
 
     public ImageEditorFrame(Window owner, ResultsPanel resultsPanel, List<File> imageFiles) {
@@ -70,7 +67,7 @@ public class ImageEditorFrame extends JFrame {
                 if (owner != null) owner.setEnabled(true);
                 owner.toFront();
                 invalidateEditedThumbs();
-                if(editActionPerformed) {
+                if (editActionPerformed) {
                     resultsPanel.getFileExplorerSwing().getSearchPanel().triggerSearch();
                 }
                 resultsPanel.exitEditMode();
@@ -183,10 +180,9 @@ public class ImageEditorFrame extends JFrame {
 
         // Zoom pela rodinha do mouse
         imgScroll.addMouseWheelListener(e -> {
-            if (e.isControlDown() || true) { // sempre ativa no painel de imagem
-                if (e.getWheelRotation() < 0) applyZoom(+ZOOM_STEP);
-                else applyZoom(-ZOOM_STEP);
-            }
+            // sempre ativa no painel de imagem
+            if (e.getWheelRotation() < 0) applyZoom(+ZOOM_STEP);
+            else applyZoom(-ZOOM_STEP);
         });
 
         panel.add(imgScroll, BorderLayout.CENTER);
@@ -247,9 +243,9 @@ public class ImageEditorFrame extends JFrame {
         closeRow.setBackground(new Color(42, 42, 42));
         closeRow.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(65, 65, 65)));
 
-        JButton saveBtn     = makeBarBtn("💾 Salvar",      new Color(40, 130, 60));
-        JButton saveAsBtn   = makeBarBtn("💾 Salvar como", new Color(40, 100, 160));
-        JButton closeBtn    = new JButton("Fechar");
+        JButton saveBtn = makeBarBtn("💾 Salvar", new Color(40, 130, 60));
+        JButton saveAsBtn = makeBarBtn("💾 Salvar como", new Color(40, 100, 160));
+        JButton closeBtn = new JButton("Fechar");
 
         // estilo do closeBtn (igual ao original)
         closeBtn.setForeground(new Color(200, 200, 200));
@@ -260,15 +256,15 @@ public class ImageEditorFrame extends JFrame {
         closeBtn.setFocusPainted(false);
         closeBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        saveBtn  .addActionListener(e -> saveAllImages2());
+        saveBtn.addActionListener(e -> saveAllImages2());
         saveAsBtn.addActionListener(e -> saveAllImagesAs2());
-        closeBtn .addActionListener(e -> dispose());
+        closeBtn.addActionListener(e -> dispose());
 
         closeRow.add(saveBtn);
         closeRow.add(saveAsBtn);
         closeRow.add(closeBtn);
 
-        wrapper.add(navRow,   BorderLayout.CENTER);
+        wrapper.add(navRow, BorderLayout.CENTER);
         wrapper.add(closeRow, BorderLayout.SOUTH);
         return wrapper;
     }
@@ -379,12 +375,6 @@ public class ImageEditorFrame extends JFrame {
             return;
         }
 
-//        imageLabel.setText(null);
-//        SwingUtilities.invokeLater(() -> {
-//            recalcFitScale(preview);
-//            imageLabel.setIcon(scaledIcon(preview));
-//            updateZoomLabel();
-//        });
         imageLabel.setText(null);
         SwingUtilities.invokeLater(() -> {
             recalcFitScale(preview);
@@ -511,8 +501,8 @@ public class ImageEditorFrame extends JFrame {
             return;
         }
 
-        ImageAdjustAction    action = new ImageAdjustAction();
-        AdjustActionCardPanel card  = new AdjustActionCardPanel(
+        ImageAdjustAction action = new ImageAdjustAction();
+        AdjustActionCardPanel card = new AdjustActionCardPanel(
                 action, this, this::removeAction);   // ← "this" é o frame
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
         card.setOnToggle(this::requestPreviewRefresh);
@@ -635,10 +625,11 @@ public class ImageEditorFrame extends JFrame {
                 images,
                 imageFiles,
                 this::applyEnabledActions,
-               this::onSaveDone
+                this::onSaveDone
         );
         editActionPerformed = true;
     }
+
     private void saveAllImagesAs2() {
         saveManager.saveAllAs(
                 images,

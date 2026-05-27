@@ -7,7 +7,7 @@ import java.util.*;
 public class EditModeManager {
 
     private static final Set<String> ACCEPTED_EXTS =
-            Set.of("jpg", "jpeg", "png");
+            Set.of("jpg", "jpeg", "png","bmp", "webp", "tiff", "psd");
 
     private final Set<File> selectedFiles = new LinkedHashSet<>();
     private boolean editModeActive = false;
