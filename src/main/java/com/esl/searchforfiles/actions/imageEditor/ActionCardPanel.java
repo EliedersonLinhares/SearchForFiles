@@ -28,7 +28,6 @@ public class ActionCardPanel extends JPanel {
         checkBox.setForeground(Color.WHITE);
         checkBox.setBackground(new Color(42, 42, 42));
         checkBox.setFont(checkBox.getFont().deriveFont(Font.BOLD, 12f));
-       // checkBox.addActionListener(e -> action.setEnabled(checkBox.isSelected()));
         checkBox.addActionListener(e -> {
             action.setEnabled(checkBox.isSelected());
             resetAction();   // ← linha adicionada

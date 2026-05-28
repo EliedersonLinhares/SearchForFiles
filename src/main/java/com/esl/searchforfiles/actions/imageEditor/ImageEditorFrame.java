@@ -3,6 +3,10 @@ package com.esl.searchforfiles.actions.imageEditor;
 
 import com.esl.searchforfiles.actions.imageEditor.actions.AdjustActionCardPanel;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageAdjustAction;
+import com.esl.searchforfiles.actions.imageEditor.actions.ImageResize.ImageResizeAction;
+import com.esl.searchforfiles.actions.imageEditor.actions.ImageResize.ResizeActionCardPanel;
+import com.esl.searchforfiles.actions.imageEditor.actions.ImageRotate.ImageRotateAction;
+import com.esl.searchforfiles.actions.imageEditor.actions.ImageRotate.RotateActionCardPanel;
 import com.esl.searchforfiles.ui.FileItemPanel;
 import com.esl.searchforfiles.ui.ResultsPanel;
 
@@ -467,13 +471,18 @@ public class ImageEditorFrame extends JFrame {
         adjustItem.addActionListener(e -> addAdjustAction());
         menu.add(adjustItem);
 
+        JMenuItem rotateItem = new JMenuItem("Rotacionar a imagem");
+        rotateItem.addActionListener(e -> addImageRotateAction());
+        menu.add(rotateItem);
+
+        JMenuItem resizeItem = new JMenuItem("Redimensionar a imagem");
+        resizeItem.addActionListener(e -> addImageResizeAction());
+        menu.add(resizeItem);
+
         menu.addSeparator();
 
         String[] dummies = {
-                "Redimensionar",
-                "Converter formato",
                 "Aplicar marca d'água",
-                "Rotacionar / inverter",
                 "Cortar (crop)",
                 "Nitidez (sharpen)"
         };
@@ -497,12 +506,52 @@ public class ImageEditorFrame extends JFrame {
         boolean alreadyHas = actionCards.stream()
                 .anyMatch(c -> c.getAction() instanceof ImageAdjustAction);
         if (alreadyHas) {
-            JOptionPane.showMessageDialog(this, "Já existe um ajuste de imagem na lista.");
             return;
         }
 
         ImageAdjustAction action = new ImageAdjustAction();
         AdjustActionCardPanel card = new AdjustActionCardPanel(
+                action, this, this::removeAction);   // ← "this" é o frame
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        card.setOnToggle(this::requestPreviewRefresh);
+        actionCards.add(card);
+        actionsContainer.add(card);
+        actionsContainer.add(Box.createVerticalStrut(6));
+        actionsContainer.revalidate();
+        actionsContainer.repaint();
+    }
+
+
+    private void addImageRotateAction() {
+        // Guard opcional: impede duplicatas
+        boolean alreadyHas = actionCards.stream()
+                .anyMatch(c -> c.getAction() instanceof ImageRotateAction);
+        if (alreadyHas) {
+            return;
+        }
+
+        ImageRotateAction action = new ImageRotateAction();
+        RotateActionCardPanel card = new RotateActionCardPanel(
+                action, this, this::removeAction);   // ← "this" é o frame
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        card.setOnToggle(this::requestPreviewRefresh);
+        actionCards.add(card);
+        actionsContainer.add(card);
+        actionsContainer.add(Box.createVerticalStrut(6));
+        actionsContainer.revalidate();
+        actionsContainer.repaint();
+    }
+
+    private void addImageResizeAction() {
+        // Guard opcional: impede duplicatas
+        boolean alreadyHas = actionCards.stream()
+                .anyMatch(c -> c.getAction() instanceof ImageResizeAction);
+        if (alreadyHas) {
+            return;
+        }
+
+        ImageResizeAction action = new ImageResizeAction();
+        ResizeActionCardPanel card = new ResizeActionCardPanel(
                 action, this, this::removeAction);   // ← "this" é o frame
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
         card.setOnToggle(this::requestPreviewRefresh);
@@ -561,10 +610,13 @@ public class ImageEditorFrame extends JFrame {
             ImageEditAction action = card.getAction();
             if (!action.isEnabled()) continue;
 
-            if (action instanceof ImageAdjustAction adj) {
-                result = adj.apply(result);
+            switch (action) {
+                case ImageAdjustAction adj -> result = adj.apply(result);
+                case ImageRotateAction r -> result = r.apply(result);
+                case ImageResizeAction s -> result = s.apply(result);
+                default -> {/* */
+                }
             }
-            // else if (action instanceof ResizeAction r) { result = r.apply(result); }
         }
         return result;
     }
