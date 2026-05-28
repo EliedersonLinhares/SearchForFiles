@@ -1,4 +1,4 @@
-package com.esl.searchforfiles.actions.imageEditor.actions;
+package com.esl.searchforfiles.actions.imageEditor.actions.ImageAdjust;
 
 
 import com.esl.searchforfiles.actions.imageEditor.ImageEditAction;

@@ -3,6 +3,7 @@ package com.esl.searchforfiles.actions.imageEditor.actions.ImageRotate;
 
 import com.esl.searchforfiles.actions.imageEditor.ActionCardPanel;
 import com.esl.searchforfiles.actions.imageEditor.ImageEditorFrame;
+import com.esl.searchforfiles.configuration.UIConfig;
 
 import javax.swing.*;
 import java.awt.*;
@@ -60,7 +61,7 @@ public class RotateActionCardPanel extends ActionCardPanel {
         btn.setBorder(BorderFactory.createLineBorder(new Color(90, 90, 90)));
         btn.setFocusPainted(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btn.setFont(btn.getFont().deriveFont(Font.BOLD, 14f));
+        btn.setFont(UIConfig.FONT_DEFAULT);
 
         btn.addActionListener(e -> {
             // Toggle: clicar no botão já ativo desativa a operação

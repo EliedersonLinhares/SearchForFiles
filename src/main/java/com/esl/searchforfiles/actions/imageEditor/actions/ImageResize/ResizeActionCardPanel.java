@@ -3,6 +3,7 @@ package com.esl.searchforfiles.actions.imageEditor.actions.ImageResize;
 
 import com.esl.searchforfiles.actions.imageEditor.ActionCardPanel;
 import com.esl.searchforfiles.actions.imageEditor.ImageEditorFrame;
+import com.esl.searchforfiles.configuration.UIConfig;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
@@ -255,7 +256,7 @@ public class ResizeActionCardPanel extends ActionCardPanel {
     private void styleModeCombo() {
         modeCombo.setBackground(new Color(55, 55, 55));
         modeCombo.setForeground(Color.WHITE);
-        modeCombo.setFont(modeCombo.getFont().deriveFont(11f));
+        modeCombo.setFont(UIConfig.FONT_DEFAULT);
         modeCombo.setFocusable(false);
         modeCombo.setBorder(BorderFactory.createLineBorder(new Color(90, 90, 90)));
     }
@@ -267,14 +268,14 @@ public class ResizeActionCardPanel extends ActionCardPanel {
         f.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(90, 90, 90)),
                 BorderFactory.createEmptyBorder(2, 4, 2, 4)));
-        f.setFont(f.getFont().deriveFont(11f));
+        f.setFont(UIConfig.FONT_DEFAULT);
     }
 
     private void styleLockButton() {
         lockBtn.setSelected(true);
         lockBtn.setToolTipText("Restringir proporções");
         lockBtn.setText(lockIcon(true));
-        lockBtn.setFont(lockBtn.getFont().deriveFont(14f));
+        lockBtn.setFont(UIConfig.FONT_DEFAULT);
         lockBtn.setForeground(new Color(100, 160, 230));
         lockBtn.setBackground(new Color(50, 50, 50));
         lockBtn.setBorderPainted(false);
@@ -299,7 +300,7 @@ public class ResizeActionCardPanel extends ActionCardPanel {
     private static JLabel makeLabel(String text) {
         JLabel l = new JLabel(text);
         l.setForeground(new Color(180, 180, 180));
-        l.setFont(l.getFont().deriveFont(10f));
+        l.setFont(UIConfig.FONT_DEFAULT);
         return l;
     }
 

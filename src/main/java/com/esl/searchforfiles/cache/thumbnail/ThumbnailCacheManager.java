@@ -1,6 +1,7 @@
 package com.esl.searchforfiles.cache.thumbnail;
 
 import javax.imageio.ImageIO;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -40,6 +41,9 @@ public class ThumbnailCacheManager {
         try {
             Files.createDirectories(cacheDirectory);
             System.out.println("Diretório de cache criado/verificado: " + cacheDirectory);
+            System.out.println("Cache dir: " + cacheDirectory.toAbsolutePath());
+            System.out.println("Existe: " + Files.exists(cacheDirectory));
+            System.out.println("Pode escrever: " + Files.isWritable(cacheDirectory));
         } catch (IOException e) {
             System.err.println("Erro ao criar diretório de cache: " + e.getMessage());
             e.printStackTrace();
@@ -51,10 +55,14 @@ public class ThumbnailCacheManager {
      */
     private String generateCacheKey(File videoFile, int thumbnailSize) {
         try {
-            String key = videoFile.getAbsolutePath() +
-                    "_" + videoFile.lastModified() +
-                    "_" + videoFile.length() +
-                    "_size" + thumbnailSize;
+//            String key = videoFile.getAbsolutePath() +
+//                    "_" + videoFile.lastModified() +
+//                    "_" + videoFile.length() +
+//                    "_size" + thumbnailSize;
+            // Usa apenas path e tamanho — mais estável entre sessões
+            String key = videoFile.getAbsolutePath()
+                    + "_" + videoFile.length()
+                    + "_size" + thumbnailSize;
 
             MessageDigest md = MessageDigest.getInstance("MD5");
             byte[] hash = md.digest(key.getBytes("UTF-8"));
@@ -72,6 +80,9 @@ public class ThumbnailCacheManager {
             return videoFile.getName().replaceAll("[^a-zA-Z0-9]", "_") + "_" + thumbnailSize;
         }
     }
+
+
+
 
     /**
      * Retorna o caminho do arquivo de cache para um vídeo
@@ -119,27 +130,100 @@ public class ThumbnailCacheManager {
     /**
      * Salva thumbnail no cache
      */
+//    public boolean saveThumbnailToCache(File videoFile, int thumbnailSize, BufferedImage thumbnail) {
+//        if (thumbnail == null) {
+//            return false;
+//        }
+//
+//        Path cachePath = getCachePath(videoFile, thumbnailSize);
+//
+//        try {
+//            // Salva como JPEG para economizar espaço
+//            ImageIO.write(thumbnail, THUMBNAIL_FORMAT, cachePath.toFile());
+//            System.out.println("Thumbnail salvo no cache: " + videoFile.getName() +
+//                    " -> " + cachePath.getFileName());
+//            return true;
+//
+//        } catch (IOException e) {
+//            System.err.println("Erro ao salvar thumbnail no cache: " + e.getMessage());
+//            e.printStackTrace();
+//            return false;
+//        }
+//    }
+
+    public static BufferedImage toRGB(BufferedImage src) {
+        if (src.getType() == BufferedImage.TYPE_INT_RGB) return src; // já é RGB, sem custo
+        BufferedImage rgb = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_RGB);
+        Graphics2D g = rgb.createGraphics();
+        g.setColor(Color.BLACK);
+        g.fillRect(0, 0, rgb.getWidth(), rgb.getHeight());
+        g.drawImage(src, 0, 0, null);
+        g.dispose();
+        return rgb;
+    }
+
+
+//    public boolean saveThumbnailToCache(File videoFile, int thumbnailSize, BufferedImage thumbnail) {
+//        System.out.println("[SAVE] Tentando salvar: " + videoFile.getName());
+//        System.out.println("[SAVE] Thumbnail null? " + (thumbnail == null));
+//
+//        if (thumbnail == null) return false;
+//
+//        Path cachePath = getCachePath(videoFile, thumbnailSize);
+//        System.out.println("[SAVE] Caminho destino: " + cachePath.toAbsolutePath());
+//
+//        try {
+//
+//
+//            // Converte para RGB — JPEG não suporta canal alpha
+//            BufferedImage rgbImage = new BufferedImage(
+//                    thumbnail.getWidth(),
+//                    thumbnail.getHeight(),
+//                    BufferedImage.TYPE_INT_RGB
+//            );
+//            Graphics2D g = rgbImage.createGraphics();
+//            g.setColor(Color.BLACK); // fundo preto onde havia transparência
+//            g.fillRect(0, 0, rgbImage.getWidth(), rgbImage.getHeight());
+//            g.drawImage(thumbnail, 0, 0, null);
+//            g.dispose();
+//
+//            boolean written = ImageIO.write(thumbnail, THUMBNAIL_FORMAT, cachePath.toFile());
+//            System.out.println("[SAVE] ImageIO.write retornou: " + written); // FALSE = sem writer JPEG!
+//            System.out.println("[SAVE] Arquivo existe após salvar? " + Files.exists(cachePath));
+//            return written;
+//        } catch (IOException e) {
+//            System.err.println("[SAVE] Erro: " + e.getMessage());
+//            e.printStackTrace();
+//            return false;
+//        }
+//    }
+
     public boolean saveThumbnailToCache(File videoFile, int thumbnailSize, BufferedImage thumbnail) {
-        if (thumbnail == null) {
-            return false;
-        }
+        if (thumbnail == null) return false;
 
         Path cachePath = getCachePath(videoFile, thumbnailSize);
 
         try {
-            // Salva como JPEG para economizar espaço
-            ImageIO.write(thumbnail, THUMBNAIL_FORMAT, cachePath.toFile());
-            System.out.println("Thumbnail salvo no cache: " + videoFile.getName() +
-                    " -> " + cachePath.getFileName());
-            return true;
+            BufferedImage rgbImage = new BufferedImage(
+                    thumbnail.getWidth(),
+                    thumbnail.getHeight(),
+                    BufferedImage.TYPE_INT_RGB
+            );
+            Graphics2D g = rgbImage.createGraphics();
+            g.setColor(Color.BLACK);
+            g.fillRect(0, 0, rgbImage.getWidth(), rgbImage.getHeight());
+            g.drawImage(thumbnail, 0, 0, null);
+            g.dispose();
+
+            boolean written = ImageIO.write(rgbImage, THUMBNAIL_FORMAT, cachePath.toFile());
+            return written;
 
         } catch (IOException e) {
-            System.err.println("Erro ao salvar thumbnail no cache: " + e.getMessage());
+            System.err.println("[SAVE] Erro ao salvar: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
     }
-
     /**
      * Verifica se o arquivo está sendo processado no momento
      */

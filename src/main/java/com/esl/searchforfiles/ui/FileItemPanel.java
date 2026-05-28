@@ -754,7 +754,7 @@ public class FileItemPanel extends JPanel {
 
                 if (raw != null) {
                     BufferedImage fitted = fitInsideSquare(raw, boxSize);
-                    THUMBNAIL_CACHE.saveThumbnailToCache(file, boxSize, fitted);
+                    THUMBNAIL_CACHE.saveThumbnailToCache(file, boxSize, ThumbnailCacheManager.toRGB(fitted));
                     ic = new ImageIcon(fitted);
                 } else {
                     // Fallback: ícone do sistema centralizado
@@ -1008,68 +1008,6 @@ public class FileItemPanel extends JPanel {
 
     private ImageIcon getOrCache(String key, Supplier<ImageIcon> generator) {
         return ICON_CACHE.computeIfAbsent(key, k -> generator.get());
-    }
-
-    // Atualize o método loadVideoThumbnailAsync:
-    private void loadVideoThumbnailAsync(File file, int size, JLabel target) {
-        String key = "vid_" + file.getAbsolutePath() + "_" + size;
-
-        // 1. Verifica cache em memória primeiro
-        ImageIcon cached = ICON_CACHE.get(key);
-        if (cached != null) {
-            target.setIcon(cached);
-            return;
-        }
-
-        // 2. Verifica se já está processando este arquivo
-        if (THUMBNAIL_CACHE.isProcessing(file, size)) {
-            return; // Evita processar o mesmo arquivo múltiplas vezes
-        }
-
-        // 3. Tenta carregar do cache em disco
-        BufferedImage cachedImage = THUMBNAIL_CACHE.loadCachedThumbnail(file, size);
-        if (cachedImage != null) {
-            ImageIcon ic = new ImageIcon(cachedImage);
-            ICON_CACHE.put(key, ic); // Adiciona também ao cache em memória
-            target.setIcon(ic);
-            return;
-        }
-
-        // 4. Marca como processando
-        THUMBNAIL_CACHE.markAsProcessing(file, size);
-
-        // 5. Processa o vídeo em background
-        THUMBNAIL_EXECUTOR.submit(() -> {
-            try {
-                BufferedImage img = extractVideoThumbnail(file, size);
-
-                if (img != null) {
-                    // Salva no cache em disco
-                    THUMBNAIL_CACHE.saveThumbnailToCache(file, size, img);
-
-                    // Salva no cache em memória
-                    ImageIcon ic = new ImageIcon(img);
-                    ICON_CACHE.put(key, ic);
-
-                    // Atualiza a UI na thread do Swing
-                    SwingUtilities.invokeLater(() -> target.setIcon(ic));
-                } else {
-                    // Se falhar, usa ícone do sistema
-                    SwingUtilities.invokeLater(() ->
-                            target.setIcon(getSystemIconCached(file, size)));
-                }
-
-            } catch (Exception e) {
-                System.err.println("Erro ao processar thumbnail de vídeo: " + file.getName());
-                e.printStackTrace();
-                SwingUtilities.invokeLater(() ->
-                        target.setIcon(getSystemIconCached(file, size)));
-
-            } finally {
-                // Remove marca de processamento
-                THUMBNAIL_CACHE.unmarkAsProcessing(file, size);
-            }
-        });
     }
 
     // Atualizado  com melhor tratamento de erros:

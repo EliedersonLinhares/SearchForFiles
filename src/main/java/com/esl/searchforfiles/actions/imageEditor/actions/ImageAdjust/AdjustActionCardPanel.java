@@ -1,12 +1,14 @@
-package com.esl.searchforfiles.actions.imageEditor.actions;
+package com.esl.searchforfiles.actions.imageEditor.actions.ImageAdjust;
 
 
 import com.esl.searchforfiles.actions.imageEditor.ActionCardPanel;
 import com.esl.searchforfiles.actions.imageEditor.ImageEditorFrame;
+import com.esl.searchforfiles.configuration.UIConfig;
 
 import javax.swing.*;
 import java.awt.*;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
 
 /**
@@ -92,11 +94,11 @@ public class AdjustActionCardPanel extends ActionCardPanel {
      */
     private void addSliderRow(JPanel panel, GridBagConstraints gbc,
                               String name, int min, int max, int initial,
-                              Consumer<Integer> onChange, IntFunction<String> formatter) {
+                              IntConsumer onChange, IntFunction<String> formatter) {
 
         JLabel nameLabel = new JLabel(name);
         nameLabel.setForeground(new Color(180, 180, 180));
-        nameLabel.setFont(nameLabel.getFont().deriveFont(10f));
+        nameLabel.setFont(UIConfig.FONT_DEFAULT);
         nameLabel.setPreferredSize(new Dimension(62, 16));
 
         JSlider slider = new JSlider(min, max, initial);
@@ -105,11 +107,11 @@ public class AdjustActionCardPanel extends ActionCardPanel {
 
         JLabel valueLabel = new JLabel(formatter.apply(initial));
         valueLabel.setForeground(new Color(140, 140, 140));
-        valueLabel.setFont(valueLabel.getFont().deriveFont(10f));
+        valueLabel.setFont(UIConfig.FONT_DEFAULT);
         valueLabel.setPreferredSize(new Dimension(34, 16));
         valueLabel.setHorizontalAlignment(SwingConstants.RIGHT);
 
-        slider.addChangeListener(e -> {
+        slider.addChangeListener(_ -> {
             onChange.accept(slider.getValue());
             valueLabel.setText(formatter.apply(slider.getValue()));
             refreshSummary();
