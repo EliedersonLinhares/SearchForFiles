@@ -10,6 +10,8 @@ import com.esl.searchforfiles.actions.imageEditor.actions.ImageResize.ImageResiz
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageResize.ResizeActionCardPanel;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageRotate.ImageRotateAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageRotate.RotateActionCardPanel;
+import com.esl.searchforfiles.actions.imageEditor.actions.ImageSketchFilter.ImageSketchAction;
+import com.esl.searchforfiles.actions.imageEditor.actions.ImageSketchFilter.ImageSketchPanel;
 import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.ui.FileItemPanel;
 import com.esl.searchforfiles.ui.ResultsPanel;
@@ -27,37 +29,38 @@ import java.util.Set;
 public class ImageEditorFrame extends JFrame {
 
     // Resolução máxima do proxy de preview (px no lado maior)
-    private static final int    PREVIEW_MAX_PX = 1200;
-    private static final double ZOOM_STEP      = 0.15;
-    private static final double ZOOM_MIN       = 0.1;
-    private static final double ZOOM_MAX       = 5.0;
+    private static final int PREVIEW_MAX_PX = 1200;
+    private static final double ZOOM_STEP = 0.15;
+    private static final double ZOOM_MIN = 0.1;
+    private static final double ZOOM_MAX = 5.0;
 
     private final ResultsPanel resultsPanel;
 
     // ── Imagens ────────────────────────────────────────────────────
-    private final List<File>          imageFiles;
-    private final List<BufferedImage> images   = new ArrayList<>();  // originais
+    private final List<File> imageFiles;
+    private final List<BufferedImage> images = new ArrayList<>();  // originais
     private final List<BufferedImage> previews = new ArrayList<>();  // proxies reduzidos
 
     private final List<ActionCardPanel> actionCards = new ArrayList<>();
-    private final ImageSaveManager      saveManager = new ImageSaveManager(this);
-    private final Set<File>             editedFiles = new LinkedHashSet<>();
+    private final ImageSaveManager saveManager = new ImageSaveManager(this);
+    private final Set<File> editedFiles = new LinkedHashSet<>();
 
     private SwingWorker<BufferedImage, Void> previewWorker;
     private int currentIndex = 0;
 
     // ── Zoom ───────────────────────────────────────────────────────
     private double zoomFactor = 1.0;   // relativo ao fitScale calculado por imagem
-    private double fitScale   = 1.0;   // escala que faz a imagem caber no painel
+    private double fitScale = 1.0;   // escala que faz a imagem caber no painel
 
     // ── Widgets ────────────────────────────────────────────────────
     private ImagePreviewPanel imagePreviewPanel;  // ← substitui JLabel
-    private JLabel            counterLabel;
-    private JLabel            zoomLabel;
-    private JButton           prevBtn, nextBtn;
-    private JPanel            actionsContainer;
+    private JLabel counterLabel;
+    private JLabel zoomLabel;
+    private JButton prevBtn, nextBtn;
+    private JPanel actionsContainer;
 
     private boolean editActionPerformed = false;
+
 
     // ══════════════════════════════════════════════════════════════
     // Construtor
@@ -65,7 +68,7 @@ public class ImageEditorFrame extends JFrame {
     public ImageEditorFrame(Window owner, ResultsPanel resultsPanel, List<File> imageFiles) {
         super("Editor de imagens — " + imageFiles.size() + " imagem(s) selecionada(s)");
         this.resultsPanel = resultsPanel;
-        this.imageFiles   = new ArrayList<>(imageFiles);
+        this.imageFiles = new ArrayList<>(imageFiles);
 
         if (owner != null) owner.setEnabled(false);
 
@@ -115,8 +118,8 @@ public class ImageEditorFrame extends JFrame {
         if (longest <= PREVIEW_MAX_PX) return src;
 
         double scale = (double) PREVIEW_MAX_PX / longest;
-        int w = Math.max(1, (int)(sw * scale));
-        int h = Math.max(1, (int)(sh * scale));
+        int w = Math.max(1, (int) (sw * scale));
+        int h = Math.max(1, (int) (sh * scale));
 
         BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2 = out.createGraphics();
@@ -161,11 +164,11 @@ public class ImageEditorFrame extends JFrame {
         imgScroll.addMouseWheelListener(e -> {
             if (imagePreviewPanel.isCropMode()) return;
             if (e.getWheelRotation() < 0) applyZoom(+ZOOM_STEP);
-            else                          applyZoom(-ZOOM_STEP);
+            else applyZoom(-ZOOM_STEP);
         });
 
         panel.add(imgScroll, BorderLayout.CENTER);
-        panel.add(buildNavBar(),     BorderLayout.SOUTH);
+        panel.add(buildNavBar(), BorderLayout.SOUTH);
         return panel;
     }
 
@@ -192,16 +195,16 @@ public class ImageEditorFrame extends JFrame {
         sep.setPreferredSize(new Dimension(1, 20));
         sep.setForeground(new Color(80, 80, 80));
 
-        JButton zoomOutBtn   = makeIconBtn("−");
+        JButton zoomOutBtn = makeIconBtn("−");
         zoomOutBtn.setFont(UIConfig.FONT_DEFAULT);
-        JButton zoomInBtn    = makeIconBtn("+");
+        JButton zoomInBtn = makeIconBtn("+");
         zoomInBtn.setFont(UIConfig.FONT_DEFAULT);
         JButton zoomResetBtn = makeTextBtn("100%");
         zoomResetBtn.setPreferredSize(new Dimension(46, 28));
         zoomResetBtn.setFont(UIConfig.FONT_DEFAULT);
 
-        zoomOutBtn  .addActionListener(e -> applyZoom(-ZOOM_STEP));
-        zoomInBtn   .addActionListener(e -> applyZoom(+ZOOM_STEP));
+        zoomOutBtn.addActionListener(e -> applyZoom(-ZOOM_STEP));
+        zoomInBtn.addActionListener(e -> applyZoom(+ZOOM_STEP));
         zoomResetBtn.addActionListener(e -> resetZoom());
 
         zoomLabel = new JLabel("100%");
@@ -224,11 +227,11 @@ public class ImageEditorFrame extends JFrame {
         closeRow.setBackground(new Color(42, 42, 42));
         closeRow.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(65, 65, 65)));
 
-        JButton saveBtn   = makeBarBtn("💾 Salvar",        new Color(40, 130,  60));
+        JButton saveBtn = makeBarBtn("💾 Salvar", new Color(40, 130, 60));
         saveBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        JButton saveAsBtn = makeBarBtn("💾 Salvar como",   new Color(40, 100, 160));
+        JButton saveAsBtn = makeBarBtn("💾 Salvar como", new Color(40, 100, 160));
         saveAsBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        JButton closeBtn  = new JButton("Fechar");
+        JButton closeBtn = new JButton("Fechar");
         closeBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
 
         closeBtn.setForeground(new Color(200, 200, 200));
@@ -239,15 +242,15 @@ public class ImageEditorFrame extends JFrame {
         closeBtn.setFocusPainted(false);
         closeBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        saveBtn  .addActionListener(e -> saveAllImages2());
+        saveBtn.addActionListener(e -> saveAllImages2());
         saveAsBtn.addActionListener(e -> saveAllImagesAs2());
-        closeBtn .addActionListener(e -> dispose());
+        closeBtn.addActionListener(e -> dispose());
 
         closeRow.add(saveBtn);
         closeRow.add(saveAsBtn);
         closeRow.add(closeBtn);
 
-        wrapper.add(navRow,   BorderLayout.CENTER);
+        wrapper.add(navRow, BorderLayout.CENTER);
         wrapper.add(closeRow, BorderLayout.SOUTH);
         return wrapper;
     }
@@ -266,12 +269,12 @@ public class ImageEditorFrame extends JFrame {
         topBar.setBackground(new Color(42, 42, 42));
         topBar.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
-        JButton addBtn   = makeBarBtn("＋ Adicionar ação", new Color(33, 120, 200));
+        JButton addBtn = makeBarBtn("＋ Adicionar ação", new Color(33, 120, 200));
         addBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        JButton clearBtn = makeBarBtn("🗑 Limpar todos",   new Color(180, 60, 60));
+        JButton clearBtn = makeBarBtn("🗑 Limpar todos", new Color(180, 60, 60));
         clearBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
 
-        addBtn  .addActionListener(e -> showAddActionMenu(addBtn));
+        addBtn.addActionListener(e -> showAddActionMenu(addBtn));
         clearBtn.addActionListener(e -> clearAllActions());
 
         topBar.add(addBtn);
@@ -297,9 +300,9 @@ public class ImageEditorFrame extends JFrame {
         JPanel north = new JPanel(new BorderLayout());
         north.setBackground(new Color(42, 42, 42));
         north.add(topBar, BorderLayout.NORTH);
-        north.add(lbl,    BorderLayout.SOUTH);
+        north.add(lbl, BorderLayout.SOUTH);
 
-        panel.add(north,  BorderLayout.NORTH);
+        panel.add(north, BorderLayout.NORTH);
         panel.add(scroll, BorderLayout.CENTER);
         return panel;
     }
@@ -339,7 +342,7 @@ public class ImageEditorFrame extends JFrame {
     // Zoom
     // ══════════════════════════════════════════════════════════════
     private void recalcFitScale(BufferedImage preview) {
-        int availW = Math.max(1, imagePreviewPanel.getWidth()  - 16);
+        int availW = Math.max(1, imagePreviewPanel.getWidth() - 16);
         int availH = Math.max(1, imagePreviewPanel.getHeight() - 16);
         fitScale = Math.min(
                 (double) availW / preview.getWidth(),
@@ -364,10 +367,10 @@ public class ImageEditorFrame extends JFrame {
 
     private void updateZoomLabel() {
         BufferedImage original = images.get(currentIndex);
-        BufferedImage preview  = previews.get(currentIndex);
+        BufferedImage preview = previews.get(currentIndex);
         if (original == null || preview == null) return;
 
-        double proxyRatio  = (double) preview.getWidth() / original.getWidth();
+        double proxyRatio = (double) preview.getWidth() / original.getWidth();
         double realPercent = fitScale * zoomFactor / proxyRatio * 100;
         zoomLabel.setText(Math.round(realPercent) + "%");
     }
@@ -388,13 +391,15 @@ public class ImageEditorFrame extends JFrame {
                 // Entrega a imagem SEM escalar — o painel aplica o zoom internamente
                 return applyEnabledActions(preview);
             }
+
             @Override
             protected void done() {
                 if (isCancelled()) return;
                 try {
                     imagePreviewPanel.setImage(get());
                     imagePreviewPanel.setZoom(fitScale * zoomFactor);
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             }
         };
         previewWorker.execute();
@@ -409,11 +414,12 @@ public class ImageEditorFrame extends JFrame {
             ImageEditAction action = card.getAction();
             if (!action.isEnabled()) continue;
             result = switch (action) {
-                case ImageAdjustAction  adj -> adj.apply(result);
-                case ImageRotateAction  r   -> r  .apply(result);
-                case ImageResizeAction  s   -> s  .apply(result);
-                case ImageCropAction    c   -> c  .apply(result);
-                default                     -> result;
+                case ImageAdjustAction adj -> adj.apply(result);
+                case ImageRotateAction r -> r.apply(result);
+                case ImageResizeAction s -> s.apply(result);
+                case ImageCropAction c -> c.apply(result);
+                case ImageSketchAction sk -> sk.apply(result);
+                default -> result;
             };
         }
         return result;
@@ -452,6 +458,11 @@ public class ImageEditorFrame extends JFrame {
         cropItem.addActionListener(e -> addImageCropAction());
         menu.add(cropItem);
 
+        JMenuItem sketchItem = new JMenuItem("Filtro de desenho (sketch)");
+        sketchItem.setFont(UIConfig.FONT_DEFAULT);
+        sketchItem.addActionListener(e -> addImageSketchAction());
+        menu.add(sketchItem);
+
         menu.addSeparator();
 
         JMenuItem sharpItem = new JMenuItem("Nitidez (sharpen)");
@@ -471,8 +482,8 @@ public class ImageEditorFrame extends JFrame {
     private void addAdjustAction() {
         if (actionCards.stream().anyMatch(c -> c.getAction() instanceof ImageAdjustAction)) return;
 
-        ImageAdjustAction    action = new ImageAdjustAction();
-        AdjustActionCardPanel card  = new AdjustActionCardPanel(action, this, this::removeAction);
+        ImageAdjustAction action = new ImageAdjustAction();
+        AdjustActionCardPanel card = new AdjustActionCardPanel(action, this, this::removeAction);
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
         card.setOnToggle(this::requestPreviewRefresh);
         registerCard(card);
@@ -481,8 +492,8 @@ public class ImageEditorFrame extends JFrame {
     private void addImageRotateAction() {
         if (actionCards.stream().anyMatch(c -> c.getAction() instanceof ImageRotateAction)) return;
 
-        ImageRotateAction    action = new ImageRotateAction();
-        RotateActionCardPanel card  = new RotateActionCardPanel(action, this, this::removeAction);
+        ImageRotateAction action = new ImageRotateAction();
+        RotateActionCardPanel card = new RotateActionCardPanel(action, this, this::removeAction);
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
         card.setOnToggle(this::requestPreviewRefresh);
         registerCard(card);
@@ -491,8 +502,8 @@ public class ImageEditorFrame extends JFrame {
     private void addImageResizeAction() {
         if (actionCards.stream().anyMatch(c -> c.getAction() instanceof ImageResizeAction)) return;
 
-        ImageResizeAction    action = new ImageResizeAction();
-        ResizeActionCardPanel card  = new ResizeActionCardPanel(action, this, this::removeAction);
+        ImageResizeAction action = new ImageResizeAction();
+        ResizeActionCardPanel card = new ResizeActionCardPanel(action, this, this::removeAction);
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
         card.setOnToggle(this::requestPreviewRefresh);
         registerCard(card);
@@ -501,8 +512,8 @@ public class ImageEditorFrame extends JFrame {
     private void addImageCropAction() {
         if (actionCards.stream().anyMatch(c -> c.getAction() instanceof ImageCropAction)) return;
 
-        ImageCropAction    action = new ImageCropAction();
-        CropActionCardPanel card  = new CropActionCardPanel(action, this, this::removeAction);
+        ImageCropAction action = new ImageCropAction();
+        CropActionCardPanel card = new CropActionCardPanel(action, this, this::removeAction);
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
         card.setOnToggle(this::requestPreviewRefresh);
 
@@ -512,10 +523,10 @@ public class ImageEditorFrame extends JFrame {
                 // x,y,w,h estão em coords da imagem escalada exibida pelo painel;
                 // precisamos converter de volta para coords do proxy original.
                 BufferedImage displayed = imagePreviewPanel.getCurrentImage();
-                BufferedImage proxy     = previews.get(currentIndex);
+                BufferedImage proxy = previews.get(currentIndex);
                 if (displayed == null || proxy == null) return;
 
-                double scaleX = (double) proxy.getWidth()  / displayed.getWidth();
+                double scaleX = (double) proxy.getWidth() / displayed.getWidth();
                 double scaleY = (double) proxy.getHeight() / displayed.getHeight();
 
                 int px = (int) Math.round(x * scaleX);
@@ -531,14 +542,27 @@ public class ImageEditorFrame extends JFrame {
         registerCard(card);
     }
 
-    /** Adiciona um card genérico (ações dummy / futuras). */
+    private void addImageSketchAction() {
+        if (actionCards.stream().anyMatch(c -> c.getAction() instanceof ImageSketchAction)) return;
+        ImageSketchAction action = new ImageSketchAction();
+        ImageSketchPanel card = new ImageSketchPanel(action, this, this::removeAction);
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        card.setOnToggle(this::requestPreviewRefresh);
+        registerCard(card);
+    }
+
+    /**
+     * Adiciona um card genérico (ações dummy / futuras).
+     */
     private void addAction(ImageEditAction action) {
         ActionCardPanel card = new ActionCardPanel(action, this::removeAction);
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
         registerCard(card);
     }
 
-    /** Ponto único de registro: adiciona à lista, ao container e ao layout. */
+    /**
+     * Ponto único de registro: adiciona à lista, ao container e ao layout.
+     */
     private void registerCard(ActionCardPanel card) {
         actionCards.add(card);
         actionsContainer.add(card);
@@ -662,7 +686,6 @@ public class ImageEditorFrame extends JFrame {
 }
 
 
-
 //public class ImageEditorFrame extends JFrame {
 //
 //    // Resolução máxima do proxy de preview (px no lado maior)
@@ -744,10 +767,10 @@ public class ImageEditorFrame extends JFrame {
 //
 //
 //    // ═══════════════════════════════════════════════════════════════════
-//// invalidateEditedThumbs() — NOVO em ImageEditorFrame
-//// Remove do ICON_CACHE todas as chaves relacionadas aos arquivos
-//// editados e pede ao ResultsPanel que re-renderize os cards.
-//// ═══════════════════════════════════════════════════════════════════
+/// / invalidateEditedThumbs() — NOVO em ImageEditorFrame
+/// / Remove do ICON_CACHE todas as chaves relacionadas aos arquivos
+/// / editados e pede ao ResultsPanel que re-renderize os cards.
+/// / ═══════════════════════════════════════════════════════════════════
 //    private void invalidateEditedThumbs() {
 //        if (editedFiles.isEmpty()) return;
 //
