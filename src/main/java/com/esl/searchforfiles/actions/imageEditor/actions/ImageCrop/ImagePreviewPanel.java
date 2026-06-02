@@ -38,6 +38,12 @@ public class ImagePreviewPanel extends JPanel implements Scrollable {
     private static final Color HANDLE_BORDER = new Color(80, 80, 80);
     private static final int   HANDLE_SIZE   = 8;
 
+
+    private boolean    brushMode = false;
+    private BrushStrokeCallback brushCallback;
+    private java.util.function.IntSupplier brushSizeSupplier;
+    private int lastMouseX = -1, lastMouseY = -1;
+
     // ── Construtor ────────────────────────────────────────────────
     public ImagePreviewPanel() {
         setBackground(new Color(30, 30, 30));
@@ -54,6 +60,9 @@ public class ImagePreviewPanel extends JPanel implements Scrollable {
     }
 
     // ── API pública ───────────────────────────────────────────────
+
+
+    public boolean isBrushMode() { return brushMode; }
 
     public BufferedImage getCurrentImage() { return sourceImage; }
 
@@ -81,6 +90,48 @@ public class ImagePreviewPanel extends JPanel implements Scrollable {
     public BufferedImage  getSourceImage()  { return sourceImage; }
     public boolean        isCropMode()      { return cropMode; }
     public boolean        hasSelection()    { return cropTool.hasSelection(); }
+
+
+    // ── Modo Pintura de ajustes ─────────────────────────────────────────────────
+
+
+    /**
+     * Ativa o modo brush.
+     * @param callback       chamado a cada ponto pintado com coords da sourceImage
+     * @param sizeSupplier   retorna o tamanho atual do brush (pode mudar em tempo real)
+     */
+    public void enterBrushMode(BrushStrokeCallback callback,
+                               java.util.function.IntSupplier sizeSupplier) {
+        // Sai do crop se estiver ativo
+        if (cropMode) exitCropMode();
+        brushMode         = true;
+        brushCallback     = callback;
+        brushSizeSupplier = sizeSupplier;
+        setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
+        repaint();
+    }
+
+    public void exitBrushMode() {
+        brushMode = false;
+        brushCallback = null;
+        setCursor(Cursor.getDefaultCursor());
+        repaint();
+    }
+
+
+
+
+    private void applyBrush(MouseEvent e) {
+        lastMouseX = e.getX(); lastMouseY = e.getY();
+        if (sourceImage == null || brushCallback == null) return;
+        Point img = panelToImage(e.getX(), e.getY());
+        if (img == null) return;
+        brushCallback.onStroke(img.x, img.y,
+                sourceImage.getWidth(), sourceImage.getHeight());
+        repaint();
+    }
+
+
 
     // ── Modo crop ─────────────────────────────────────────────────
 
@@ -146,6 +197,16 @@ public class ImagePreviewPanel extends JPanel implements Scrollable {
 
         if (cropMode && cropTool.hasSelection())
             drawCropOverlay(g, drawX, drawY);
+
+
+        if (brushMode && lastMouseX >= 0) {
+            int r = (int)(brushSizeSupplier.getAsInt() * zoomScale / 2);
+            g.setColor(new Color(255, 255, 255, 180));
+            g.setStroke(new BasicStroke(1.5f));
+            g.drawOval(lastMouseX - r, lastMouseY - r, r * 2, r * 2);
+            // Ponto central
+            g.fillOval(lastMouseX - 2, lastMouseY - 2, 4, 4);
+        }
     }
 
     /** Recalcula imgW/imgH e ajusta o preferredSize para o JScrollPane. */
@@ -223,6 +284,7 @@ public class ImagePreviewPanel extends JPanel implements Scrollable {
     // ── Eventos do mouse ──────────────────────────────────────────
 
     private void onPress(MouseEvent e) {
+        if (brushMode) { applyBrush(e); return; }
         if (!cropMode) return;
         Point img = panelToImage(e.getX(), e.getY());
         if (img == null) return;
@@ -236,6 +298,7 @@ public class ImagePreviewPanel extends JPanel implements Scrollable {
     }
 
     private void onDrag(MouseEvent e) {
+        if (brushMode) { applyBrush(e); return; }
         if (!cropMode) return;
         Point img = panelToImage(e.getX(), e.getY());
         if (img == null) return;
@@ -247,12 +310,19 @@ public class ImagePreviewPanel extends JPanel implements Scrollable {
     }
 
     private void onRelease(MouseEvent e) {
+        if (brushMode) return;
         if (!cropMode) return;
         cropTool.endOperation();
         repaint();
     }
 
     private void onMove(MouseEvent e) {
+        if (brushMode) {
+            // Mantém crosshair; o círculo é desenhado no paintComponent
+            lastMouseX = e.getX(); lastMouseY = e.getY();
+            repaint();
+            return;
+        }
         if (!cropMode || !cropTool.hasSelection()) {
             if (cropMode) setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
             return;
@@ -302,4 +372,10 @@ public class ImagePreviewPanel extends JPanel implements Scrollable {
 
     @FunctionalInterface
     public interface QuadConsumer<A,B,C,D> { void accept(A a, B b, C c, D d); }
+
+
+    @FunctionalInterface
+    public interface BrushStrokeCallback {
+        void onStroke(int cx, int cy, int refW, int refH);
+    }
 }

@@ -3,6 +3,8 @@ package com.esl.searchforfiles.actions.imageEditor;
 
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageAdjust.AdjustActionCardPanel;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageAdjust.ImageAdjustAction;
+import com.esl.searchforfiles.actions.imageEditor.actions.ImageBrushAdjust.BrushActionCardPanel;
+import com.esl.searchforfiles.actions.imageEditor.actions.ImageBrushAdjust.ImageBrushAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageCrop.CropActionCardPanel;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageCrop.ImageCropAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageCrop.ImagePreviewPanel;
@@ -61,6 +63,7 @@ public class ImageEditorFrame extends JFrame {
 
     private boolean editActionPerformed = false;
     private ActionPresetManager actionPresetManager;
+
 
 
     // ══════════════════════════════════════════════════════════════
@@ -343,6 +346,8 @@ public class ImageEditorFrame extends JFrame {
         if (next < 0 || next >= imageFiles.size()) return;
         // Sai do modo crop ao trocar de imagem
         if (imagePreviewPanel.isCropMode()) imagePreviewPanel.exitCropMode();
+        if (imagePreviewPanel.isBrushMode()) imagePreviewPanel.exitBrushMode();
+
         zoomFactor = 1.0;
         showImage(next);
     }
@@ -447,6 +452,7 @@ public class ImageEditorFrame extends JFrame {
                 case ImageResizeAction s -> s.apply(result);
                 case ImageCropAction c -> c.apply(result);
                 case ImageSketchAction sk -> sk.apply(result);
+                case ImageBrushAction br -> result = br.apply(result);
                 default -> result;
             };
         }
@@ -490,6 +496,11 @@ public class ImageEditorFrame extends JFrame {
         sketchItem.setFont(UIConfig.FONT_DEFAULT);
         sketchItem.addActionListener(e -> addImageSketchAction());
         menu.add(sketchItem);
+
+        JMenuItem brushItem = new JMenuItem("Brush de ajuste local");
+        brushItem.setFont(UIConfig.FONT_DEFAULT);
+        brushItem.addActionListener(e -> addImageBrushAction());
+        menu.add(brushItem);
 
         menu.addSeparator();
 
@@ -579,6 +590,18 @@ public class ImageEditorFrame extends JFrame {
         registerCard(card);
     }
 
+
+    private void addImageBrushAction() {
+        // Permite múltiplas instâncias (cada uma com sua máscara independente)
+        ImageBrushAction action = new ImageBrushAction();
+        BrushActionCardPanel card   = new BrushActionCardPanel(action, this, this::removeAction);
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        card.setOnToggle(this::requestPreviewRefresh);
+        registerCard(card);
+    }
+
+
+
     /**
      * Adiciona um card genérico (ações dummy / futuras).
      */
@@ -601,6 +624,12 @@ public class ImageEditorFrame extends JFrame {
     }
 
     private void removeAction(ActionCardPanel card) {
+
+
+        if (card.getAction() instanceof ImageBrushAction
+                && imagePreviewPanel.isBrushMode())
+            imagePreviewPanel.exitBrushMode();
+
         // Sai do modo crop se o card removido for de crop
         if (card.getAction() instanceof ImageCropAction && imagePreviewPanel.isCropMode())
             imagePreviewPanel.exitCropMode();
@@ -787,6 +816,13 @@ public class ImageEditorFrame extends JFrame {
                 }
                 case ImageSketchAction sk -> {
                     ImageSketchPanel card = new ImageSketchPanel(sk, this, this::removeAction);
+                    card.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    card.setOnToggle(this::requestPreviewRefresh);
+                    registerCard(card);
+                }
+
+                case ImageBrushAction br -> {
+                    BrushActionCardPanel card = new BrushActionCardPanel(br, this, this::removeAction);
                     card.setAlignmentX(Component.LEFT_ALIGNMENT);
                     card.setOnToggle(this::requestPreviewRefresh);
                     registerCard(card);
