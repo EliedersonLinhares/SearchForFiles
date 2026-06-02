@@ -25,9 +25,13 @@ focus on media(image, audio and video)
 - ✅ Add Star an Tags
 - ✅ Add SubFolder Panel to navigate folders inside
 - ✅ Add thumbnails size chose
+- ✅ Add Transfer mode to move,copy and delete files
+- ✅ Add Rename mode to rename many files or folders at time
+- ✅ Add Image Edit mode to edit images with filters using actions
+- ✅ The Image edit mode can save and load pipeline actions to increase agility 
+
 
 ## 🚀 Features to be implemented
 - ℹ️ Better UI design
 - ℹ️ Personalized image viewer
-- ℹ️ Possibility to add image filters
 
