@@ -689,6 +689,11 @@ public class ResultsPanel extends JPanel {
         }
     }
 
+    public void openConfiguration(){
+        new ConfigurationPanel( SwingUtilities.getWindowAncestor(this),
+                this);
+    }
+
     private JToolBar buildEditToolBar(EditModeManager em) {
         JToolBar bar = new JToolBar();
         bar.setFloatable(false);

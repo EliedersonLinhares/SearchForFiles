@@ -707,6 +707,19 @@ public class FileExplorerSwing extends JFrame {
         }
     }
 
+    public void toggleConfigurationMode() {
+        if (renameModeFolders.isActive() || renameModeFiles.isActive()) {
+            resultsPanel.exitRenameMode();
+        }
+        if(editModeManager.isEditModeActive()) {
+            resultsPanel.exitEditMode();
+        }
+        if(transferService.isTransferModeActive()) {
+            resultsPanel.exitTransferMode();
+        }
+        resultsPanel.openConfiguration();
+    }
+
     /**
      * Garante que apenas um modo fica ativo por vez.
      * Chame antes de ativar qualquer modo.

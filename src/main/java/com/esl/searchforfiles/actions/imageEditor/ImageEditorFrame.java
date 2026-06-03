@@ -7,7 +7,8 @@ import com.esl.searchforfiles.actions.imageEditor.actions.ImageBrushAdjust.Brush
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageBrushAdjust.ImageBrushAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageCrop.CropActionCardPanel;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageCrop.ImageCropAction;
-import com.esl.searchforfiles.actions.imageEditor.actions.ImageCrop.ImagePreviewPanel;
+import com.esl.searchforfiles.actions.imageEditor.actions.ImagePaintBrush.ImagePaintBrushAction;
+import com.esl.searchforfiles.actions.imageEditor.actions.ImagePaintBrush.PaintBrushActionCardPanel;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageResize.ImageResizeAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageResize.ResizeActionCardPanel;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageRotate.ImageRotateAction;
@@ -57,14 +58,13 @@ public class ImageEditorFrame extends JFrame {
     private ImagePreviewPanel imagePreviewPanel;  // ← substitui JLabel
     private JLabel counterLabel;
     private JLabel zoomLabel;
-    private JButton prevBtn, nextBtn;
+    private JButton prevBtn;
+    private JButton nextBtn;
     private JPanel actionsContainer;
     private JLabel lbl;
 
     private boolean editActionPerformed = false;
     private ActionPresetManager actionPresetManager;
-
-
 
     // ══════════════════════════════════════════════════════════════
     // Construtor
@@ -347,6 +347,7 @@ public class ImageEditorFrame extends JFrame {
         // Sai do modo crop ao trocar de imagem
         if (imagePreviewPanel.isCropMode()) imagePreviewPanel.exitCropMode();
         if (imagePreviewPanel.isBrushMode()) imagePreviewPanel.exitBrushMode();
+        if (imagePreviewPanel.isBrushMode()) imagePreviewPanel.exitBrushMode();
 
         zoomFactor = 1.0;
         showImage(next);
@@ -452,7 +453,8 @@ public class ImageEditorFrame extends JFrame {
                 case ImageResizeAction s -> s.apply(result);
                 case ImageCropAction c -> c.apply(result);
                 case ImageSketchAction sk -> sk.apply(result);
-                case ImageBrushAction br -> result = br.apply(result);
+                case ImageBrushAction br -> br.apply(result);
+                case ImagePaintBrushAction pb -> pb.apply(result);
                 default -> result;
             };
         }
@@ -501,6 +503,10 @@ public class ImageEditorFrame extends JFrame {
         brushItem.setFont(UIConfig.FONT_DEFAULT);
         brushItem.addActionListener(e -> addImageBrushAction());
         menu.add(brushItem);
+
+        JMenuItem paintBrushItem = new JMenuItem("Paint Brush (pintar cor)");
+        paintBrushItem.addActionListener(e -> addImagePaintBrushAction());
+        menu.add(paintBrushItem);
 
         menu.addSeparator();
 
@@ -561,7 +567,7 @@ public class ImageEditorFrame extends JFrame {
             imagePreviewPanel.enterCropMode(aspect, (x, y, w, h) -> {
                 // x,y,w,h estão em coords da imagem escalada exibida pelo painel;
                 // precisamos converter de volta para coords do proxy original.
-                BufferedImage displayed = imagePreviewPanel.getCurrentImage();
+                BufferedImage displayed = imagePreviewPanel.getSourceImage();
                 BufferedImage proxy = previews.get(currentIndex);
                 if (displayed == null || proxy == null) return;
 
@@ -601,6 +607,15 @@ public class ImageEditorFrame extends JFrame {
     }
 
 
+    private void addImagePaintBrushAction() {
+        ImagePaintBrushAction action = new ImagePaintBrushAction();
+        PaintBrushActionCardPanel card = new PaintBrushActionCardPanel(
+                action, this, this::removeAction);
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        card.setOnToggle(this::requestPreviewRefresh);
+        registerCard(card);
+    }
+
 
     /**
      * Adiciona um card genérico (ações dummy / futuras).
@@ -633,6 +648,10 @@ public class ImageEditorFrame extends JFrame {
         // Sai do modo crop se o card removido for de crop
         if (card.getAction() instanceof ImageCropAction && imagePreviewPanel.isCropMode())
             imagePreviewPanel.exitCropMode();
+
+        if (card.getAction() instanceof ImagePaintBrushAction
+                && imagePreviewPanel.isBrushMode())
+            imagePreviewPanel.exitBrushMode();
 
         actionCards.remove(card);
         Component[] comps = actionsContainer.getComponents();
@@ -820,9 +839,16 @@ public class ImageEditorFrame extends JFrame {
                     card.setOnToggle(this::requestPreviewRefresh);
                     registerCard(card);
                 }
-
                 case ImageBrushAction br -> {
                     BrushActionCardPanel card = new BrushActionCardPanel(br, this, this::removeAction);
+                    card.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    card.setOnToggle(this::requestPreviewRefresh);
+                    registerCard(card);
+                }
+
+                case ImagePaintBrushAction pb -> {
+                    PaintBrushActionCardPanel card = new PaintBrushActionCardPanel(
+                            pb, this, this::removeAction);
                     card.setAlignmentX(Component.LEFT_ALIGNMENT);
                     card.setOnToggle(this::requestPreviewRefresh);
                     registerCard(card);
@@ -833,6 +859,29 @@ public class ImageEditorFrame extends JFrame {
         lbl.setText("Ações - " + actionPresetManager.getFile().getName());
         requestPreviewRefresh();
 
+    }
+
+
+    public BufferedImage getPreviewProxy() {
+        BufferedImage proxy = previews.get(currentIndex);
+        if (proxy == null) return null;
+
+        // Aplica só as actions que NÃO são brush (rápido, sem masks grandes)
+        BufferedImage result = proxy;
+        for (ActionCardPanel card : actionCards) {
+            ImageEditAction action = card.getAction();
+            if (!action.isEnabled()) continue;
+            if (action instanceof ImageBrushAction)      continue;  // pula
+            if (action instanceof ImagePaintBrushAction) continue;  // pula
+            result = switch (action) {
+                case ImageAdjustAction  a -> a.apply(result);
+                case ImageRotateAction  r -> r.apply(result);
+                case ImageResizeAction  s -> s.apply(result);
+                case ImageCropAction    c -> c.apply(result);
+                default                   -> result;
+            };
+        }
+        return result;
     }
 
 }

@@ -28,6 +28,7 @@ public class SearchPanel extends JPanel {
     private final JButton editModeBtn;
     private final JButton renameFilesBtn;
     private final JButton renameFoldersBtn;
+    private final JButton configurationBtn;
 
     // NOVO ▼
     private final JComboBox<String> ratingFilterCombo;   // "Qualquer", "1+", "2+", …, "5"
@@ -179,6 +180,11 @@ public class SearchPanel extends JPanel {
         renameFoldersBtn.setToolTipText("Ativar modo para renomear pastas");
         renameFoldersBtn.addActionListener(e -> fileExplorerSwing.toggleRenameModeFolders());
 
+        configurationBtn = new JButton("Configurações");
+        configurationBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+        configurationBtn.setToolTipText("Painel de configurações do aplicativo");
+        configurationBtn.addActionListener(e -> fileExplorerSwing.toggleConfigurationMode());
+
 
 // Envolve todo o conteúdo num painel com WrapLayout
         JPanel wrapPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 5, 4));
@@ -235,6 +241,7 @@ public class SearchPanel extends JPanel {
         wrapPanel.add(renameFoldersBtn);
         wrapPanel.add(searchButton);
         wrapPanel.add(indexButton);
+        wrapPanel.add(configurationBtn);
 
 // ── Monta o painel principal com scroll vertical ──────────────────────────────
 

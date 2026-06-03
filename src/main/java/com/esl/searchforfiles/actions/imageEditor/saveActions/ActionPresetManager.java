@@ -5,6 +5,7 @@ import com.esl.searchforfiles.actions.imageEditor.ActionCardPanel;
 import com.esl.searchforfiles.actions.imageEditor.ImageEditAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageAdjust.ImageAdjustAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageCrop.ImageCropAction;
+import com.esl.searchforfiles.actions.imageEditor.actions.ImagePaintBrush.ImagePaintBrushAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageResize.ImageResizeAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageRotate.ImageRotateAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageSketchFilter.ImageSketchAction;
@@ -211,6 +212,17 @@ public class ActionPresetManager {
                 fields.put("kernelSize",        String.valueOf(sk.getKernelSize()));
                 fields.put("dilateIterations",  String.valueOf(sk.getDilateIterations()));
             }
+            case ImagePaintBrushAction pb -> {
+                fields.put("type",      q("paintbrush"));
+                fields.put("colorR",    String.valueOf(pb.getBrushColor().getRed()));
+                fields.put("colorG",    String.valueOf(pb.getBrushColor().getGreen()));
+                fields.put("colorB",    String.valueOf(pb.getBrushColor().getBlue()));
+                fields.put("opacity",   String.valueOf(pb.getOpacity()));
+                fields.put("brushSize", String.valueOf(pb.getBrushSize()));
+                fields.put("brushType", q(pb.getBrushType().name()));
+                // Nota: a máscara de pintura não é serializada (dados visuais complexos).
+                // Ao recarregar o preset, o card é recriado sem a máscara (efeito inativo).
+            }
             default -> fields.put("type", q("unknown"));
         }
 
@@ -280,6 +292,18 @@ public class ActionPresetManager {
                     sk.setEffectApplied   (Boolean.parseBoolean(
                             fields.getOrDefault("effectApplied", "false")));
                     yield sk;
+                }
+                case "paintbrush" -> {
+                    ImagePaintBrushAction pb = new ImagePaintBrushAction();
+                    int cr = itg(fields, "colorR", 255);
+                    int cg = itg(fields, "colorG", 0);
+                    int cb = itg(fields, "colorB", 0);
+                    pb.setBrushColor(new Color(cr, cg, cb));
+                    pb.setOpacity   (Float.parseFloat(fields.getOrDefault("opacity", "1.0")));
+                    pb.setBrushSize (itg(fields, "brushSize", 40));
+                    pb.setBrushType (ImagePaintBrushAction.BrushType.valueOf(
+                            unq(fields.getOrDefault("brushType", "SOFT"))));
+                    yield pb;
                 }
                 default -> null;
             };
