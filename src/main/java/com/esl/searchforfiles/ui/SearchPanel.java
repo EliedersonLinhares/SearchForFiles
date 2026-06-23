@@ -6,10 +6,12 @@ import com.esl.searchforfiles.model.OrderBy;
 import com.esl.searchforfiles.model.SortOption;
 import com.esl.searchforfiles.others.ThumbnailSize;
 import com.esl.searchforfiles.actions.fileTransfer.TransferService;
+import com.formdev.flatlaf.FlatClientProperties;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -41,7 +43,9 @@ public class SearchPanel extends JPanel {
     private NavigationListener navigationListener;
     private SearchListener searchListener;
     private IndexListener indexListener;
-    private ThumbnailSizeListener thumbSizeListener;       // NOVO
+    private ThumbnailSizeListener thumbSizeListener;
+    private boolean isDark;// NOVO
+    private Icon searchIcon;
 
     public SearchPanel(FileExplorerSwing fileExplorerSwing) {
         this.fileExplorerSwing = fileExplorerSwing;
@@ -49,7 +53,9 @@ public class SearchPanel extends JPanel {
         setLayout(new BorderLayout(5, 5));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 5, 10));
 
+        isDark = UIManager.getBoolean("laf.dark");
         // Campo de busca
+        searchIcon = new ImageIcon(Objects.requireNonNull(getClass().getResource("/icons/text/search_icon16.png")));
         searchField = createSearchField();
 
         // NOVO: botões de navegação ─────────────────────────────────
@@ -128,21 +134,33 @@ public class SearchPanel extends JPanel {
         });
 
         // Botão de busca
-        searchButton = new JButton("🔍 Buscar");
-        searchButton.setFont(UIConfig.FONT_DEFAULT_BOLD);
+//        searchButton = new JButton("🔍 Buscar");
+//        searchButton.setFont(UIConfig.FONT_DEFAULT_BOLD);
+        searchButton = makeTextBtn("🔍 Buscar",
+                "Confirmar busca",
+                "Slider.trackColor",
+                "Component.accentColor");
         searchButton.addActionListener(e -> triggerSearch());
 
         // Botão de indexar
-        indexButton = new JButton("📊 Indexar");
-        indexButton.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        indexButton.setToolTipText("Indexar pasta selecionada");
+//        indexButton = new JButton("📊 Indexar");
+//        indexButton.setFont(UIConfig.FONT_DEFAULT_BOLD);
+//        indexButton.setToolTipText("Indexar pasta selecionada");
+        indexButton = makeTextBtn("\uD83D\uDCCA Indexar",
+                "Indexar pasta selecionada",
+                "Slider.trackColor",
+                "Component.accentColor");
         indexButton.addActionListener(e -> triggerIndex());
 
         // NOVO: ComboBox de filtro por estrelas ─────────────────────
         ratingFilterCombo = new JComboBox<>(new String[]{
                 "★ Qualquer", "★ 1+", "★★ 2+", "★★★ 3+", "★★★★ 4+", "★★★★★ 5"
         });
-        ratingFilterCombo.setSelectedItem(fileExplorerSwing.getConfigManager().getSavedStarRating());
+
+//        ratingFilterCombo.setSelectedItem(fileExplorerSwing.getConfigManager().getSavedStarRating());
+        ratingFilterCombo.setSelectedItem(
+                ratingToComboItem(fileExplorerSwing.getConfigManager().getSavedStarRating())
+        );
         ratingFilterCombo.setFont(UIConfig.FONT_DEFAULT);
         ratingFilterCombo.setToolTipText("Filtrar por avaliação mínima");
         ratingFilterCombo.setPreferredSize(new Dimension(120, 25));
@@ -159,30 +177,51 @@ public class SearchPanel extends JPanel {
         tagFilterField.addActionListener(e -> triggerSearch());
 
 
-        transferButton = new JButton("✂️ Selecionar");
-        transferButton.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        transferButton.setToolTipText("Ativar modo de transferência de arquivos");
+        transferButton = makeTextBtn("✂️ Selecionar",
+                "Ativar modo de transferência de arquivos",
+                "Slider.trackColor",
+                "Component.accentColor");
         transferButton.addActionListener(e -> fileExplorerSwing.toggleTransferMode());
+//        transferButton = new JButton("✂️ Selecionar");
+//        transferButton.setFont(UIConfig.FONT_DEFAULT_BOLD);
+//        transferButton.setToolTipText("Ativar modo de transferência de arquivos");
+//        transferButton.addActionListener(e -> fileExplorerSwing.toggleTransferMode());
 
-        editModeBtn = new JButton("🖼 Editar imagens");
-        editModeBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        editModeBtn.setToolTipText("Ativar modo de edição de Imagens");
+//        editModeBtn = new JButton("🖼 Editar imagens");
+//        editModeBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+//        editModeBtn.setToolTipText("Ativar modo de edição de Imagens");
+        editModeBtn = makeTextBtn("🖼 Editar imagens",
+                "Ativar modo de edição de Imagens",
+                "Slider.trackColor",
+                "Component.accentColor");
         editModeBtn.addActionListener(e -> fileExplorerSwing.toggleEditMode());
 
 
-        renameFilesBtn = new JButton("🗒 Renomear arquivos");
-        renameFilesBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        renameFilesBtn.setToolTipText("Ativar modo para renomear arquivos");
+//        renameFilesBtn = new JButton("🗒 Renomear arquivos");
+//        renameFilesBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+//        renameFilesBtn.setToolTipText("Ativar modo para renomear arquivos");
+        renameFilesBtn = makeTextBtn("🗒 Renomear arquivos",
+                "Ativar modo para renomear arquivos",
+                "Slider.trackColor",
+                "Component.accentColor");
         renameFilesBtn.addActionListener(e -> fileExplorerSwing.toggleRenameModeFiles());
 
-        renameFoldersBtn = new JButton("📁 Renomear pastas");
-        renameFoldersBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        renameFoldersBtn.setToolTipText("Ativar modo para renomear pastas");
+//        renameFoldersBtn = new JButton("📁 Renomear pastas");
+//        renameFoldersBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+//        renameFoldersBtn.setToolTipText("Ativar modo para renomear pastas");
+        renameFoldersBtn = makeTextBtn("📁 Renomear pastas",
+                "Ativar modo para renomear arquivos",
+                "Slider.trackColor",
+                "Component.accentColor");
         renameFoldersBtn.addActionListener(e -> fileExplorerSwing.toggleRenameModeFolders());
 
-        configurationBtn = new JButton("Configurações");
-        configurationBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        configurationBtn.setToolTipText("Painel de configurações do aplicativo");
+//        configurationBtn = new JButton("Configurações");
+//        configurationBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+//        configurationBtn.setToolTipText("Painel de configurações do aplicativo");
+        configurationBtn = makeTextBtn("\uD83D\uDD27 Configurações",
+                "Painel de configurações do aplicativo",
+                "Slider.trackColor",
+                "Component.accentColor");
         configurationBtn.addActionListener(e -> fileExplorerSwing.toggleConfigurationMode());
 
 
@@ -252,9 +291,53 @@ public class SearchPanel extends JPanel {
         //  outer.add(breadcrumbLabel, BorderLayout.SOUTH);
 
         add(outer, BorderLayout.CENTER);
+
+        fileExplorerSwing.getThemeManager().addThemeChangeListener(() ->
+                SwingUtilities.invokeLater(() -> {
+                    // 1. Atualiza a variável com o estado do novo tema ativo
+                    isDark = UIManager.getBoolean("laf.dark");
+
+                    // 2. Cria ou recupera o ícone correto baseado no novo estado
+                    Icon iconeAtualizado = isDark ?
+                            fileExplorerSwing.getThemeManager().inverterColorIcon(searchIcon) :
+                            searchIcon;
+
+                    // 3. Reaplica a propriedade do cliente para atualizar o FlatLaf
+                    searchField.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, iconeAtualizado);
+
+                    // 4. Redesenha o componente para garantir que a mudança visual apareça na hora
+                    searchField.repaint();
+                    searchField.revalidate();
+                })
+        );
     }
 
+    private JButton makeTextBtn(String text, String toolTipText, String borderColor, String borderHoverColor) {
+        Map<String, Object> estiloBotao = Map.of(
+                "borderWidth", 2,
+                "borderColor",UIManager.getColor(borderColor), // Cor normal
+                "hoverBorderColor", UIManager.getColor(borderHoverColor), // Cor ao passar o mouse
+                "focusedBorderColor", UIManager.getColor("Slider.trackColor") // Cor se focado (opcional)
+        );
+        JButton btn = new JButton(text);
+        btn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+        btn.putClientProperty(FlatClientProperties.STYLE, estiloBotao);
+        btn.setToolTipText(toolTipText);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return btn;
+    }
 
+    // Mapeamento int → String do combo
+    private String ratingToComboItem(int rating) {
+        return switch (rating) {
+            case 1 -> "★ 1+";
+            case 2 -> "★★ 2+";
+            case 3 -> "★★★ 3+";
+            case 4 -> "★★★★ 4+";
+            case 5 -> "★★★★★ 5";
+            default -> "★ Qualquer";
+        };
+    }
     // ── Helpers (adicione como métodos privados na classe) ────────────────────────
     private JLabel label(String text) {
         JLabel l = new JLabel(text);
@@ -345,25 +428,27 @@ public class SearchPanel extends JPanel {
     private JTextField createSearchField() {
         JTextField field = new JTextField();
         field.setFont(UIConfig.FONT_DEFAULT);
-        String placeholderText = "Digite um nome para pesquisa...";
-        field.setText(placeholderText);
-
-        // Placeholder behavior
-        field.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusGained(FocusEvent e) {
-                if (field.getText().equals(placeholderText)) {
-                    field.setText("");
-                }
-            }
-
-            @Override
-            public void focusLost(FocusEvent e) {
-                if (field.getText().isEmpty()) {
-                    field.setText(placeholderText);
-                }
-            }
-        });
+        field.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Digite para pesquisar...");
+        field.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, isDark ?  fileExplorerSwing.getThemeManager().inverterColorIcon(searchIcon) : searchIcon);
+//        String placeholderText = "Digite um nome para pesquisa...";
+//        field.setText(placeholderText);
+//
+//        // Placeholder behavior
+//        field.addFocusListener(new FocusAdapter() {
+//            @Override
+//            public void focusGained(FocusEvent e) {
+//                if (field.getText().equals(placeholderText)) {
+//                    field.setText("");
+//                }
+//            }
+//
+//            @Override
+//            public void focusLost(FocusEvent e) {
+//                if (field.getText().isEmpty()) {
+//                    field.setText(placeholderText);
+//                }
+//            }
+//        });
 
         field.addActionListener(e -> triggerSearch());
 
@@ -400,9 +485,9 @@ public class SearchPanel extends JPanel {
 
     public String getSearchTerm() {
         String text = searchField.getText().trim();
-        if (text.equals("Digite um nome para pesquisa...")) {
-            return "";
-        }
+//        if (text.equals("Digite um nome para pesquisa...")) {
+//            return "";
+//        }
         return text;
     }
 

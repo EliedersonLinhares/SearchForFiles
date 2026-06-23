@@ -37,6 +37,9 @@ public class EditModeManager {
     public Set<File> getSelectedFiles()          { return Collections.unmodifiableSet(selectedFiles); }
     public boolean isSelected(File f)            { return selectedFiles.contains(f); }
     public int getSelectedCount()                { return selectedFiles.size(); }
+    public void selectFile(File f) {
+        if (isAccepted(f)) selectedFiles.add(f);
+    }
 
     /** Apenas JPG, JPEG e PNG são aceitos no modo de edição. */
     public static boolean isAccepted(File f) {

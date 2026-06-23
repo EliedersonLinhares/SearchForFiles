@@ -50,7 +50,7 @@ public class AdjustActionCardPanel extends ActionCardPanel {
     // ── Painel de sliders ──────────────────────────────────────────
     private JPanel buildSlidersPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(new Color(50, 50, 50));
+   //     panel.setBackground(new Color(50, 50, 50));
         panel.setBorder(BorderFactory.createEmptyBorder(4, 10, 6, 10));
 
         GridBagConstraints gbc = new GridBagConstraints();
@@ -97,16 +97,16 @@ public class AdjustActionCardPanel extends ActionCardPanel {
                               IntConsumer onChange, IntFunction<String> formatter) {
 
         JLabel nameLabel = new JLabel(name);
-        nameLabel.setForeground(new Color(180, 180, 180));
+   //     nameLabel.setForeground(new Color(180, 180, 180));
         nameLabel.setFont(UIConfig.FONT_DEFAULT);
-        nameLabel.setPreferredSize(new Dimension(62, 16));
+        nameLabel.setPreferredSize(new Dimension(66, 16));
 
         JSlider slider = new JSlider(min, max, initial);
-        slider.setBackground(new Color(50, 50, 50));
+  //      slider.setBackground(new Color(50, 50, 50));
         slider.setFocusable(false);
 
         JLabel valueLabel = new JLabel(formatter.apply(initial));
-        valueLabel.setForeground(new Color(140, 140, 140));
+   //     valueLabel.setForeground(new Color(140, 140, 140));
         valueLabel.setFont(UIConfig.FONT_DEFAULT);
         valueLabel.setPreferredSize(new Dimension(34, 16));
         valueLabel.setHorizontalAlignment(SwingConstants.RIGHT);

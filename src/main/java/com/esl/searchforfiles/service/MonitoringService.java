@@ -327,31 +327,6 @@ public class MonitoringService {
                     + e.getMessage());
         }
     }
-
-//    /**
-//     * Handler de arquivo deletado
-//     * CORRIGIDO: Validações adicionais
-//     */
-//    private void handleFileDeleted(Path file) {
-//        try {
-//            // VALIDAÇÃO: Path não pode ser nulo
-//            if (file == null) {
-//                return;
-//            }
-//
-//            dbManager.deleteFile(file.toAbsolutePath().toString());
-//            searchService.clearCache();
-//
-//            Path fileName = file.getFileName();
-//            String name = (fileName != null) ? fileName.toString() : file.toString();
-//
-//            System.out.println("➖ Arquivo deletado: " + name +
-//                    " [VThread: " + Thread.currentThread().threadId() + "]");
-//        } catch (Exception e) {
-//            System.err.println("⚠️  Erro ao remover do índice: " + e.getMessage());
-//        }
-//    }
-
     // Substitua handleFileDeleted():
     private void handleFileDeleted(Path file) {
         try {

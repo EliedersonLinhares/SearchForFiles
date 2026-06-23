@@ -1,8 +1,12 @@
 package com.esl.searchforfiles;
 
+import com.esl.searchforfiles.Theme.ThemeManager;
 import com.esl.searchforfiles.ui.FileExplorerSwing;
 import com.esl.searchforfiles.ui.FileItemPanel;
+import com.formdev.flatlaf.intellijthemes.FlatArcDarkOrangeIJTheme;
+import com.formdev.flatlaf.intellijthemes.FlatArcOrangeIJTheme;
 import com.formdev.flatlaf.intellijthemes.FlatDarkFlatIJTheme;
+import com.formdev.flatlaf.intellijthemes.FlatDraculaIJTheme;
 
 import javax.swing.*;
 
@@ -23,9 +27,11 @@ public class FileSearch {
 
                 System.out.println("Executores encerrados.");
             }));
+            ThemeManager themeManager = new ThemeManager();
+            themeManager.setupCurrentTheme();
 
-            FlatDarkFlatIJTheme.setup();
-            new FileExplorerSwing();
+            UIManager.put("Button.arc", 999);
+            new FileExplorerSwing(themeManager);
         });
     }
 }

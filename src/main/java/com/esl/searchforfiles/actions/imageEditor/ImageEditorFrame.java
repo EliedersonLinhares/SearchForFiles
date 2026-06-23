@@ -3,6 +3,8 @@ package com.esl.searchforfiles.actions.imageEditor;
 
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageAdjust.AdjustActionCardPanel;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageAdjust.ImageAdjustAction;
+import com.esl.searchforfiles.actions.imageEditor.actions.ImageBlurBrush.BlurBrushActionCardPanel;
+import com.esl.searchforfiles.actions.imageEditor.actions.ImageBlurBrush.ImageBlurBrushAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageBrushAdjust.BrushActionCardPanel;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageBrushAdjust.ImageBrushAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageCrop.CropActionCardPanel;
@@ -19,6 +21,7 @@ import com.esl.searchforfiles.actions.imageEditor.saveActions.ActionPresetManage
 import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.ui.FileItemPanel;
 import com.esl.searchforfiles.ui.ResultsPanel;
+import com.formdev.flatlaf.FlatClientProperties;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -155,18 +158,18 @@ public class ImageEditorFrame extends JFrame {
     // ── Painel esquerdo ────────────────────────────────────────────
     private JPanel buildLeftPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(new Color(38, 38, 38));
+     //   panel.setBackground(new Color(38, 38, 38));
 
         imagePreviewPanel = new ImagePreviewPanel();
-        imagePreviewPanel.setBackground(new Color(30, 30, 30));
+   //     imagePreviewPanel.setBackground(new Color(30, 30, 30));
 
         // JScrollPane permite rolar quando zoom > fitScale
         JScrollPane imgScroll = new JScrollPane(imagePreviewPanel);
         imgScroll.setBorder(BorderFactory.createEmptyBorder());
         imgScroll.getVerticalScrollBar().setUnitIncrement(16);
         imgScroll.getHorizontalScrollBar().setUnitIncrement(16);
-        imgScroll.setBackground(new Color(30, 30, 30));
-        imgScroll.getViewport().setBackground(new Color(30, 30, 30));
+      //  imgScroll.setBackground(new Color(30, 30, 30));
+      //  imgScroll.getViewport().setBackground(new Color(30, 30, 30));
 
         // Zoom pela rodinha — ignorado durante o modo crop
         imgScroll.addMouseWheelListener(e -> {
@@ -182,18 +185,18 @@ public class ImageEditorFrame extends JFrame {
 
     private JPanel buildNavBar() {
         JPanel wrapper = new JPanel(new BorderLayout());
-        wrapper.setBackground(new Color(42, 42, 42));
-        wrapper.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(65, 65, 65)));
+      //  wrapper.setBackground(new Color(42, 42, 42));
+        wrapper.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UIConfig.foreground()));
 
         // ── Linha de navegação + zoom ──────────────────────────────
         JPanel navRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 6));
-        navRow.setBackground(new Color(42, 42, 42));
+      //  navRow.setBackground(new Color(42, 42, 42));
 
         prevBtn = makeIconBtn("◀");
         nextBtn = makeIconBtn("▶");
 
         counterLabel = new JLabel("1 / " + imageFiles.size());
-        counterLabel.setForeground(new Color(160, 160, 160));
+     //   counterLabel.setForeground(new Color(160, 160, 160));
         counterLabel.setFont(UIConfig.FONT_DEFAULT);
 
         prevBtn.addActionListener(e -> navigate(-1));
@@ -201,14 +204,14 @@ public class ImageEditorFrame extends JFrame {
 
         JSeparator sep = new JSeparator(SwingConstants.VERTICAL);
         sep.setPreferredSize(new Dimension(1, 20));
-        sep.setForeground(new Color(80, 80, 80));
+        sep.setForeground(UIConfig.foreground());
 
         JButton zoomOutBtn = makeIconBtn("−");
         zoomOutBtn.setFont(UIConfig.FONT_DEFAULT);
         JButton zoomInBtn = makeIconBtn("+");
         zoomInBtn.setFont(UIConfig.FONT_DEFAULT);
         JButton zoomResetBtn = makeTextBtn("100%");
-        zoomResetBtn.setPreferredSize(new Dimension(46, 28));
+        zoomResetBtn.setPreferredSize(new Dimension(90, 28));
         zoomResetBtn.setFont(UIConfig.FONT_DEFAULT);
 
         zoomOutBtn.addActionListener(e -> applyZoom(-ZOOM_STEP));
@@ -216,7 +219,7 @@ public class ImageEditorFrame extends JFrame {
         zoomResetBtn.addActionListener(e -> resetZoom());
 
         zoomLabel = new JLabel("100%");
-        zoomLabel.setForeground(new Color(140, 140, 140));
+      //  zoomLabel.setForeground(new Color(140, 140, 140));
         zoomLabel.setFont(UIConfig.FONT_DEFAULT);
         zoomLabel.setPreferredSize(new Dimension(40, 16));
         zoomLabel.setHorizontalAlignment(SwingConstants.CENTER);
@@ -232,21 +235,36 @@ public class ImageEditorFrame extends JFrame {
 
         // ── Linha de ações (salvar / fechar) ──────────────────────
         JPanel closeRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 4));
-        closeRow.setBackground(new Color(42, 42, 42));
-        closeRow.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(65, 65, 65)));
+     //   closeRow.setBackground(new Color(42, 42, 42));
+        closeRow.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UIConfig.foreground()));
 
-        JButton saveBtn = makeBarBtn("💾 Salvar", new Color(40, 130, 60));
-        saveBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        JButton saveAsBtn = makeBarBtn("💾 Salvar como", new Color(40, 100, 160));
-        saveAsBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        JButton closeBtn = new JButton("Fechar");
-        closeBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+       // JButton saveBtn = makeBarBtn("💾 Salvar", new Color(40, 130, 60));
+      //  saveBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+        JButton saveBtn = makeTextBtn("\uD83D\uDCBE Salvar",
+                "Salvar a imagem no mesmo formato e caminho",
+                "Slider.trackColor",
+                "Component.success.borderColor");
 
-        closeBtn.setForeground(new Color(200, 200, 200));
-        closeBtn.setBackground(new Color(60, 60, 60));
-        closeBtn.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(90, 90, 90)),
-                BorderFactory.createEmptyBorder(3, 14, 3, 14)));
+//        JButton saveAsBtn = makeBarBtn("💾 Salvar como", new Color(40, 100, 160));
+//        saveAsBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+        JButton saveAsBtn = makeTextBtn("\uD83D\uDCBE Salvar como",
+                "Salvar a imagem em novo formato e caminho",
+                "Slider.trackColor",
+                "Component.warning.borderColor");
+
+//        JButton closeBtn = new JButton("Fechar");
+//        closeBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+
+        JButton closeBtn = makeTextBtn("❌ Fechar",
+                "Fechar a pagina",
+                "Slider.trackColor",
+                "Component.error.borderColor");
+
+  //      closeBtn.setForeground(new Color(200, 200, 200));
+  //      closeBtn.setBackground(new Color(60, 60, 60));
+//        closeBtn.setBorder(BorderFactory.createCompoundBorder(
+//                BorderFactory.createLineBorder(new Color(90, 90, 90)),
+//                BorderFactory.createEmptyBorder(3, 14, 3, 14)));
         closeBtn.setFocusPainted(false);
         closeBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
@@ -270,14 +288,14 @@ public class ImageEditorFrame extends JFrame {
     // ── Painel direito ─────────────────────────────────────────────
     private JPanel buildRightPanel() {
         JPanel panel = new JPanel(new BorderLayout(0, 0));
-        panel.setBackground(new Color(42, 42, 42));
+      //  panel.setBackground(new Color(42, 42, 42));
         panel.setPreferredSize(new Dimension(120, 0));
 
 
         JPanel topBar = new JPanel(new GridLayout(2, 2, 6, 4));   // ← era (1,2,6,0)
         topBar.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
         //  JPanel topBar = new JPanel(new GridLayout(1, 2, 6, 0));
-        topBar.setBackground(new Color(42, 42, 42));
+       // topBar.setBackground(new Color(42, 42, 42));
         // topBar.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
 //        JButton addBtn = makeBarBtn("＋ Adicionar ação", new Color(33, 120, 200));
@@ -291,14 +309,34 @@ public class ImageEditorFrame extends JFrame {
 //        topBar.add(addBtn);
 //        topBar.add(clearBtn);
 
-        JButton addBtn = makeBarBtn("＋ Adicionar ação", new Color(33, 120, 200));
-        addBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        JButton clearBtn = makeBarBtn("🗑 Limpar todos", new Color(180, 60, 60));
-        clearBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        JButton savePreset = makeBarBtn("💾 Salvar preset", new Color(60, 110, 60));
-        savePreset.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        JButton loadPreset = makeBarBtn("📂 Carregar preset", new Color(100, 80, 30));
-        loadPreset.setFont(UIConfig.FONT_DEFAULT_BOLD);
+//        JButton addBtn = makeBarBtn("＋ Adicionar ação", new Color(33, 120, 200));
+//        addBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+
+        JButton addBtn = makeTextBtn("＋ Adicionar ação",
+                "Adicionar uma ação",
+                "Slider.trackColor",
+                "Component.accentColor");
+        JButton clearBtn = makeTextBtn("🗑 Limpar todos",
+                "Adicionar uma ação",
+                "Slider.trackColor",
+                "Component.accentColor");
+        JButton savePreset = makeTextBtn("💾 Salvar preset",
+                "Adicionar uma ação",
+                "Slider.trackColor",
+                "Component.accentColor");
+        JButton loadPreset = makeTextBtn("📂 Carregar preset",
+                "Adicionar uma ação",
+                "Slider.trackColor",
+                "Component.accentColor");
+
+//        JButton clearBtn = makeBarBtn("🗑 Limpar todos", new Color(180, 60, 60));
+//        clearBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+//
+//        JButton savePreset = makeBarBtn("💾 Salvar preset", new Color(60, 110, 60));
+//        savePreset.setFont(UIConfig.FONT_DEFAULT_BOLD);
+//
+//        JButton loadPreset = makeBarBtn("📂 Carregar preset", new Color(100, 80, 30));
+//        loadPreset.setFont(UIConfig.FONT_DEFAULT_BOLD);
 
         addBtn.addActionListener(e -> showAddActionMenu(addBtn));
         clearBtn.addActionListener(e -> clearAllActions());
@@ -312,24 +350,24 @@ public class ImageEditorFrame extends JFrame {
 
 
         lbl = new JLabel("Ações");
-        lbl.setForeground(new Color(120, 120, 120));
+     //   lbl.setForeground(new Color(120, 120, 120));
         lbl.setFont(UIConfig.FONT_DEFAULT);
         lbl.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
-        lbl.setBackground(new Color(42, 42, 42));
+    //    lbl.setBackground(new Color(42, 42, 42));
         lbl.setOpaque(true);
 
         actionsContainer = new JPanel();
         actionsContainer.setLayout(new BoxLayout(actionsContainer, BoxLayout.Y_AXIS));
-        actionsContainer.setBackground(new Color(45, 45, 45));
+   //     actionsContainer.setBackground(new Color(45, 45, 45));
 
         JScrollPane scroll = new JScrollPane(actionsContainer);
         scroll.setBorder(BorderFactory.createEmptyBorder());
         scroll.getVerticalScrollBar().setUnitIncrement(12);
-        scroll.setBackground(new Color(45, 45, 45));
-        scroll.getViewport().setBackground(new Color(45, 45, 45));
+   //     scroll.setBackground(new Color(45, 45, 45));
+    //    scroll.getViewport().setBackground(new Color(45, 45, 45));
 
         JPanel north = new JPanel(new BorderLayout());
-        north.setBackground(new Color(42, 42, 42));
+     //   north.setBackground(new Color(42, 42, 42));
         north.add(topBar, BorderLayout.NORTH);
         north.add(lbl, BorderLayout.SOUTH);
 
@@ -455,6 +493,7 @@ public class ImageEditorFrame extends JFrame {
                 case ImageSketchAction sk -> sk.apply(result);
                 case ImageBrushAction br -> br.apply(result);
                 case ImagePaintBrushAction pb -> pb.apply(result);
+                case ImageBlurBrushAction bb -> bb.apply(result);
                 default -> result;
             };
         }
@@ -505,8 +544,14 @@ public class ImageEditorFrame extends JFrame {
         menu.add(brushItem);
 
         JMenuItem paintBrushItem = new JMenuItem("Paint Brush (pintar cor)");
+        paintBrushItem.setFont(UIConfig.FONT_DEFAULT);
         paintBrushItem.addActionListener(e -> addImagePaintBrushAction());
         menu.add(paintBrushItem);
+
+        JMenuItem blurBrushItem = new JMenuItem("Blur Brush (desfoque local)");
+        blurBrushItem.setFont(UIConfig.FONT_DEFAULT);
+        blurBrushItem.addActionListener(e -> addImageBlurBrushAction());
+        menu.add(blurBrushItem);
 
         menu.addSeparator();
 
@@ -616,6 +661,14 @@ public class ImageEditorFrame extends JFrame {
         registerCard(card);
     }
 
+    private void addImageBlurBrushAction() {
+        ImageBlurBrushAction action = new ImageBlurBrushAction();
+        BlurBrushActionCardPanel card   = new BlurBrushActionCardPanel(
+                action, this, this::removeAction);
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+        card.setOnToggle(this::requestPreviewRefresh);
+        registerCard(card);
+    }
 
     /**
      * Adiciona um card genérico (ações dummy / futuras).
@@ -650,6 +703,10 @@ public class ImageEditorFrame extends JFrame {
             imagePreviewPanel.exitCropMode();
 
         if (card.getAction() instanceof ImagePaintBrushAction
+                && imagePreviewPanel.isBrushMode())
+            imagePreviewPanel.exitBrushMode();
+
+        if (card.getAction() instanceof ImageBlurBrushAction
                 && imagePreviewPanel.isBrushMode())
             imagePreviewPanel.exitBrushMode();
 
@@ -732,35 +789,50 @@ public class ImageEditorFrame extends JFrame {
     private JButton makeIconBtn(String icon) {
         JButton btn = new JButton(icon);
         btn.setPreferredSize(new Dimension(30, 28));
-        btn.setFont(btn.getFont().deriveFont(13f));
-        btn.setForeground(new Color(200, 200, 200));
-        btn.setBackground(new Color(60, 60, 60));
-        btn.setBorder(BorderFactory.createLineBorder(new Color(90, 90, 90)));
-        btn.setFocusPainted(false);
+        btn.setFont(UIConfig.FONT_DEFAULT_LARGE);
+        btn.putClientProperty("JButton.borderColor", UIConfig.sliderTrackColor());
+     //   btn.setForeground(new Color(200, 200, 200));
+    //    btn.setBackground(new Color(60, 60, 60));
+    //    btn.setBorder(BorderFactory.createLineBorder(new Color(90, 90, 90)));
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         return btn;
     }
 
     private JButton makeTextBtn(String text) {
         JButton btn = new JButton(text);
-        btn.setFont(btn.getFont().deriveFont(11f));
-        btn.setForeground(new Color(180, 180, 180));
-        btn.setBackground(new Color(55, 55, 55));
-        btn.setBorder(BorderFactory.createLineBorder(new Color(85, 85, 85)));
-        btn.setFocusPainted(false);
+        btn.setFont(UIConfig.FONT_DEFAULT);
+        btn.putClientProperty("JButton.borderColor", UIConfig.sliderTrackColor());
+   //     btn.setForeground(new Color(180, 180, 180));
+    //    btn.setBackground(new Color(55, 55, 55));
+     //   btn.setBorder(BorderFactory.createLineBorder(new Color(85, 85, 85)));
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         return btn;
     }
 
     private JButton makeBarBtn(String text, Color borderColor) {
         JButton btn = new JButton(text);
-        btn.setFont(btn.getFont().deriveFont(12f));
-        btn.setForeground(Color.WHITE);
-        btn.setBackground(new Color(55, 55, 55));
-        btn.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(borderColor),
-                BorderFactory.createEmptyBorder(4, 6, 4, 6)));
-        btn.setFocusPainted(false);
+        btn.setFont(UIConfig.FONT_DEFAULT);
+        btn.putClientProperty("JButton.borderColor", Color.RED);
+   //     btn.setForeground(Color.WHITE);
+    //    btn.setBackground(new Color(55, 55, 55));
+//        btn.setBorder(BorderFactory.createCompoundBorder(
+//                BorderFactory.createLineBorder(borderColor),
+//                BorderFactory.createEmptyBorder(4, 6, 4, 6)));
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return btn;
+    }
+
+    private JButton makeTextBtn(String text, String toolTipText, String borderColor, String borderHoverColor) {
+        Map<String, Object> estiloBotao = Map.of(
+                "borderWidth", 2,
+                "borderColor",UIManager.getColor(borderColor), // Cor normal
+                "hoverBorderColor", UIManager.getColor(borderHoverColor), // Cor ao passar o mouse
+                "focusedBorderColor", UIManager.getColor("Slider.trackColor") // Cor se focado (opcional)
+        );
+        JButton btn = new JButton(text);
+        btn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+        btn.putClientProperty(FlatClientProperties.STYLE, estiloBotao);
+        btn.setToolTipText(toolTipText);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         return btn;
     }
@@ -853,6 +925,13 @@ public class ImageEditorFrame extends JFrame {
                     card.setOnToggle(this::requestPreviewRefresh);
                     registerCard(card);
                 }
+                case ImageBlurBrushAction bb -> {
+                    BlurBrushActionCardPanel card = new BlurBrushActionCardPanel(
+                            bb, this, this::removeAction);
+                    card.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    card.setOnToggle(this::requestPreviewRefresh);
+                    registerCard(card);
+                }
                 default -> { /* tipo desconhecido — ignora */ }
             }
         }
@@ -873,6 +952,7 @@ public class ImageEditorFrame extends JFrame {
             if (!action.isEnabled()) continue;
             if (action instanceof ImageBrushAction)      continue;  // pula
             if (action instanceof ImagePaintBrushAction) continue;  // pula
+            if (action instanceof ImageBlurBrushAction) continue;
             result = switch (action) {
                 case ImageAdjustAction  a -> a.apply(result);
                 case ImageRotateAction  r -> r.apply(result);

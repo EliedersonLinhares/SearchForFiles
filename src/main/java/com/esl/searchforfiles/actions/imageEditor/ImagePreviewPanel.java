@@ -1,6 +1,7 @@
 package com.esl.searchforfiles.actions.imageEditor;
 
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageCrop.CropTool;
+import com.esl.searchforfiles.configuration.UIConfig;
 
 import javax.swing.*;
 import java.awt.*;
@@ -51,7 +52,7 @@ public class ImagePreviewPanel extends JPanel implements Scrollable {
     // Construtor
     // ══════════════════════════════════════════════════════════════
     public ImagePreviewPanel() {
-        setBackground(new Color(30, 30, 30));
+        setBackground(UIConfig.background());
         setOpaque(true);
 
         MouseAdapter ma = new MouseAdapter() {

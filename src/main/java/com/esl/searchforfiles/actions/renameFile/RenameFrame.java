@@ -42,6 +42,10 @@ public class RenameFrame extends JFrame {
     private final ResultsPanel resultsPanel;
     private boolean renamedActionPerformed = false;
 
+    private Color normalColor;
+    private Color hoverColor;
+    private Color borderColor;
+
 
     public RenameFrame(Window owner, RenameMode mode, List<FileInfo> items, ResultsPanel resultsPanel) {
         super(mode.label + " — " + items.size() + " item(s) selecionado(s)");
@@ -70,6 +74,8 @@ public class RenameFrame extends JFrame {
         setMinimumSize(new Dimension(680, 420));
         setLocationRelativeTo(owner);
         setLayout(new BorderLayout());
+        setResizable(false);
+        refreshColors();
 
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                 buildLeftPanel(), buildRightPanel());
@@ -81,20 +87,36 @@ public class RenameFrame extends JFrame {
 
         setVisible(true);
         renamedActionPerformed = false;
-    }
 
+        resultsPanel.getFileExplorerSwing().getThemeManager().addThemeChangeListener(() ->
+                SwingUtilities.invokeLater(() -> {
+                    refreshColors();
+                  //  updateVisual(); // reaplica o estado visual atual com as novas cores
+                })
+        );
+    }
+    private void refreshColors() {
+
+        if(UIManager.getBoolean("laf.dark")){
+            normalColor = UIConfig.DARK_NORMAL_COLOR;
+            hoverColor  = UIConfig.DARK_HOVER_COLOR;
+        }else {
+            normalColor = UIConfig.LIGHT_NORMAL_COLOR;
+            hoverColor  = UIConfig.LIGHT_HOVER_COLOR;
+        }
+
+        // borderColor geralmente pode vir direto do tema
+        borderColor = Optional.ofNullable(UIConfig.accent())
+                .orElse(UIConfig.SELECTED_BORDER);
+    }
     // ── Painel esquerdo ────────────────────────────────────────────
     private JPanel buildLeftPanel() {
         JPanel panel = new JPanel(new BorderLayout(0, 4));
-        panel.setBackground(new Color(42, 42, 42));
         panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
         // Campo de texto no topo
         nameField = new JTextField();
         nameField.setFont(UIConfig.FONT_DEFAULT);
-        nameField.setBackground(new Color(55, 55, 55));
-        nameField.setForeground(Color.WHITE);
-        nameField.setCaretColor(Color.WHITE);
         nameField.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(80, 80, 80)),
                 BorderFactory.createEmptyBorder(4, 6, 4, 6)));
@@ -119,13 +141,15 @@ public class RenameFrame extends JFrame {
         // Label + campo numa faixa compacta no topo
         JPanel topArea = new JPanel(new BorderLayout(0, 2));
         topArea.setOpaque(false);
-        topArea.add(sectionLabel("Nome base"), BorderLayout.NORTH);
+
+        topArea.add(sectionLabel("Nome Base"), BorderLayout.NORTH);
         topArea.add(nameField, BorderLayout.CENTER);
 
         // Label tags imediatamente abaixo do campo (sem espaço extra)
         JPanel tagHeader = new JPanel(new BorderLayout());
         tagHeader.setOpaque(false);
         tagHeader.setBorder(BorderFactory.createEmptyBorder(4, 0, 2, 0));
+
         tagHeader.add(sectionLabel("Tags — clique para inserir no cursor"),
                 BorderLayout.CENTER);
 
@@ -134,11 +158,8 @@ public class RenameFrame extends JFrame {
         RenameTag.defaults().forEach(listModel::addElement);
 
         tagList = new JList<>(listModel);
-        tagList.setBackground(new Color(50, 50, 50));
-        tagList.setForeground(new Color(200, 200, 200));
         tagList.setFont(UIConfig.FONT_SMALL);
         tagList.setFixedCellHeight(28);
-        tagList.setSelectionBackground(new Color(60, 100, 160));
         tagList.setCellRenderer(new TagCellRenderer());
         tagList.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         tagList.addMouseListener(new MouseAdapter() {
@@ -154,7 +175,7 @@ public class RenameFrame extends JFrame {
 
         JScrollPane tagScroll = new JScrollPane(tagList);
         tagScroll.setBorder(BorderFactory.createLineBorder(new Color(70, 70, 70)));
-        tagScroll.setBackground(new Color(50, 50, 50));
+      //  tagScroll.setBackground(new Color(50, 50, 50));
 
         // Centro: label colada ao topo do scroll, sem gap extra
         JPanel centerArea = new JPanel(new BorderLayout(0, 0));
@@ -170,13 +191,11 @@ public class RenameFrame extends JFrame {
         btnRow.setOpaque(false);
         btnRow.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
 
-        JButton renameBtn = makeBtn("Renomear", mode.accentColor);
+        JButton renameBtn = makeBtn("Renomear");
         renameBtn.addActionListener(e -> onRename());
-        JButton closeBtn = makeBtn("Fechar", new Color(90, 90, 90));
-        closeBtn.addActionListener(e -> {
-            dispose();
 
-        } );
+        JButton closeBtn = makeBtn("Fechar");
+        closeBtn.addActionListener(e -> dispose());
 
         btnRow.add(renameBtn);
         btnRow.add(closeBtn);
@@ -187,27 +206,26 @@ public class RenameFrame extends JFrame {
 
     private JPanel buildRightPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(new Color(45, 45, 45));
+      //  panel.setBackground(new Color(45, 45, 45));
 
         ThumbnailCellRenderer thumbRenderer = new ThumbnailCellRenderer();
 
         table = new JTable(tableModel);
-        table.setBackground(new Color(45, 45, 45));
-        table.setForeground(new Color(210, 210, 210));
-        table.setGridColor(new Color(65, 65, 65));
+     //   table.setBackground(new Color(45, 45, 45));
+     //   table.setForeground(new Color(210, 210, 210));
+     //   table.setGridColor(new Color(65, 65, 65));
         table.setRowHeight(ThumbnailCellRenderer.ROW_HEIGHT);
         table.setFont(UIConfig.FONT_SMALL);
-        table.setSelectionBackground(new Color(50, 80, 130));
+        table.setSelectionBackground(UIConfig.SELECTED_COLOR);
         table.setShowHorizontalLines(true);
         table.setShowVerticalLines(false);
         table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
 
         // Cabeçalho
-        table.getTableHeader().setBackground(new Color(38, 38, 38));
-        table.getTableHeader().setForeground(new Color(150, 150, 150));
+        table.getTableHeader().setBackground(UIConfig.background());
+    //    table.getTableHeader().setForeground(new Color(150, 150, 150));
         table.getTableHeader().setFont(UIConfig.FONT_SMALL);
-        table.getTableHeader().setBorder(
-                BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(70, 70, 70)));
+        table.getTableHeader().setBorder(BorderFactory.createLineBorder(normalColor));
         table.getTableHeader().setReorderingAllowed(false);
 
         // Coluna de thumbnail (FILES)
@@ -250,8 +268,8 @@ public class RenameFrame extends JFrame {
 
         JScrollPane scroll = new JScrollPane(table);
         scroll.setBorder(BorderFactory.createEmptyBorder());
-        scroll.setBackground(new Color(45, 45, 45));
-        scroll.getViewport().setBackground(new Color(45, 45, 45));
+    //    scroll.setBackground(new Color(45, 45, 45));
+    //    scroll.getViewport().setBackground(new Color(45, 45, 45));
         scroll.getVerticalScrollBar().setUnitIncrement(12);
 
         panel.add(scroll, BorderLayout.CENTER);
@@ -344,12 +362,7 @@ public class RenameFrame extends JFrame {
 // ═══════════════════════════════════════════════════════════════════
     private void executeRename(List<FileInfo> items, List<String> newNames) {
 
-        // Desabilita o botão durante a operação
-        // (referência guardada para reabilitar no done())
-//        Component[] btns = ((JPanel) ((BorderLayout) ((JPanel) getContentPane()
-//                .getComponent(0)).getLayout())
-//                .getLayoutComponent(BorderLayout.SOUTH))
-//                .getComponents();
+
         // Abordagem mais segura: desabilita todos os botões do painel sul
         JPanel leftPanel = (JPanel) ((JSplitPane) getContentPane()
                 .getComponent(0)).getLeftComponent();
@@ -360,8 +373,6 @@ public class RenameFrame extends JFrame {
         // Callback para conflito — precisa rodar na EDT e bloquear o worker
         // Usamos um array de 1 elemento para passar o resultado entre threads
         new SwingWorker<Void, int[]>() {
-            // int[] = { rowIndex, 1=sucesso / 0=falha }
-
             @Override
             protected Void doInBackground() {
                 for (int i = 0; i < items.size(); i++) {
@@ -476,20 +487,15 @@ public class RenameFrame extends JFrame {
     // ── Helpers ────────────────────────────────────────────────────
     private JLabel sectionLabel(String text) {
         JLabel lbl = new JLabel(text);
-        lbl.setFont(UIConfig.FONT_XS_SMALL);
-        lbl.setForeground(new Color(120, 120, 120));
+        lbl.setFont(UIConfig.FONT_SMALL);
         lbl.setBorder(BorderFactory.createEmptyBorder(4, 0, 2, 0));
         return lbl;
     }
 
-    private JButton makeBtn(String text, Color borderColor) {
+    private JButton makeBtn(String text) {
         JButton btn = new JButton(text);
-        btn.setFont(UIConfig.FONT_DEFAULT);
-        btn.setForeground(Color.WHITE);
-        btn.setBackground(new Color(55, 55, 55));
-        btn.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(borderColor),
-                BorderFactory.createEmptyBorder(5, 10, 5, 10)));
+        btn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+        btn.putClientProperty("JButton.buttonType", "roundRect");
         btn.setFocusPainted(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         return btn;
@@ -515,30 +521,17 @@ public class RenameFrame extends JFrame {
             boolean inUse = usedTags.contains(tag.code);
 
             if (isSelected) {
-                setBackground(new Color(60, 100, 160));
+                setBackground(UIConfig.SELECTED_COLOR);
             } else if (inUse) {
-                setBackground(new Color(35, 65, 35)); // fundo verde escuro
+                setBackground(UIConfig.success());
             } else {
-                setBackground(new Color(50, 50, 50));
+                setBackground(normalColor);
             }
 
-            String codeColor = inUse ? "#7FD97F" : "#6BAEE8"; // verde : azul
-            String descColor = inUse ? "#9FBF9F" : "#aaaaaa";
-            String usedSuffix = inUse ? " <span style='color:#7FD97F'>✓ em uso</span>" : "";
-            String strikeOpen = inUse ? "<s>" : "";
-            String strikeClose = inUse ? "</s>" : "";
+            setFont(inUse ? UIConfig.FONT_DEFAULT_BOLD : UIConfig.FONT_DEFAULT);
 
-            setText("<html>"
-                    + strikeOpen
-                    + "<span style='font-family:monospace;color:" + codeColor + "'>"
-                    + tag.code + "</span>"
-                    + strikeClose
-                    + "  <span style='color:" + descColor + "'>"
-                    + tag.description + "</span>"
-                    + usedSuffix
-                    + "</html>");
-
-            setBorder(BorderFactory.createEmptyBorder(2, 8, 2, 8));
+            //setBorder(BorderFactory.createEmptyBorder(2, 8, 2, 8));
+            setBorder(BorderFactory.createLineBorder(isSelected ? UIConfig.SELECTED_COLOR : normalColor));
 
             // Cursor de bloqueio quando a tag já está em uso
             setCursor(inUse
@@ -572,26 +565,24 @@ public class RenameFrame extends JFrame {
             if (result == null) {
                 // Ainda não processado — visual padrão
                 setBackground(isSelected
-                        ? new Color(50, 80, 130)
-                        : new Color(45, 45, 45));
-                setForeground(new Color(210, 210, 210));
+                        ? UIConfig.SELECTED_COLOR  //UIManager.getColor("Component.accentColor")// new Color(50, 80, 130)
+                        : normalColor);
 
             } else if (result) {
                 // Sucesso — fundo verde escuro
                 setBackground(isSelected
-                        ? new Color(30, 90, 30)
-                        : new Color(28, 60, 28));
-                setForeground(new Color(140, 220, 140));
-
+                        ? UIConfig.SELECTED_COLOR
+                        : UIConfig.success());
             } else {
                 // Falha — fundo vermelho escuro
                 setBackground(isSelected
-                        ? new Color(100, 30, 30)
-                        : new Color(70, 25, 25));
-                setForeground(new Color(220, 120, 120));
+                        ? UIConfig.SELECTED_COLOR
+                        : UIConfig.error());
             }
+            setFont(isSelected ? UIConfig.FONT_DEFAULT_BOLD : UIConfig.FONT_DEFAULT);
+            setBorder(BorderFactory.createLineBorder(isSelected ? UIConfig.SELECTED_COLOR : normalColor));
 
-            setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
+          //  setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
             return this;
         }
     }
@@ -616,29 +607,22 @@ public class RenameFrame extends JFrame {
             if (result == null) {
                 // Ainda não processado — texto verde (prévia)
                 setBackground(isSelected
-                        ? new Color(50, 80, 130)
-                        : new Color(45, 45, 45));
-                setForeground(isSelected
-                        ? Color.WHITE
-                        : new Color(100, 200, 120));
-                setFont(getFont().deriveFont(Font.BOLD));
-
+                        ? UIConfig.SELECTED_COLOR
+                        : normalColor);
             } else if (result) {
                 setBackground(isSelected
-                        ? new Color(30, 90, 30)
-                        : new Color(28, 60, 28));
-                setForeground(new Color(140, 220, 140));
-                setFont(getFont().deriveFont(Font.BOLD));
-
+                        ? UIConfig.SELECTED_COLOR
+                        : UIConfig.success());
             } else {
                 setBackground(isSelected
-                        ? new Color(100, 30, 30)
-                        : new Color(70, 25, 25));
-                setForeground(new Color(220, 120, 120));
-                setFont(getFont().deriveFont(Font.PLAIN));
+                        ? UIConfig.SELECTED_COLOR
+                        : UIConfig.error());
+
             }
 
-            setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
+           // setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
+            setFont(isSelected ? UIConfig.FONT_DEFAULT_BOLD : UIConfig.FONT_DEFAULT);
+            setBorder(BorderFactory.createLineBorder(isSelected ? UIConfig.SELECTED_COLOR : normalColor));
             return this;
         }
     }

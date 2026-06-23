@@ -49,15 +49,12 @@ public class FileItemPanel extends JPanel {
     // No topo da classe
     private static final ThumbnailCacheManager THUMBNAIL_CACHE = new ThumbnailCacheManager();
     private static final ExecutorService THUMBNAIL_EXECUTOR = Executors.newFixedThreadPool(2);
-    private static final Color SELECTED_COLOR = new Color(33, 150, 243, 80); // azul semitransparente
-    private static final Color SELECTED_BORDER = new Color(33, 150, 243);
+//    private static final Color SELECTED_COLOR = new Color(33, 150, 243, 80); // azul semitransparente
+//    private static final Color SELECTED_BORDER = new Color(33, 150, 243);
     // Campo estático — compartilhado entre todas as instâncias
     private static final Map<String, List<WeakReference<JLabel>>> PENDING_TARGETS
             = new ConcurrentHashMap<>();
-    // --- um ícone provisório "loading" gerado dinamicamente ---
-// cria um ImageIcon simples (quadrado) que você pode usar enquanto a thumbnail carrega.
-// você pode substituir por um GIF animado se preferir.
-    private static final ImageIcon LOADING_ICON = createLoadingIcon(128, 128);
+
     private static final Set<String> IMAGE_EXTS = new HashSet<>(Arrays.asList(
             "jpg", "jpeg", "png", "gif", "bmp", "webp", "tif", "tiff",
             "heic", "heif", "svg", "raw", "arw", "cr2", "nef"
@@ -73,8 +70,12 @@ public class FileItemPanel extends JPanel {
     private final ThumbnailCacheManager cacheManager;
     private final ResultsPanel resultsPanel;
     // Cores para estados
-    private final Color normalColor = new Color(56, 56, 56);
-    private final Color hoverColor = new Color(70, 70, 70);
+    private Color normalColor;
+    private Color hoverColor;
+    private Color borderColor;
+//    private final Color normalColor = new Color(56, 56, 56);
+//    private final Color hoverColor = new Color(70, 70, 70);
+//    private final Color borderColor = new Color(33, 150, 243);
     private final int thumbSize;
     SelectionCheckbox selectionCheckbox;
     private File displayFile;
@@ -90,6 +91,10 @@ public class FileItemPanel extends JPanel {
     private EditModeManager editModeManager;   // renomeie o campo de transferência se necessário
     SelectionCheckbox renameSelectionCheckbox; // package-private
     private RenameModeManager renameModeManager;
+
+    private static final Color BG_TRANSFER_SELECTED = new Color(33, 150, 243, 80);   // azul
+    private static final Color BG_EDIT_SELECTED      = new Color(60, 180, 60,  80);   // verde
+    private static final Color BG_RENAME_SELECTED    = new Color(200, 120, 20, 80);   // laranja
 
     public FileItemPanel(File file, FileInfo fileInfo, int width, int height, int thumbSize, ResultsPanel resultsPanel) {
 
@@ -115,7 +120,10 @@ public class FileItemPanel extends JPanel {
         this.cacheManager = FileItemPanel.getThumbnailCacheManager();
 
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+
+        refreshColors();
         setBackground(normalColor);
+
         setAlignmentX(Component.CENTER_ALIGNMENT);
         setShowRatingOverlay(resultsPanel.getFileExplorerSwing().getConfigManager().getSavedShowStarRating());
         setShowExtensionFileOverlay(resultsPanel.getFileExplorerSwing().getConfigManager().getSavedShowTypeFile());
@@ -182,48 +190,82 @@ public class FileItemPanel extends JPanel {
                 }
             }
 
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                if (!selected) {
-                    setBackground(hoverColor);
-                    if (fileInfo.isDirectory()) {
-                        setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
-                        setBorder(BorderFactory.createLineBorder(
-                                new Color(33, 150, 243), 1));
-                    } else {
-                        setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-                    }
-                    // NOVO: repinta área do pai para limpar borda anterior
-                    repaint();
-                    Container parent = getParent();
-                    if (parent != null)
-                        parent.repaint(getX() - 2, getY() - 2, getWidth() + 4, getHeight() + 4);
-                }
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                if (!selected) {
-                    setBackground(normalColor);
-                    setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
-                    // NOVO: repinta área do pai para limpar borda anterior
-                    repaint();
-                    Container parent = getParent();
-                    if (parent != null)
-                        parent.repaint(getX() - 2, getY() - 2, getWidth() + 4, getHeight() + 4);
-                }
-                setCursor(Cursor.getDefaultCursor());
-            }
+//            @Override
+//            public void mouseEntered(MouseEvent e) {
+//                if (!selected && !isAnyCheckboxSelected()) {
+//
+//                    setBackground(hoverColor);
+//
+//                    if (fileInfo.isDirectory()) {
+//                        setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+//                        setBorder(BorderFactory.createLineBorder(
+//                               borderColor, 1));
+//                    } else {
+//                        setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+//                    }
+//                    // NOVO: repinta área do pai para limpar borda anterior
+//                    repaint();
+//                    Container parent = getParent();
+//                    if (parent != null)
+//                        parent.repaint(getX() - 2, getY() - 2, getWidth() + 4, getHeight() + 4);
+//                }
+//            }
+//
+//            @Override
+//            public void mouseExited(MouseEvent e) {
+//
+//                if (!selected && !isAnyCheckboxSelected()) {
+//                    setBackground(normalColor);
+//                    setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+//                    // NOVO: repinta área do pai para limpar borda anterior
+//                    repaint();
+//
+//                    Container parent = getParent();
+//                    if (parent != null)
+//                        parent.repaint(getX() - 2, getY() - 2, getWidth() + 4, getHeight() + 4);
+//                }
+//                setCursor(Cursor.getDefaultCursor());
+//            }
 
         });
         // Drag & Drop — só pastas podem ser arrastadas para os favoritos
         // arquivos comuns também podem ser arrastados (para uso futuro)
         setTransferHandler(new FileTransferHandler());
 
-        //  dragAction = new DragAction(() -> displayFile, this);
         dragAction = new DragAction(() -> displayFile, this, null);
 
+        // Atualiza quando o tema mudar
+        resultsPanel.getFileExplorerSwing().getThemeManager().addThemeChangeListener(() ->
+                SwingUtilities.invokeLater(() -> {
+                    refreshColors();
+                    updateVisual(); // reaplica o estado visual atual com as novas cores
+                })
+        );
+
     }
+
+    private boolean isAnyCheckboxSelected() {
+        return (selectionCheckbox      != null && selectionCheckbox.isSelected())
+                || (editSelectionCheckbox  != null && editSelectionCheckbox.isSelected())
+                || (renameSelectionCheckbox != null && renameSelectionCheckbox.isSelected());
+    }
+
+
+    private void refreshColors() {
+
+        if(UIManager.getBoolean("laf.dark")){
+            normalColor =  UIConfig.DARK_HOVER_COLOR;
+            hoverColor  = UIConfig.sliderTrackColor();
+        }else {
+            normalColor = UIConfig.sliderTrackColor();
+            hoverColor  = UIConfig.LIGHT_HOVER_COLOR;
+        }
+
+        // borderColor geralmente pode vir direto do tema
+        borderColor = Optional.ofNullable(UIConfig.accent())
+                .orElse(UIConfig.SELECTED_BORDER);
+    }
+
 
     public static boolean isShowRatingOverlay() {
         return showRatingOverlay;
@@ -267,38 +309,6 @@ public class FileItemPanel extends JPanel {
                 lbl.repaint();
             }
         }
-    }
-
-    private static ImageIcon createLoadingIcon(int w, int h) {
-        BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = img.createGraphics();
-
-        // fundo semitransparente
-        g.setComposite(AlphaComposite.SrcOver);
-        g.setColor(new Color(240, 240, 240, 230));
-        g.fillRect(0, 0, w, h);
-
-        // borda leve
-        g.setColor(new Color(200, 200, 200));
-        g.drawRect(0, 0, w - 1, h - 1);
-
-        // desenha três pontos centrais como 'loading'
-        g.setFont(g.getFont().deriveFont(Font.BOLD, Math.max(10, w / 6f)));
-        FontMetrics fm = g.getFontMetrics();
-        String dots = "...";
-        int tw = fm.stringWidth(dots);
-        int tx = (w - tw) / 2;
-        int ty = (h + fm.getAscent()) / 2 - 2;
-
-        g.setColor(new Color(120, 120, 120));
-        g.drawString(dots, tx, ty);
-
-        g.dispose();
-        return new ImageIcon(img);
-    }
-
-    private static Icon getLoadingIcon() {
-        return LOADING_ICON;
     }
 
 // ==============================================================
@@ -409,10 +419,6 @@ public class FileItemPanel extends JPanel {
         return THUMBNAIL_CACHE;
     }
 
-    public Color getNormalColor() {
-        return normalColor;
-    }
-
     public File getDisplayFile() {
         return displayFile;
     }
@@ -428,13 +434,27 @@ public class FileItemPanel extends JPanel {
     }
 
     private void updateVisual() {
+//        if (selected) {
+//            if(isAnyCheckboxSelected()){
+//                updateModeBackground();
+//            }
+//            setBackground(UIConfig.SELECTED_COLOR);
+//            setBorder(BorderFactory.createLineBorder(UIConfig.SELECTED_BORDER, 2));
+//        } else {
+//            setBackground(normalColor);
+//            setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+//        }
         if (selected) {
-            setBackground(SELECTED_COLOR);
-            setBorder(BorderFactory.createLineBorder(SELECTED_BORDER, 2));
+            setBackground(UIConfig.SELECTED_COLOR);
+            setBorder(BorderFactory.createLineBorder(UIConfig.SELECTED_BORDER, 2));
+        } else if (isAnyCheckboxSelected()) {   // ← adiciona aqui
+            updateModeBackground();
+            setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
         } else {
             setBackground(normalColor);
             setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
         }
+
 
         // NOVO: repinta o próprio componente e pede ao pai
         // que limpe a área ao redor (onde a borda antiga ficava)
@@ -1238,8 +1258,12 @@ public class FileItemPanel extends JPanel {
             selectionCheckbox.setSelected(tm.isSelected(displayFile));
 
             // Clique no checkbox alterna seleção
-            selectionCheckbox.addActionListener(e ->
-                    tm.toggleSelection(displayFile));
+//            selectionCheckbox.addActionListener(e ->
+//                    tm.toggleSelection(displayFile));
+            selectionCheckbox.addActionListener(e -> {
+                tm.toggleSelection(displayFile);      // ← adiciona
+                updateModeBackground();
+            });
 
             // Adiciona ao JLayeredPane se iconSlot for um, senão cria um wrapper
             if (iconSlot instanceof JLayeredPane lp) {
@@ -1392,7 +1416,8 @@ public class FileItemPanel extends JPanel {
             if (selectionCheckbox.getParent() != null)
                 selectionCheckbox.getParent().remove(selectionCheckbox);
             selectionCheckbox = null;
-        }
+        } // ← restaura cor
+        updateModeBackground();
         revalidate();
         repaint();
 
@@ -1416,10 +1441,13 @@ public class FileItemPanel extends JPanel {
         if (editSelectionCheckbox == null) {
             editSelectionCheckbox = new SelectionCheckbox();
             // Borda verde para diferenciar do modo de transferência (azul)
-            editSelectionCheckbox.setBackground(new Color(0, 150, 100, 60));
             editSelectionCheckbox.setBounds(4, 4, 22, 22);
             editSelectionCheckbox.setSelected(em.isSelected(displayFile));
-            editSelectionCheckbox.addActionListener(e -> em.toggleSelection(displayFile));
+//            editSelectionCheckbox.addActionListener(e -> em.toggleSelection(displayFile));
+            editSelectionCheckbox.addActionListener(e -> {
+                em.toggleSelection(displayFile);    // ← adiciona
+                updateModeBackground();
+            });
 
             if (iconSlot instanceof JLayeredPane lp) {
                 lp.add(editSelectionCheckbox, JLayeredPane.DRAG_LAYER);
@@ -1466,7 +1494,8 @@ public class FileItemPanel extends JPanel {
             if (editSelectionCheckbox.getParent() != null)
                 editSelectionCheckbox.getParent().remove(editSelectionCheckbox);
             editSelectionCheckbox = null;
-        }
+        }  // ← restaura cor
+        updateModeBackground();
         revalidate();
         repaint();
     }
@@ -1484,10 +1513,14 @@ public class FileItemPanel extends JPanel {
                     ? new Color(60, 120, 30, 70)
                     : new Color(140, 80, 10, 70);
             renameSelectionCheckbox.setBackground(bg);
-            renameSelectionCheckbox.setBounds(4, 4, 22, 22);
+            renameSelectionCheckbox.setBounds(4, 4, 20, 20);
             renameSelectionCheckbox.setSelected(rm.isSelected(displayFile));
-            renameSelectionCheckbox.addActionListener(e ->
-                    rm.toggleSelection(displayFile));
+//            renameSelectionCheckbox.addActionListener(e ->
+//                    rm.toggleSelection(displayFile));
+            renameSelectionCheckbox.addActionListener(e -> {
+                rm.toggleSelection(displayFile);  // ← adiciona
+                updateModeBackground();
+            });
 
             if (iconSlot instanceof JLayeredPane lp) {
                 lp.add(renameSelectionCheckbox, JLayeredPane.DRAG_LAYER);
@@ -1534,8 +1567,42 @@ public class FileItemPanel extends JPanel {
             renameSelectionCheckbox = null;
         }
         renameModeManager = null;
+        updateModeBackground();
         revalidate();
         repaint();
     }
+    public void updateModeBackground() {
+        boolean transferChecked   = selectionCheckbox         != null && selectionCheckbox.isSelected();
+        boolean editChecked       = editSelectionCheckbox     != null && editSelectionCheckbox.isSelected();
+        boolean renameChecked     = renameSelectionCheckbox   != null && renameSelectionCheckbox.isSelected();
 
+        System.out.println("updateModeBackground → transfer=" + transferChecked
+                + " edit=" + editChecked + " rename=" + renameChecked
+                + " selected=" + selected);
+
+        if (transferChecked) {
+            setBackground(BG_TRANSFER_SELECTED);
+        } else if (editChecked) {
+            setBackground(BG_EDIT_SELECTED);
+        } else if (renameChecked) {
+            setBackground(UIConfig.accent());
+
+        } else {
+            setBackground(selected ? UIConfig.SELECTED_COLOR : normalColor);
+        }
+        repaint();
+        // NOVO: repinta área do pai para limpar borda anterior
+
+//        Container parent = getParent();
+//        if (parent != null) {
+//            // Invalida a região do pai que cobre este componente
+//            // incluindo 2px extras para cobrir a borda anterior
+//            parent.repaint(
+//                    getX() - 2,
+//                    getY() - 2,
+//                    getWidth() + 4,
+//                    getHeight() + 4
+//            );
+//        }
+    }
 }

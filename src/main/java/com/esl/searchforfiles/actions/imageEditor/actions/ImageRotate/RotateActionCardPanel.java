@@ -41,7 +41,6 @@ public class RotateActionCardPanel extends ActionCardPanel {
 
     private JPanel buildButtonsPanel() {
         JPanel panel = new JPanel(new GridLayout(1, 4, 6, 0));
-        panel.setBackground(new Color(50, 50, 50));
         panel.setBorder(BorderFactory.createEmptyBorder(8, 10, 10, 10));
 
         addBtn(panel, "↺ 90°",  "Anti-horário",  ImageRotateAction.Transform.ROTATE_CCW);
@@ -56,9 +55,8 @@ public class RotateActionCardPanel extends ActionCardPanel {
                         ImageRotateAction.Transform t) {
         JButton btn = new JButton(icon);
         btn.setToolTipText(tooltip);
+        btn.setBackground(UIConfig.RED);
         btn.setForeground(Color.WHITE);
-        btn.setBackground(new Color(65, 65, 65));
-        btn.setBorder(BorderFactory.createLineBorder(new Color(90, 90, 90)));
         btn.setFocusPainted(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btn.setFont(UIConfig.FONT_DEFAULT);
@@ -85,9 +83,8 @@ public class RotateActionCardPanel extends ActionCardPanel {
         ImageRotateAction.Transform active = rotateAction.getTransform();
         buttons.forEach((t, btn) -> {
             boolean sel = t == active;
-            btn.setBackground(sel ? new Color(60, 100, 160) : new Color(65, 65, 65));
-            btn.setBorder(BorderFactory.createLineBorder(
-                    sel ? new Color(100, 150, 220) : new Color(90, 90, 90)));
+            btn.setBackground(sel ? UIConfig.BLUE : UIConfig.RED);
+
         });
     }
 }

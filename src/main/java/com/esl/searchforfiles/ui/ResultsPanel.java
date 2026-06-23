@@ -5,7 +5,6 @@ import com.esl.searchforfiles.actions.fileTransfer.TransferService;
 import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
 import com.esl.searchforfiles.actions.imageEditor.ImageEditorFrame;
 import com.esl.searchforfiles.actions.renameFile.RenameFrame;
-import com.esl.searchforfiles.actions.renameFile.RenameMode;
 import com.esl.searchforfiles.actions.renameFile.RenameModeManager;
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.configuration.UIConfig;
@@ -13,12 +12,12 @@ import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.others.ThumbnailSize;
 
 import javax.swing.*;
+import javax.swing.Timer;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Painel para exibir resultados da busca em grid
@@ -31,16 +30,18 @@ public class ResultsPanel extends JPanel {
     // NOVO: Gerenciador de cache de thumbnails
     private final ThumbnailCacheManager cacheManager;
     private final FileExplorerSwing fileExplorerSwing;
+    private final Set<File> savedTransferSelected = new HashSet<>();
+    private final Set<File> savedEditSelected = new HashSet<>();
+    private final Set<File> savedRenameSelected = new HashSet<>();
     private FileItemClickListener clickListener;
     // Armazena últimos resultados para re-renderizar ao redimensionar
     private List<FileInfo> lastResults;
     // Cor de fundo customizável
-    private Color backgroundColor = new Color(245, 245, 250); // Cinza azulado claro
+//    private Color backgroundColor = new Color(245, 245, 250); // Cinza azulado claro
     private ThumbnailSize currentThumbSize = ThumbnailSize.MEDIO; // NOVO
     private int selectedIndex = -1;  // índice do item selecionado no grid
     private List<FileItemPanel> currentItems = new ArrayList<>(); // refs aos panels
     private JScrollBar vBar;
-
     private KeyEventDispatcher keyDispatcher;
     private TransferService transferService;
     private JToolBar transferToolBar;
@@ -65,7 +66,7 @@ public class ResultsPanel extends JPanel {
             }
         };
         gridPanel.setOpaque(true);           // IMPORTANTE: deve ser opaco
-        gridPanel.setBackground(backgroundColor);
+        gridPanel.setBackground(getBackgroundColor());
         gridPanel.setFocusable(true);
 
         // NOVO: Inicializa o gerenciador de cache
@@ -86,12 +87,50 @@ public class ResultsPanel extends JPanel {
 
         setupKeyboardScroll();
 
+        getFileExplorerSwing().getThemeManager().addThemeChangeListener(() ->
+                SwingUtilities.invokeLater(() -> {
+                    gridPanel.setBackground(getBackgroundColor());
+                    // outros componentes com cor customizada...
+                    revalidate();
+                    repaint();
+                })
+        );
+
     }
 
     public FileExplorerSwing getFileExplorerSwing() {
         return fileExplorerSwing;
     }
 
+    /**
+     * Obtém cor de fundo atual
+     * NOVO MÉTODO
+     */
+//    public Color getBackgroundColor() {
+//        // Tenta pegar a cor de painel do tema atual
+//        Color themed = UIManager.getColor("Panel.background");
+//        if (themed != null) {
+//            if (fileExplorerSwing.getThemeManager().getCurrentTheme().contentEquals("FlatArcOrangeIJTheme")) {
+//               return new Color(245, 245, 250);
+//            } else if (fileExplorerSwing.getThemeManager().getCurrentTheme().contentEquals("FlatArcDarkOrangeIJTheme")) {
+//                return  new Color(40, 40, 50);
+//            } else if (fileExplorerSwing.getThemeManager().getCurrentTheme().contentEquals("FlatDraculaIJTheme")) {
+//              return new  Color(40, 40, 50);
+//            }
+//        }
+//        return  new  Color(40, 40, 50); // fallback para quando não há tema
+//    }
+    public Color getBackgroundColor() {
+        Color bg = UIManager.getColor("Panel.background");
+        if (bg == null) return new Color(40, 40, 50);
+
+        double luminance = 0.299 * bg.getRed() + 0.587 * bg.getGreen() + 0.114 * bg.getBlue();
+        boolean isDark = luminance < 128;
+
+        return isDark
+                ? new Color(40, 40, 50)
+                : new Color(245, 245, 250);
+    }
 
     public void setupKeyboardScroll() {
 //        JScrollBar vBar = scrollPane.getVerticalScrollBar();
@@ -105,6 +144,14 @@ public class ResultsPanel extends JPanel {
             // Se o foco está num campo de texto, não intercepta nenhuma tecla
             Component focused = KeyboardFocusManager
                     .getCurrentKeyboardFocusManager().getFocusOwner();
+
+            // ✅ GUARDA PRINCIPAL: só age se o foco estiver no ResultsPanel
+            // ou em qualquer filho dele (gridPanel, scrollPane, etc.)
+            boolean focusIsHere = focused != null &&
+                    SwingUtilities.isDescendingFrom(focused, ResultsPanel.this);
+
+            if (!focusIsHere) return false; // ← devolve o evento para quem tem o foco
+
 
             // Teclas de navegação de item só são bloqueadas por JTextField
             boolean isTextField = focused instanceof JTextField
@@ -330,9 +377,25 @@ public class ResultsPanel extends JPanel {
     }
 
     private void renderGrid(List<FileInfo> results) {
+
+        // ── Salva seleções ativas antes de recriar os itens ──────────
+        savedTransferSelected.clear();
+        savedEditSelected.clear();
+        savedRenameSelected.clear();
+
+        for (FileItemPanel p : currentItems) {
+            if (p.selectionCheckbox != null && p.selectionCheckbox.isSelected())
+                savedTransferSelected.add(p.getDisplayFile());
+            if (p.editSelectionCheckbox != null && p.editSelectionCheckbox.isSelected())
+                savedEditSelected.add(p.getDisplayFile());
+            if (p.renameSelectionCheckbox != null && p.renameSelectionCheckbox.isSelected())
+                savedRenameSelected.add(p.getDisplayFile());
+        }
+
+
         gridPanel.removeAll();
         gridPanel.setLayout(null);
-        gridPanel.setBackground(backgroundColor);
+        gridPanel.setBackground(getBackgroundColor());
 
         currentItems.clear();   // NOVO: limpa lista de itens
         selectedIndex = -1;     // NOVO: reseta seleção
@@ -452,7 +515,7 @@ public class ResultsPanel extends JPanel {
 
         gridPanel.removeAll();
         gridPanel.setLayout(new BorderLayout());
-        gridPanel.setBackground(backgroundColor);
+        gridPanel.setBackground(getBackgroundColor());
 
         JPanel messagePanel = createMessagePanel(message, type);
         gridPanel.add(messagePanel, BorderLayout.CENTER);
@@ -467,7 +530,7 @@ public class ResultsPanel extends JPanel {
     private JPanel createMessagePanel(String message, MessageType type) {
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(backgroundColor);
+        panel.setBackground(getBackgroundColor());
 
         String icon = switch (type) {
             case WELCOME -> "🔍";
@@ -491,32 +554,6 @@ public class ResultsPanel extends JPanel {
         panel.add(Box.createVerticalGlue());
 
         return panel;
-    }
-
-    /**
-     * Obtém cor de fundo atual
-     * NOVO MÉTODO
-     */
-    public Color getBackgroundColor() {
-        return backgroundColor;
-    }
-
-    /**
-     * Define cor de fundo do painel
-     * NOVO MÉTODO
-     */
-    public void setBackgroundColor(Color color) {
-        this.backgroundColor = color;
-        gridPanel.setBackground(color);
-
-        // Atualiza todos os componentes filhos
-        for (Component comp : gridPanel.getComponents()) {
-            if (comp instanceof JPanel && !(comp instanceof FileItemPanel)) {
-                comp.setBackground(color);
-            }
-        }
-
-        repaint();
     }
 
     /**
@@ -575,9 +612,22 @@ public class ResultsPanel extends JPanel {
      * Chamado no final de renderGrid() para re-aplicar o modo
      * de transferência caso esteja ativo.
      */
+//    private void reapplyTransferModeIfActive() {
+//        if (transferService != null && transferService.isTransferModeActive()) {
+//            applyTransferModeToItems(transferService);
+//        }
+//    }
     private void reapplyTransferModeIfActive() {
         if (transferService != null && transferService.isTransferModeActive()) {
-            applyTransferModeToItems(transferService);
+            for (FileItemPanel item : currentItems) {
+                item.enableTransferMode(transferService);
+                if (savedTransferSelected.contains(item.getDisplayFile())) {
+                    transferService.selectFile(item.getDisplayFile()); // seleciona no service
+                    if (item.selectionCheckbox != null)
+                        item.selectionCheckbox.setSelected(true);
+                    item.updateModeBackground(); // ← aplica a cor
+                }
+            }
         }
     }
 
@@ -588,16 +638,15 @@ public class ResultsPanel extends JPanel {
     private JToolBar buildTransferToolBar(TransferService tm) {
         JToolBar bar = new JToolBar();
         bar.setFloatable(false);
-        bar.setBackground(new Color(33, 33, 60));
+        // bar.setBackground(new Color(33, 33, 60));
 
-        JLabel lbl = new JLabel("  ✂️  Modo de Transferência  ");
-        lbl.setForeground(Color.WHITE);
+        JLabel lbl = new JLabel(" ✂️  Modo de Transferência ");
         lbl.setFont(UIConfig.FONT_TITLE);
         bar.add(lbl);
 
         bar.addSeparator();
 
-        JButton selectAll = new JButton("Selecionar todos");
+        JButton selectAll = new JButton(" Selecionar todos ");
         selectAll.setFont(UIConfig.FONT_DEFAULT);
         selectAll.addActionListener(e -> {
             List<File> files = currentItems.stream()
@@ -605,46 +654,52 @@ public class ResultsPanel extends JPanel {
                     .toList();
             tm.selectAll(files);
             currentItems.forEach(item -> {
-                if (item.selectionCheckbox != null)
+                if (item.selectionCheckbox != null) {
                     item.selectionCheckbox.setSelected(true);
+                    item.updateModeBackground();
+                    clearItemBackground();
+                }
             });
         });
         bar.add(selectAll);
 
-        JButton clearSel = new JButton("Limpar seleção");
+        JButton clearSel = new JButton(" Limpar seleção ");
         clearSel.setFont(UIConfig.FONT_DEFAULT);
         clearSel.addActionListener(e -> {
             tm.clearSelection();
             currentItems.forEach(item -> {
-                if (item.selectionCheckbox != null)
+                if (item.selectionCheckbox != null){
                     item.selectionCheckbox.setSelected(false);
+                    item.updateModeBackground();
+                    clearItemBackground();
+                }
             });
         });
         bar.add(clearSel);
         bar.addSeparator();
-        JButton copy = new JButton("Copiar");
+        JButton copy = new JButton(" Copiar ");
         copy.setFont(UIConfig.FONT_DEFAULT);
-        copy.setForeground(new Color(33, 150, 243));
+        copy.setForeground(UIConfig.SELECTED_BORDER);
         copy.addActionListener(e -> item.requestTransfer(TransferMode.COPY));
 
         bar.add(copy);
-        JButton move = new JButton("Mover");
+        JButton move = new JButton(" Mover ");
         move.setFont(UIConfig.FONT_DEFAULT);
-        move.setForeground(new Color(33, 150, 243));
+        move.setForeground(UIConfig.SELECTED_BORDER);
         move.addActionListener(e -> item.requestTransfer(TransferMode.MOVE));
         bar.add(move);
 
-        JButton delete = new JButton("Apagar");
+        JButton delete = new JButton(" Apagar ");
         delete.setFont(UIConfig.FONT_DEFAULT);
-        delete.setForeground(new Color(33, 150, 243));
+        delete.setForeground(UIConfig.SELECTED_BORDER);
         delete.addActionListener(e -> item.requestDelete());
         bar.add(delete);
 
         bar.addSeparator();
 
-        JButton exitBtn = new JButton("✕ Sair");
+        JButton exitBtn = new JButton(" ✕ Sair ");
         exitBtn.setFont(UIConfig.FONT_DEFAULT);
-        exitBtn.setForeground(new Color(255, 80, 80));
+        exitBtn.setForeground(UIConfig.LIGHT_RED);
         exitBtn.addActionListener(e -> exitTransferMode());
         bar.add(exitBtn);
 
@@ -685,29 +740,36 @@ public class ResultsPanel extends JPanel {
      */
     private void reapplyEditModeIfActive() {
         if (editModeManager != null && editModeManager.isEditModeActive()) {
-            applyEditModeToItems(editModeManager);
+            for (FileItemPanel item : currentItems) {
+                item.enableEditMode(editModeManager);
+                if (savedEditSelected.contains(item.getDisplayFile())) {
+                    editModeManager.selectFile(item.getDisplayFile());
+                    if (item.editSelectionCheckbox != null)
+                        item.editSelectionCheckbox.setSelected(true);
+                    item.updateModeBackground();
+                }
+            }
         }
     }
 
-    public void openConfiguration(){
-        new ConfigurationPanel( SwingUtilities.getWindowAncestor(this),
-                this);
+    public void openConfiguration() {
+        new ConfigurationFrame(SwingUtilities.getWindowAncestor(this), this, getFileExplorerSwing().getThemeManager(),
+                getFileExplorerSwing());
     }
 
     private JToolBar buildEditToolBar(EditModeManager em) {
         JToolBar bar = new JToolBar();
         bar.setFloatable(false);
-        bar.setBackground(new Color(20, 80, 60));
+        //   bar.setBackground(new Color(20, 80, 60));
 
-        JLabel lbl = new JLabel("  🖼  Modo de Edição");
-        lbl.setForeground(Color.WHITE);
+        JLabel lbl = new JLabel("  🖼  Modo de Edição ");
         lbl.setFont(UIConfig.FONT_TITLE);
         lbl.setFont(lbl.getFont().deriveFont(Font.BOLD));
         bar.add(lbl);
 
         bar.addSeparator();
 
-        JButton selectAll = new JButton("Selecionar todos");
+        JButton selectAll = new JButton(" Selecionar todos ");
         selectAll.setFont(UIConfig.FONT_DEFAULT);
         selectAll.addActionListener(e -> {
             List<File> files = currentItems.stream()
@@ -716,30 +778,34 @@ public class ResultsPanel extends JPanel {
             em.selectAll(files);
             currentItems.forEach(item -> {
                 if (EditModeManager.isAccepted(item.getDisplayFile())
-                        && item.editSelectionCheckbox != null)
+                        && item.editSelectionCheckbox != null) {
                     item.editSelectionCheckbox.setSelected(true);
+                    item.updateModeBackground();
+                    clearItemBackground();
+                }
             });
         });
         bar.add(selectAll);
 
-        JButton clearSel = new JButton("Limpar seleção");
+        JButton clearSel = new JButton(" Limpar seleção ");
         clearSel.setFont(UIConfig.FONT_DEFAULT);
         clearSel.addActionListener(e -> {
             em.clearSelection();
             currentItems.forEach(item -> {
-                if (item.editSelectionCheckbox != null)
+                if (item.editSelectionCheckbox != null) {
                     item.editSelectionCheckbox.setSelected(false);
+                    item.updateModeBackground();
+                    clearItemBackground();
+                }
             });
         });
         bar.add(clearSel);
 
         bar.addSeparator();
 
-        JButton openEditor = new JButton("🖊 Abrir com o editor");
+        JButton openEditor = new JButton(" 🖊 Abrir com o editor ");
         openEditor.setFont(UIConfig.FONT_DEFAULT);
-        openEditor.setForeground(new Color(33, 150, 243));
-      //  openEditor.setBorder(BorderFactory.createLineBorder(new Color(33, 150, 243), 2));
-       // openEditor.setBorderPainted(true);
+        openEditor.setForeground(UIConfig.SELECTED_BORDER);
         openEditor.setFocusPainted(false);
         openEditor.addActionListener(e -> {
             if (em.getSelectedCount() == 0) {
@@ -758,28 +824,28 @@ public class ResultsPanel extends JPanel {
 
         bar.addSeparator();
 
-        JButton exitBtn = new JButton("✕ Sair");
+        JButton exitBtn = new JButton(" ✕ Sair ");
         exitBtn.setFont(UIConfig.FONT_DEFAULT);
-        exitBtn.setForeground(new Color(255, 80, 80));
+        exitBtn.setForeground(UIConfig.LIGHT_RED);
         exitBtn.addActionListener(e -> exitEditMode());
         bar.add(exitBtn);
 
         return bar;
     }
 
-    public enum MessageType {
-        WELCOME, LOADING, NO_RESULTS, ERROR
+    private void clearItemBackground() {
+        Container parent = getParent();
+        if (parent != null) {
+            // Invalida a região do pai que cobre este componente
+            // incluindo 2px extras para cobrir a borda anterior
+            parent.repaint(
+                    getX() - 2,
+                    getY() - 2,
+                    getWidth() + 4,
+                    getHeight() + 4
+            );
+        }
     }
-
-
-    public interface FileItemClickListener {
-        void onFileDoubleClick(File file);
-
-        void onFileRightClick(File file, FileInfo fileInfo,
-                              Component source, int x, int y,
-                              FileItemPanel itemPanel); // NOVO
-    }
-
 
     public void enterRenameMode(RenameModeManager rm) {
         this.renameModeManager = rm;
@@ -810,26 +876,35 @@ public class ResultsPanel extends JPanel {
         for (FileItemPanel item : currentItems) item.enableRenameMode(rm);
     }
 
-
     // Adicione ao final de renderGrid(), após reapplyEditModeIfActive():
+//    private void reapplyRenameModeIfActive() {
+//        if (renameModeManager != null && renameModeManager.isActive())
+//            applyRenameModeToItems(renameModeManager);
+//    }
     private void reapplyRenameModeIfActive() {
-        if (renameModeManager != null && renameModeManager.isActive())
-            applyRenameModeToItems(renameModeManager);
+        if (renameModeManager != null && renameModeManager.isActive()) {
+            for (FileItemPanel item : currentItems) {
+                item.enableRenameMode(renameModeManager);
+                if (savedRenameSelected.contains(item.getDisplayFile())) {
+                    renameModeManager.selectFile(item.getDisplayFile());
+                    if (item.renameSelectionCheckbox != null)
+                        item.renameSelectionCheckbox.setSelected(true);
+                    item.updateModeBackground();
+                }
+            }
+        }
     }
 
     private JToolBar buildRenameToolBar(RenameModeManager rm) {
         JToolBar bar = new JToolBar();
         bar.setFloatable(false);
-        bar.setBackground(rm.getMode() == RenameMode.FILES
-                ? new Color(30, 55, 20) : new Color(55, 35, 10));
 
         JLabel lbl = new JLabel("  " + rm.getMode().toolbarLabel + "  ");
-        lbl.setForeground(Color.WHITE);
         lbl.setFont(UIConfig.FONT_TITLE);
         bar.add(lbl);
         bar.addSeparator();
 
-        JButton selectAll = new JButton("Selecionar todos");
+        JButton selectAll = new JButton(" Selecionar todos ");
         selectAll.setFont(UIConfig.FONT_DEFAULT);
         selectAll.addActionListener(e -> {
             List<File> files = currentItems.stream()
@@ -837,27 +912,35 @@ public class ResultsPanel extends JPanel {
             rm.selectAll(files);
             currentItems.forEach(item -> {
                 if (rm.accepts(item.getDisplayFile())
-                        && item.renameSelectionCheckbox != null)
+                        && item.renameSelectionCheckbox != null) {
                     item.renameSelectionCheckbox.setSelected(true);
+                    item.updateModeBackground();
+                    clearItemBackground();
+                }
             });
         });
         bar.add(selectAll);
 
-        JButton clearSel = new JButton("Limpar seleção");
+        JButton clearSel = new JButton(" Limpar seleção ");
         clearSel.setFont(UIConfig.FONT_DEFAULT);
         clearSel.addActionListener(e -> {
             rm.clearSelection();
             currentItems.forEach(item -> {
-                if (item.renameSelectionCheckbox != null)
+                if (item.renameSelectionCheckbox != null){
                     item.renameSelectionCheckbox.setSelected(false);
+                    item.updateModeBackground();
+                    clearItemBackground();
+                }
             });
+
         });
         bar.add(clearSel);
         bar.addSeparator();
 
-        JButton renameBtn = new JButton("✏ Renomear");
-        renameBtn.setFont(UIConfig.FONT_DEFAULT);
-        renameBtn.setForeground(new Color(120, 210, 120));
+        JButton renameBtn = new JButton(" ✏ Renomear ");
+        renameBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+        renameBtn.setForeground(UIConfig.SELECTED_BORDER);
+        renameBtn.setToolTipText("Clique para Renomear");
         renameBtn.addActionListener(e -> {
             if (rm.getSelectedCount() == 0) {
                 JOptionPane.showMessageDialog(
@@ -884,12 +967,26 @@ public class ResultsPanel extends JPanel {
         bar.add(renameBtn);
         bar.addSeparator();
 
-        JButton exitBtn = new JButton("✕ Sair");
+        JButton exitBtn = new JButton(" ✕ Sair ");
         exitBtn.setFont(UIConfig.FONT_DEFAULT);
-        exitBtn.setForeground(new Color(255, 80, 80));
+        exitBtn.setForeground(UIConfig.LIGHT_RED);
+
         exitBtn.addActionListener(e -> exitRenameMode());
         bar.add(exitBtn);
 
         return bar;
+    }
+
+
+    public enum MessageType {
+        WELCOME, LOADING, NO_RESULTS, ERROR
+    }
+
+    public interface FileItemClickListener {
+        void onFileDoubleClick(File file);
+
+        void onFileRightClick(File file, FileInfo fileInfo,
+                              Component source, int x, int y,
+                              FileItemPanel itemPanel); // NOVO
     }
 }

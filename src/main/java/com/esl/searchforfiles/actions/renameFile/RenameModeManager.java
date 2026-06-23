@@ -31,6 +31,9 @@ public class RenameModeManager {
     public Set<File> getSelectedFiles()     { return Collections.unmodifiableSet(selectedFiles); }
     public boolean   isSelected(File f)     { return selectedFiles.contains(f); }
     public int       getSelectedCount()     { return selectedFiles.size(); }
+    public void selectFile(File f) {
+        if (accepts(f)) selectedFiles.add(f);
+    }
 
     /** Modo FILES aceita qualquer arquivo não-diretório.
      *  Modo FOLDERS aceita apenas diretórios. */

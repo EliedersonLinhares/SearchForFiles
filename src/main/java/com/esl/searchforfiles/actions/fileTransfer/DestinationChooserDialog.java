@@ -1,8 +1,10 @@
 package com.esl.searchforfiles.actions.fileTransfer;
 
 
+import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.service.IconService;
+import com.formdev.flatlaf.FlatClientProperties;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileSystemView;
@@ -10,6 +12,7 @@ import javax.swing.tree.*;
 import java.awt.*;
 import java.io.File;
 import java.util.Comparator;
+import java.util.Map;
 import java.util.function.Consumer;
 
 public class DestinationChooserDialog extends JDialog {

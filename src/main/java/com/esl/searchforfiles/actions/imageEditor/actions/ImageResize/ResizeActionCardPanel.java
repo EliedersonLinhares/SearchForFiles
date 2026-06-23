@@ -65,13 +65,11 @@ public class ResizeActionCardPanel extends ActionCardPanel {
     // ── Painel principal ──────────────────────────────────────────
 
     private JPanel buildMainPanel() {
-        JPanel root = new JPanel(new BorderLayout(0, 4));
-        root.setBackground(new Color(50, 50, 50));
-        root.setBorder(BorderFactory.createEmptyBorder(6, 10, 8, 10));
+        JPanel root = new JPanel(new BorderLayout(0, 2));
+        root.setBorder(BorderFactory.createEmptyBorder(6, 10, 2, 10));
 
         // ── Linha do combobox ──────────────────────────────────────
         JPanel topRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        topRow.setBackground(new Color(50, 50, 50));
 
         JLabel modeLabel = makeLabel("Modo:");
         styleModeCombo();
@@ -81,7 +79,6 @@ public class ResizeActionCardPanel extends ActionCardPanel {
         root.add(topRow, BorderLayout.NORTH);
 
         // ── Cards (Manual | Porcentagem) ───────────────────────────
-        modeCards.setBackground(new Color(50, 50, 50));
         modeCards.add(buildManualPanel(),     CARD_MANUAL);
         modeCards.add(buildPercentagePanel(), CARD_PCT);
         root.add(modeCards, BorderLayout.CENTER);
@@ -96,7 +93,6 @@ public class ResizeActionCardPanel extends ActionCardPanel {
 
     private JPanel buildManualPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(new Color(50, 50, 50));
 
         GridBagConstraints g = new GridBagConstraints();
         g.insets = new Insets(3, 3, 3, 3);
@@ -152,9 +148,8 @@ public class ResizeActionCardPanel extends ActionCardPanel {
 
     private JPanel buildPercentagePanel() {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
-        panel.setBackground(new Color(50, 50, 50));
-
         styleField(pctField);
+
         // Permite dígitos e ponto/vírgula
         ((AbstractDocument) pctField.getDocument()).setDocumentFilter(
                 new DecimalFilter());
@@ -254,20 +249,11 @@ public class ResizeActionCardPanel extends ActionCardPanel {
     // ── Estilo ────────────────────────────────────────────────────
 
     private void styleModeCombo() {
-        modeCombo.setBackground(new Color(55, 55, 55));
-        modeCombo.setForeground(Color.WHITE);
         modeCombo.setFont(UIConfig.FONT_DEFAULT);
         modeCombo.setFocusable(false);
-        modeCombo.setBorder(BorderFactory.createLineBorder(new Color(90, 90, 90)));
     }
 
     private void styleField(JTextField f) {
-        f.setBackground(new Color(38, 38, 38));
-        f.setForeground(Color.WHITE);
-        f.setCaretColor(Color.WHITE);
-        f.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(90, 90, 90)),
-                BorderFactory.createEmptyBorder(2, 4, 2, 4)));
         f.setFont(UIConfig.FONT_DEFAULT);
     }
 
@@ -276,8 +262,7 @@ public class ResizeActionCardPanel extends ActionCardPanel {
         lockBtn.setToolTipText("Restringir proporções");
         lockBtn.setText(lockIcon(true));
         lockBtn.setFont(UIConfig.FONT_DEFAULT);
-        lockBtn.setForeground(new Color(100, 160, 230));
-        lockBtn.setBackground(new Color(50, 50, 50));
+        lockBtn.setForeground(UIConfig.BLUE);
         lockBtn.setBorderPainted(false);
         lockBtn.setFocusPainted(false);
         lockBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -286,7 +271,7 @@ public class ResizeActionCardPanel extends ActionCardPanel {
             boolean locked = lockBtn.isSelected();
             lockBtn.setText(lockIcon(locked));
             lockBtn.setForeground(locked
-                    ? new Color(100, 160, 230) : new Color(120, 120, 120));
+                    ? UIConfig.BLUE: UIConfig.RED);
             if (locked) {
                 int w = parseInt(widthField);
                 int h = parseInt(heightField);
@@ -299,7 +284,6 @@ public class ResizeActionCardPanel extends ActionCardPanel {
 
     private static JLabel makeLabel(String text) {
         JLabel l = new JLabel(text);
-        l.setForeground(new Color(180, 180, 180));
         l.setFont(UIConfig.FONT_DEFAULT);
         return l;
     }

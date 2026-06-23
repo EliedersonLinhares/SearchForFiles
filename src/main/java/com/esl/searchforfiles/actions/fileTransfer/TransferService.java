@@ -45,6 +45,9 @@ public class TransferService {
     public boolean isSelected(File file) { return selectedFiles.contains(file); }
 
     public int getSelectedCount() { return selectedFiles.size(); }
+    public void selectFile(File f) {
+        selectedFiles.add(f);
+    }
 
     // ── Operações de arquivo ──────────────────────────────────────────
 

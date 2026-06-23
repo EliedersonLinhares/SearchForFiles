@@ -1,6 +1,7 @@
 package com.esl.searchforfiles.ui;
 
 
+import com.esl.searchforfiles.Theme.ThemeManager;
 import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
 import com.esl.searchforfiles.actions.renameFile.RenameMode;
 import com.esl.searchforfiles.actions.renameFile.RenameModeManager;
@@ -43,6 +44,7 @@ public class FileExplorerSwing extends JFrame {
     private IndexFilterService indexFilterService;
     private TransferService transferService;
     private final EditModeManager editModeManager = new EditModeManager();
+    private ThemeManager themeManager;
 
     private String selectedPath = "C:\\";
     private int currentPage = 1; // NOVO
@@ -60,24 +62,36 @@ public class FileExplorerSwing extends JFrame {
         return controller;
     }
     public BottomIndicatorPanel getBottomIndicatorPanel() {return bottomIndicatorPanel;}
-
     public SearchPanel getSearchPanel() {
         return searchPanel;
     }
-
     public TransferService getTransferService() {
         return transferService;
     }
+    public ThemeManager getThemeManager() {return themeManager;}
 
-    public FileExplorerSwing() {
+    public EditModeManager getEditModeManager() {
+        return editModeManager;
+    }
+
+    public RenameModeManager getRenameModeFiles() {
+        return renameModeFiles;
+    }
+
+    public RenameModeManager getRenameModeFolders() {
+        return renameModeFolders;
+    }
+
+    public FileExplorerSwing(ThemeManager themeManager) {
         super("Advanced File Search - Interface Gráfica");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setSize(1400, 800);
+        setSize(1480, 800);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
         favoritesService = new FavoritesService();
         configManager = new ConfigManager();
+        this.themeManager = themeManager;
         setSelectedPath(configManager.getSavedDefaultFolder());
 
         bottomIndicatorPanel = new BottomIndicatorPanel(this);
@@ -140,7 +154,7 @@ public class FileExplorerSwing extends JFrame {
 
         // === PAINEL CENTRAL (resultados + paginação) ===
 
-        resultsPanel.setBackgroundColor(new Color(45, 45, 45));
+       // resultsPanel.setBackgroundColor(new Color(45, 45, 45));
         resultsPanel.setFileItemClickListener(new ResultsPanel.FileItemClickListener() {
             @Override
             public void onFileDoubleClick(File file) {
@@ -319,10 +333,6 @@ public class FileExplorerSwing extends JFrame {
             }
         });
 
-//        String[] formatos = ImageIO.getWriterFormatNames();
-//        for (String formato : formatos) {
-//            System.out.println(formato);
-//        }
 
     }
 

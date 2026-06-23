@@ -10,6 +10,8 @@ import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.model.SearchCriteria;
 import com.esl.searchforfiles.service.IconService;
 import com.esl.searchforfiles.actions.fileTransfer.TransferService;
+import com.formdev.flatlaf.FlatClientProperties;
+import com.formdev.flatlaf.FlatLaf;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
@@ -17,20 +19,23 @@ import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.dnd.*;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Supplier;
 
 public class SubFolderPanel extends JPanel {
 
-    private static final Color BG_COLOR     = new Color(45, 45, 45);
-    private static final Color HOVER_COLOR  = new Color(60, 60, 60);
-    private static final Color HEADER_COLOR = new Color(33, 150, 243);
-    private static final Color BTN_COLOR    = new Color(55, 55, 55);
-    private static final Color BTN_DISABLED = new Color(70, 70, 70);
+//    private static final Color BG_COLOR     = new Color(45, 45, 45);
+//    private static final Color HOVER_COLOR  = new Color(60, 60, 60);
+ //   private static final Color HEADER_COLOR = new Color(33, 150, 243);
+//    private static final Color BTN_COLOR    = new Color(55, 55, 55);
+//    private static final Color BTN_DISABLED = new Color(70, 70, 70);
     private static final int   PAGE_SIZE    = 100;
 
     // ── Ordenação ──────────────────────────────────────────────────
@@ -59,22 +64,29 @@ public class SubFolderPanel extends JPanel {
     private final FileExplorerSwing fileExplorerSwing;
     private final ConfigManager     configManager;
 
+    private Icon searchIcon;
+    private boolean isDark;
+
     public SubFolderPanel(FileExplorerSwing fileExplorerSwing, ConfigManager configManager) {
         this.fileExplorerSwing = fileExplorerSwing;
         this.configManager     = configManager;
         this.sortField = configManager.getSubfolderSortField();
         this.sortOrder = configManager.getSubfolderSortOrder();
 
-        setLayout(new BorderLayout(0, 0));
-        setBackground(BG_COLOR);
-        setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, new Color(70, 70, 70)));
 
+
+        isDark = UIManager.getBoolean("laf.dark");
+
+        setLayout(new BorderLayout(0, 0));
+        //setBackground(BG_COLOR);
+       // setBorder(BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(70, 70, 70)));
+        setBorder(BorderFactory.createTitledBorder("📁 Subpastas"));
         // ── Cabeçalho ──────────────────────────────────────────────
         titleLabel = new JLabel(buildTitle());
         titleLabel.setFont(UIConfig.FONT_SMALL);
-        titleLabel.setForeground(HEADER_COLOR);
+      //  titleLabel.setForeground(HEADER_COLOR);
         titleLabel.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 8));
-        titleLabel.setBackground(new Color(38, 38, 38));
+     //   titleLabel.setBackground(new Color(38, 38, 38));
         titleLabel.setOpaque(true);
         titleLabel.setToolTipText("Clique com botão direito para ordenar");
         titleLabel.addMouseListener(new MouseAdapter() {
@@ -83,11 +95,13 @@ public class SubFolderPanel extends JPanel {
             }
         });
 
+        searchIcon = new ImageIcon(Objects.requireNonNull(getClass().getResource("/icons/text/search_icon16.png")));
         // ── Campo de pesquisa ───────────────────────────────────────
         searchField = new JTextField();
-        searchField.setBackground(new Color(55, 55, 55));
-        searchField.setForeground(Color.WHITE);
-        searchField.setCaretColor(Color.WHITE);
+        searchField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Digite para pesquisar...");
+        searchField.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, isDark ?  fileExplorerSwing.getThemeManager().inverterColorIcon(searchIcon) : searchIcon);
+
+    //    searchField.setCaretColor(Color.WHITE);
         searchField.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(70, 70, 70)),
                 BorderFactory.createEmptyBorder(4, 8, 4, 8)));
@@ -110,18 +124,18 @@ public class SubFolderPanel extends JPanel {
         btnLast .addActionListener(e -> goToPage(totalPages() - 1));
 
         pageLabel = new JLabel("", SwingConstants.CENTER);
-        pageLabel.setForeground(new Color(180, 180, 180));
+      //  pageLabel.setForeground(new Color(180, 180, 180));
         pageLabel.setFont(UIConfig.FONT_SMALL);
 
         JPanel btnGroup = new JPanel(new GridLayout(1, 4, 2, 0));
-        btnGroup.setBackground(new Color(38, 38, 38));
+       // btnGroup.setBackground(new Color(38, 38, 38));
         btnGroup.add(btnFirst);
         btnGroup.add(btnPrev);
         btnGroup.add(btnNext);
         btnGroup.add(btnLast);
 
         JPanel pagBar = new JPanel(new BorderLayout(2, 0));
-        pagBar.setBackground(new Color(38, 38, 38));
+      //  pagBar.setBackground(new Color(38, 38, 38));
         pagBar.setBorder(BorderFactory.createEmptyBorder(3, 4, 3, 4));
         pagBar.add(pageLabel, BorderLayout.CENTER);
         pagBar.add(btnGroup,  BorderLayout.EAST);
@@ -136,33 +150,55 @@ public class SubFolderPanel extends JPanel {
 
         // ── Mensagem de vazio ───────────────────────────────────────
         emptyLabel = new JLabel("Nenhuma subpasta", SwingConstants.CENTER);
-        emptyLabel.setForeground(new Color(120, 120, 120));
+      //  emptyLabel.setForeground(new Color(120, 120, 120));
         emptyLabel.setFont(UIConfig.FONT_SMALL);
         emptyLabel.setVisible(false);
 
         // ── Lista ───────────────────────────────────────────────────
         listPanel = new JPanel();
         listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
-        listPanel.setBackground(BG_COLOR);
+       // listPanel.setBackground(BG_COLOR);
 
         // Wrapper que contém tanto a lista quanto o emptyLabel
         JPanel centerWrapper = new JPanel(new BorderLayout());
-        centerWrapper.setBackground(BG_COLOR);
+      //  centerWrapper.setBackground(BG_COLOR);
         centerWrapper.add(emptyLabel, BorderLayout.NORTH);
         centerWrapper.add(listPanel,  BorderLayout.CENTER);
 
         scrollPane = new JScrollPane(centerWrapper);
         scrollPane.setBorder(BorderFactory.createEmptyBorder());
         scrollPane.getVerticalScrollBar().setUnitIncrement(12);
-        scrollPane.setBackground(BG_COLOR);
-        scrollPane.getViewport().setBackground(BG_COLOR);
+      //  scrollPane.setBackground(BG_COLOR);
+      //  scrollPane.getViewport().setBackground(BG_COLOR);
         add(scrollPane, BorderLayout.CENTER);
 
         setPreferredSize(new Dimension(200, 0));
         setTransferHandler(new FileTransferHandler());
+
+
+        // Atualiza quando o tema mudar
+        fileExplorerSwing.getThemeManager().addThemeChangeListener(() ->
+                SwingUtilities.invokeLater(() -> {
+                    // 1. Atualiza a variável com o estado do novo tema ativo
+                    isDark = UIManager.getBoolean("laf.dark");
+
+                    // 2. Cria ou recupera o ícone correto baseado no novo estado
+                    Icon iconeAtualizado = isDark ?
+                            fileExplorerSwing.getThemeManager().inverterColorIcon(searchIcon) :
+                            searchIcon;
+
+                    // 3. Reaplica a propriedade do cliente para atualizar o FlatLaf
+                    searchField.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, iconeAtualizado);
+
+                    // 4. Redesenha o componente para garantir que a mudança visual apareça na hora
+                    searchField.repaint();
+                    searchField.revalidate();
+                })
+        );
     }
 
     // ── API pública ────────────────────────────────────────────────
+
 
     public void setParentSplit(JSplitPane split) { /* mantido por compatibilidade */ }
     public void setTransferManager(TransferService tm) { this.transferService = tm; }
@@ -288,14 +324,14 @@ public class SubFolderPanel extends JPanel {
 
     private void showSortMenu(MouseEvent e) {
         JPopupMenu menu = new JPopupMenu();
-        menu.setBackground(new Color(50, 50, 50));
+      //  menu.setBackground(new Color(50, 50, 50));
 
         String[][] fields = {{"Nome", "name"}, {"Data", "last_modified"}, {"Tamanho", "size"}};
         for (String[] f : fields) {
             boolean active = sortField.equals(f[1]);
             JMenuItem item = new JMenuItem((active ? "✓ " : "   ") + f[0]);
-            item.setBackground(new Color(50, 50, 50));
-            item.setForeground(active ? HEADER_COLOR : Color.WHITE);
+          //  item.setBackground(new Color(50, 50, 50));
+         //   item.setForeground(active ? HEADER_COLOR : Color.WHITE);
             String key = f[1];
             item.addActionListener(ev -> { sortField = key; configManager.saveSubfolderSortField(key); reload(); });
             menu.add(item);
@@ -316,8 +352,8 @@ public class SubFolderPanel extends JPanel {
     }
 
     private void styleMenuItem(JMenuItem item, boolean active) {
-        item.setBackground(new Color(50, 50, 50));
-        item.setForeground(active ? HEADER_COLOR : Color.WHITE);
+        //item.setBackground(new Color(50, 50, 50));
+      //  item.setForeground(active ? HEADER_COLOR : Color.WHITE);
     }
 
     private void reload() {
@@ -339,26 +375,26 @@ public class SubFolderPanel extends JPanel {
             case "size"          -> "Tamanho";
             default              -> "Nome";
         };
-        return "📁 Subpastas · " + field + " " + arrow;
+        return  field + " " + arrow;
     }
 
     private JButton makePageBtn(String text) {
         JButton btn = new JButton(text);
         btn.setFont(UIConfig.FONT_SMALL);
-        btn.setForeground(Color.WHITE);
-        btn.setBackground(BTN_COLOR);
+     //   btn.setForeground(Color.WHITE);
+       // btn.setBackground(BTN_COLOR);
         btn.setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
         btn.setFocusPainted(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btn.setEnabled(false);
-        btn.addMouseListener(new MouseAdapter() {
-            @Override public void mouseEntered(MouseEvent e) {
-                if (btn.isEnabled()) btn.setBackground(HEADER_COLOR);
-            }
-            @Override public void mouseExited(MouseEvent e) {
-                btn.setBackground(btn.isEnabled() ? BTN_COLOR : BTN_DISABLED);
-            }
-        });
+//        btn.addMouseListener(new MouseAdapter() {
+//            @Override public void mouseEntered(MouseEvent e) {
+//                if (btn.isEnabled()) btn.setBackground(HEADER_COLOR);
+//            }
+//            @Override public void mouseExited(MouseEvent e) {
+//              //  btn.setBackground(btn.isEnabled() ? BTN_COLOR : BTN_DISABLED);
+//            }
+//        });
         return btn;
     }
 
@@ -368,7 +404,7 @@ public class SubFolderPanel extends JPanel {
         File file = new File(fi.getPath());
 
         JPanel row = new JPanel(new BorderLayout(6, 0));
-        row.setBackground(BG_COLOR);
+        //row.setBackground(BG_COLOR);
         row.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
         row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
         row.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -380,7 +416,7 @@ public class SubFolderPanel extends JPanel {
 
         String displayName = fi.getName().isEmpty() ? fi.getPath() : fi.getName();
         JLabel nameLabel = new JLabel(displayName);
-        nameLabel.setForeground(Color.WHITE);
+      //  nameLabel.setForeground(Color.WHITE);
         nameLabel.setFont(UIConfig.FONT_SMALL);
         nameLabel.setToolTipText(fi.getPath());
         nameLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -389,14 +425,14 @@ public class SubFolderPanel extends JPanel {
         row.add(nameLabel, BorderLayout.CENTER);
 
         MouseAdapter ma = new MouseAdapter() {
-            @Override public void mouseEntered(MouseEvent e) { row.setBackground(HOVER_COLOR); }
+            //@Override public void mouseEntered(MouseEvent e) { row.setBackground(HOVER_COLOR); }
             @Override public void mouseExited(MouseEvent e) {
                 Component dest = SwingUtilities.getDeepestComponentAt(
                         row.getParent(),
                         e.getXOnScreen() - row.getParent().getLocationOnScreen().x,
                         e.getYOnScreen() - row.getParent().getLocationOnScreen().y);
                 if (dest != null && SwingUtilities.isDescendingFrom(dest, row)) return;
-                row.setBackground(BG_COLOR);
+              //  row.setBackground(BG_COLOR);
             }
             @Override public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 1 && clickListener != null)

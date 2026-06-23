@@ -4,6 +4,7 @@ package com.esl.searchforfiles.actions.imageEditor.saveActions;
 import com.esl.searchforfiles.actions.imageEditor.ActionCardPanel;
 import com.esl.searchforfiles.actions.imageEditor.ImageEditAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageAdjust.ImageAdjustAction;
+import com.esl.searchforfiles.actions.imageEditor.actions.ImageBlurBrush.ImageBlurBrushAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageCrop.ImageCropAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImagePaintBrush.ImagePaintBrushAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageResize.ImageResizeAction;
@@ -223,6 +224,13 @@ public class ActionPresetManager {
                 // Nota: a máscara de pintura não é serializada (dados visuais complexos).
                 // Ao recarregar o preset, o card é recriado sem a máscara (efeito inativo).
             }
+            case ImageBlurBrushAction bb -> {
+                fields.put("type",       q("blurbrush"));
+                fields.put("blurRadius", String.valueOf(bb.getBlurRadius()));
+                fields.put("brushSize",  String.valueOf(bb.getBrushSize()));
+                fields.put("brushType",  q(bb.getBrushType().name()));
+                // Máscara não serializada (igual aos outros brush)
+            }
             default -> fields.put("type", q("unknown"));
         }
 
@@ -304,6 +312,15 @@ public class ActionPresetManager {
                     pb.setBrushType (ImagePaintBrushAction.BrushType.valueOf(
                             unq(fields.getOrDefault("brushType", "SOFT"))));
                     yield pb;
+                }
+
+                case "blurbrush" -> {
+                    ImageBlurBrushAction bb = new ImageBlurBrushAction();
+                    bb.setBlurRadius(itg(fields, "blurRadius", 5));
+                    bb.setBrushSize (itg(fields, "brushSize",  40));
+                    bb.setBrushType (ImageBlurBrushAction.BrushType.valueOf(
+                            unq(fields.getOrDefault("brushType", "SOFT"))));
+                    yield bb;
                 }
                 default -> null;
             };

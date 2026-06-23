@@ -61,7 +61,6 @@ public class CropActionCardPanel extends ActionCardPanel {
 
     private JPanel buildPanel() {
         JPanel root = new JPanel(new GridBagLayout());
-        root.setBackground(new Color(50, 50, 50));
         root.setBorder(BorderFactory.createEmptyBorder(6, 10, 8, 10));
 
         GridBagConstraints g = new GridBagConstraints();
@@ -91,19 +90,19 @@ public class CropActionCardPanel extends ActionCardPanel {
         g.gridy = 2; g.gridx = 0; g.weightx = 0; g.fill = GridBagConstraints.NONE;
         root.add(makeLabel(""), g);
 
-        styleBtn(defineBtn, new Color(60, 100, 160), new Color(90, 140, 210));
+        styleBtn(defineBtn, UIConfig.buttonBackgroundColor(),UIConfig.foreground());
         g.gridx = 1; g.weightx = 0;
         root.add(defineBtn, g);
 
-        styleBtn(clearBtn, new Color(80, 50, 50), new Color(160, 80, 80));
+        styleBtn(clearBtn, UIConfig.buttonBackgroundColor(), UIConfig.foreground());
         g.gridx = 2;
         root.add(clearBtn, g);
 
         // Linha 3 — Confirmar / Cancelar seleção (visíveis só durante o crop)
-        styleBtn(confirmBtn,   new Color(40, 110, 60),  new Color(70, 160, 90));
-        styleBtn(cancelSelBtn, new Color(100, 60, 60),  new Color(160, 90, 90));
+        styleBtn(confirmBtn,   UIConfig.BLUE, Color.WHITE);
+        styleBtn(cancelSelBtn, UIConfig.RED, Color.WHITE);
 
-        cropBtnRow.setBackground(new Color(50, 50, 50));
+
         cropBtnRow.add(confirmBtn);
         cropBtnRow.add(cancelSelBtn);
 
@@ -175,43 +174,37 @@ public class CropActionCardPanel extends ActionCardPanel {
     // ── Helpers ───────────────────────────────────────────────────
 
     private void updateRegionLabel() {
-        regionLabel.setFont(UIConfig.FONT_DEFAULT);
         if (cropAction.hasRegion()) {
             double[] r = cropAction.getNormalizedRegion();
             regionLabel.setText(String.format(
                     "X:%.0f%% Y:%.0f%%  W:%.0f%% H:%.0f%%",
                     r[0]*100, r[1]*100, r[2]*100, r[3]*100));
-            regionLabel.setForeground(new Color(160, 210, 140));
+            regionLabel.setForeground(UIConfig.success());
         } else {
             regionLabel.setText("não definida");
-            regionLabel.setForeground(new Color(140, 140, 140));
+            regionLabel.setForeground(UIConfig.sliderTrackColor());
         }
     }
 
     private void styleCombo() {
-        aspectCombo.setBackground(new Color(55, 55, 55));
-        aspectCombo.setForeground(Color.WHITE);
         aspectCombo.setFont(UIConfig.FONT_DEFAULT);
         aspectCombo.setFocusable(false);
     }
 
     private void styleRegionLabel() {
         regionLabel.setFont(UIConfig.FONT_DEFAULT);
-        regionLabel.setForeground(new Color(140, 140, 140));
     }
 
-    private static void styleBtn(JButton btn, Color bg, Color border) {
+    private static void styleBtn(JButton btn, Color bg, Color fr) {
         btn.setBackground(bg);
-        btn.setForeground(Color.WHITE);
+        btn.setForeground(fr);
         btn.setFont(UIConfig.FONT_DEFAULT);
-        btn.setBorder(BorderFactory.createLineBorder(border));
         btn.setFocusPainted(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     }
 
     private static JLabel makeLabel(String text) {
         JLabel l = new JLabel(text);
-        l.setForeground(new Color(180, 180, 180));
         l.setFont(UIConfig.FONT_DEFAULT);
         return l;
     }

@@ -3,9 +3,11 @@ package com.esl.searchforfiles.actions.imageEditor.actions.ImageSketchFilter;
 import com.esl.searchforfiles.actions.imageEditor.ActionCardPanel;
 import com.esl.searchforfiles.actions.imageEditor.ImageEditorFrame;
 import com.esl.searchforfiles.configuration.UIConfig;
+import com.formdev.flatlaf.FlatClientProperties;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
@@ -38,7 +40,7 @@ public class ImageSketchPanel extends ActionCardPanel {
 
     private JPanel buildPanel() {
         JPanel root = new JPanel(new GridBagLayout());
-        root.setBackground(new Color(50, 50, 50));
+     //   root.setBackground(new Color(50, 50, 50));
         root.setBorder(BorderFactory.createEmptyBorder(6, 10, 8, 10));
 
         GridBagConstraints g = new GridBagConstraints();
@@ -82,7 +84,8 @@ public class ImageSketchPanel extends ActionCardPanel {
         g.fill    = GridBagConstraints.NONE;
         root.add(makeLabel(""), g);   // espaçador
 
-        applyBtn = new JButton("✏ Aplicar efeito sketch");
+        applyBtn = new JButton("✏ Ativar sketch");
+        applyBtn.setBackground(UIConfig.buttonBackgroundColor());
         applyBtn.setFont(UIConfig.FONT_DEFAULT);
         applyBtn.setToolTipText("Aplica o filtro de desenho com os parâmetros atuais");
         styleBtn(applyBtn, sketchAction.isEffectApplied());
@@ -115,11 +118,9 @@ public class ImageSketchPanel extends ActionCardPanel {
         nameLabel.setPreferredSize(new Dimension(68, 16));
 
         JSlider slider = new JSlider(min, max, initial);
-        slider.setBackground(new Color(50, 50, 50));
         slider.setFocusable(false);
 
         JLabel valueLabel = new JLabel(formatter.apply(initial));
-        valueLabel.setForeground(new Color(140, 140, 140));
         valueLabel.setFont(UIConfig.FONT_DEFAULT);
         valueLabel.setPreferredSize(new Dimension(38, 16));
         valueLabel.setHorizontalAlignment(SwingConstants.RIGHT);
@@ -140,23 +141,41 @@ public class ImageSketchPanel extends ActionCardPanel {
     // ── Estilo ────────────────────────────────────────────────────
 
     private static void styleBtn(JButton btn, boolean active) {
-        btn.setForeground(Color.WHITE);
         btn.setFocusPainted(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btn.setFont(btn.getFont().deriveFont(11f));
+        btn.setFont(UIConfig.FONT_DEFAULT);
+        btn.setForeground(Color.WHITE);
         if (active) {
-            btn.setBackground(new Color(60, 100, 160));
-            btn.setBorder(BorderFactory.createLineBorder(new Color(100, 150, 220)));
+            btn.setBackground(UIConfig.RED);
+            btn.setText("✏ Desativar sketch");
         } else {
-            btn.setBackground(new Color(65, 65, 65));
-            btn.setBorder(BorderFactory.createLineBorder(new Color(90, 90, 90)));
+            btn.setBackground(UIConfig.BLUE);
+            btn.setText("✏ Ativar sketch");
         }
     }
 
+    private JButton makeTextBtn(JButton btn, String borderColor, String borderHoverColor, boolean active) {
+        if (active) {
+            btn.setBackground(UIConfig.SELECTED_COLOR);
+        } else {
+            btn.setBackground(UIConfig.buttonBackgroundColor());
+        }
+
+        Map<String, Object> estiloBotao = Map.of(
+                "borderWidth", 2,
+                "borderColor",UIManager.getColor(borderColor), // Cor normal
+                "hoverBorderColor", UIManager.getColor(borderHoverColor), // Cor ao passar o mouse
+                "focusedBorderColor", UIManager.getColor("Slider.trackColor") // Cor se focado (opcional)
+        );
+        // JButton btn = new JButton(text);
+        btn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+        btn.putClientProperty(FlatClientProperties.STYLE, estiloBotao);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return btn;
+    }
     private static JLabel makeLabel(String text) {
         JLabel l = new JLabel(text);
-        l.setForeground(new Color(180, 180, 180));
-        l.setFont(l.getFont().deriveFont(10f));
+        l.setFont(UIConfig.FONT_SMALL);
         return l;
     }
 }

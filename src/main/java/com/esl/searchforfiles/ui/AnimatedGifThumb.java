@@ -117,7 +117,7 @@ public class AnimatedGifThumb {
     JLabel createGifLabel(int boxSize) {
         JLabel label = new JLabel();
         label.setOpaque(true); // opaco — pinta o fundo antes de cada frame
-        label.setBackground(fileItemPanel.getNormalColor());
+       // label.setBackground(fileItemPanel.getNormalColor());
         label.setHorizontalAlignment(SwingConstants.CENTER);
         label.setVerticalAlignment(SwingConstants.CENTER);
         label.setPreferredSize(new Dimension(boxSize, boxSize));
@@ -141,7 +141,7 @@ public class AnimatedGifThumb {
             }
         };
         pane.setOpaque(true);
-        pane.setBackground(fileItemPanel.getNormalColor());
+     //   pane.setBackground(fileItemPanel.getNormalColor());
         pane.setPreferredSize(new Dimension(boxSize, boxSize));
         pane.setMaximumSize(new Dimension(boxSize, boxSize));
         pane.setAlignmentX(Component.CENTER_ALIGNMENT);

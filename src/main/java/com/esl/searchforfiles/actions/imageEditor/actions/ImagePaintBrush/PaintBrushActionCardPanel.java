@@ -53,7 +53,6 @@ public class PaintBrushActionCardPanel extends ActionCardPanel {
 
     private JPanel buildPanel() {
         JPanel root = new JPanel(new GridBagLayout());
-        root.setBackground(new Color(50, 50, 50));
         root.setBorder(BorderFactory.createEmptyBorder(6, 10, 8, 10));
 
         GridBagConstraints g = new GridBagConstraints();
@@ -120,16 +119,14 @@ public class PaintBrushActionCardPanel extends ActionCardPanel {
 
         paintBtn = new JButton("✏ Pintar");
         styleSmallBtn(paintBtn);
-        paintBtn.setBackground(new Color(50, 90, 150));
-        paintBtn.setBorder(BorderFactory.createLineBorder(new Color(80, 130, 210)));
+        paintBtn.setBackground(UIConfig.BLUE);
         paintBtn.addActionListener(e -> togglePaintMode());
         g.gridx = 1; g.weightx = 1; g.fill = GridBagConstraints.HORIZONTAL;
         root.add(paintBtn, g);
 
         JButton clearBtn = new JButton("🗑 Limpar");
         styleSmallBtn(clearBtn);
-        clearBtn.setBackground(new Color(80, 50, 50));
-        clearBtn.setBorder(BorderFactory.createLineBorder(new Color(140, 70, 70)));
+        clearBtn.setBackground(UIConfig.RED);
         clearBtn.addActionListener(e -> {
             brushAction.clearMask();
             editorFrame.getPreviewPanel().exitBrushMode();
@@ -147,7 +144,6 @@ public class PaintBrushActionCardPanel extends ActionCardPanel {
 
     private JPanel buildRgbRow() {
         JPanel row = new JPanel(new GridLayout(1, 6, 4, 0));
-        row.setBackground(new Color(50, 50, 50));
 
         Color c = brushAction.getBrushColor();
         fieldR = makeRgbField(String.valueOf(c.getRed()));
@@ -171,9 +167,6 @@ public class PaintBrushActionCardPanel extends ActionCardPanel {
 
     private JTextField makeRgbField(String value) {
         JTextField f = new JTextField(value, 3);
-        f.setBackground(new Color(38, 38, 38));
-        f.setForeground(Color.WHITE);
-        f.setCaretColor(Color.WHITE);
         f.setFont(f.getFont().deriveFont(10f));
         f.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(90, 90, 90)),
@@ -208,7 +201,6 @@ public class PaintBrushActionCardPanel extends ActionCardPanel {
 
     private JPanel buildTypeRow() {
         JPanel row = new JPanel(new GridLayout(1, 2, 4, 0));
-        row.setBackground(new Color(50, 50, 50));
 
         solidBtn = new JToggleButton("● Sólido");
         softBtn  = new JToggleButton("◉ Suave");
@@ -244,12 +236,13 @@ public class PaintBrushActionCardPanel extends ActionCardPanel {
     private void updateTypeStyles() {
         applyToggleStyle(solidBtn, solidBtn.isSelected());
         applyToggleStyle(softBtn,  softBtn .isSelected());
+        solidBtn.setText( solidBtn.isSelected() ? "> ● Sólido" : "● Sólido");
+        softBtn.setText( softBtn.isSelected() ? "> ◉ Suave" : "◉ Suave");
     }
 
     private static void applyToggleStyle(JToggleButton btn, boolean active) {
-        btn.setBackground(active ? new Color(60, 100, 160) : new Color(65, 65, 65));
-        btn.setBorder(BorderFactory.createLineBorder(
-                active ? new Color(100, 150, 220) : new Color(90, 90, 90)));
+        btn.setForeground(Color.WHITE);
+        btn.setBackground(active ? UIConfig.BLUE : UIConfig.RED);
     }
 
     // ── Modo pintura ──────────────────────────────────────────────
@@ -274,9 +267,8 @@ public class PaintBrushActionCardPanel extends ActionCardPanel {
     private void setPainting(boolean active) {
         painting = active;
         paintBtn.setText(active ? "⏹ Parar" : "✏ Pintar");
-        paintBtn.setBackground(active ? new Color(140, 60, 60) : new Color(50, 90, 150));
-        paintBtn.setBorder(BorderFactory.createLineBorder(
-                active ? new Color(200, 90, 90) : new Color(80, 130, 210)));
+        paintBtn.setForeground(Color.white);
+        paintBtn.setBackground(active ? UIConfig.BLUE : UIConfig.RED);
     }
 
     // ── Aplicar cor (de qualquer fonte) ──────────────────────────
@@ -304,11 +296,9 @@ public class PaintBrushActionCardPanel extends ActionCardPanel {
         nameLabel.setPreferredSize(new Dimension(62, 16));
 
         JSlider slider = new JSlider(min, max, initial);
-        slider.setBackground(new Color(50, 50, 50));
         slider.setFocusable(false);
 
         JLabel valueLabel = new JLabel(formatter.apply(initial));
-        valueLabel.setForeground(new Color(140, 140, 140));
         valueLabel.setFont(UIConfig.FONT_DEFAULT);
         valueLabel.setPreferredSize(new Dimension(40, 16));
         valueLabel.setHorizontalAlignment(SwingConstants.RIGHT);
@@ -331,15 +321,12 @@ public class PaintBrushActionCardPanel extends ActionCardPanel {
 
     private static void styleSmallBtn(JButton btn) {
         btn.setForeground(Color.WHITE);
-        btn.setBackground(new Color(65, 65, 65));
         btn.setFont(UIConfig.FONT_SMALL);
-        btn.setBorder(BorderFactory.createLineBorder(new Color(90, 90, 90)));
         btn.setFocusPainted(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     }
 
     private static void styleTypeBtn(JToggleButton btn) {
-        btn.setForeground(Color.WHITE);
         btn.setFont(UIConfig.FONT_DEFAULT);
         btn.setFocusPainted(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -347,8 +334,7 @@ public class PaintBrushActionCardPanel extends ActionCardPanel {
 
     private static JLabel makeLabel(String text) {
         JLabel l = new JLabel(text);
-        l.setForeground(new Color(180, 180, 180));
-        l.setFont(UIConfig.FONT_DEFAULT);
+        l.setFont(UIConfig.FONT_SMALL);
         return l;
     }
 }

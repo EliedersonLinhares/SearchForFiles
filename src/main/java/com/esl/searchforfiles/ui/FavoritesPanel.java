@@ -6,6 +6,7 @@ import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.service.FavoritesService;
 import com.esl.searchforfiles.service.IconService;
 import com.esl.searchforfiles.actions.fileTransfer.TransferService;
+import com.formdev.flatlaf.FlatClientProperties;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileSystemView;
@@ -16,6 +17,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Painel com JList de pastas favoritas
@@ -124,8 +126,12 @@ public class FavoritesPanel extends JPanel {
 
         // Painel inferior com botão limpar
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
-        JButton clearButton = new JButton("Limpar Todos");
-        clearButton.setFont(UIConfig.FONT_DEFAULT);
+//        JButton clearButton = new JButton("Limpar Todos");
+//        clearButton.setFont(UIConfig.FONT_DEFAULT);
+        JButton clearButton =  makeTextBtn("🗑️ Limpar Todos",
+                "Remover todos os favoritos",
+                "Slider.trackColor",
+                "Component.accentColor");
         clearButton.addActionListener(e -> clearAllFavorites());
         bottomPanel.add(clearButton);
         add(bottomPanel, BorderLayout.SOUTH);
@@ -138,6 +144,22 @@ public class FavoritesPanel extends JPanel {
 
         setupDropTarget();
     }
+
+    private JButton makeTextBtn(String text, String toolTipText, String borderColor, String borderHoverColor) {
+        Map<String, Object> estiloBotao = Map.of(
+                "borderWidth", 2,
+                "borderColor",UIManager.getColor(borderColor), // Cor normal
+                "hoverBorderColor", UIManager.getColor(borderHoverColor), // Cor ao passar o mouse
+                "focusedBorderColor", UIManager.getColor("Slider.trackColor") // Cor se focado (opcional)
+        );
+        JButton btn = new JButton(text);
+        btn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+        btn.putClientProperty(FlatClientProperties.STYLE, estiloBotao);
+        btn.setToolTipText(toolTipText);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return btn;
+    }
+
 
     /**
      * Atualiza lista de favoritos
@@ -240,99 +262,6 @@ public class FavoritesPanel extends JPanel {
     public void setTransferManager(TransferService tm) {
         this.transferService = tm;
     }
-
-    // Adicione este método e chame-o no construtor, após o setup da favoritesList
-//    private void setupDropTarget() {
-//        DropTargetListener dtl = new DropTargetAdapter() {
-//
-//            @Override
-//            public void dragEnter(DropTargetDragEvent dtde) {
-//                if (dtde.isDataFlavorSupported(FileTransferHandler.FILE_FLAVOR)) {
-//                    dtde.acceptDrag(DnDConstants.ACTION_COPY);
-//                    // Feedback visual: borda destacada no painel
-//                    setBorder(BorderFactory.createTitledBorder(
-//                            BorderFactory.createLineBorder(new Color(33, 150, 243), 2),
-//                            "⭐ Favoritos"
-//                    ));
-//                } else {
-//                    dtde.rejectDrag();
-//                }
-//            }
-//
-//            @Override
-//            public void dragExit(DropTargetEvent dte) {
-//                // Restaura borda original
-//                setBorder(BorderFactory.createTitledBorder("⭐ Favoritos"));
-//            }
-//
-//            @Override
-//            public void drop(DropTargetDropEvent dtde) {
-//                // Restaura borda original
-//                setBorder(BorderFactory.createTitledBorder("⭐ Favoritos"));
-//
-//                try {
-//                    dtde.acceptDrop(DnDConstants.ACTION_COPY);
-//
-//                    @SuppressWarnings("unchecked")
-//                    List<File> files = (List<File>)
-//                            dtde.getTransferable().getTransferData(FileTransferHandler.FILE_FLAVOR);
-//
-//                    if (files == null || files.isEmpty()) {
-//                        dtde.dropComplete(false);
-//                        return;
-//                    }
-//
-//                    File dropped = files.get(0);
-//
-//                    //veto a drives como C: ou D:
-//                    if (fileExplorerSwing.isDriveRoot(dropped.getAbsolutePath())) {
-//                        JOptionPane.showMessageDialog(FavoritesPanel.this,
-//                                "Drive raiz não pode ser adicionado aos favoritos!\n" + "Somente pastas.",
-//                                "Aviso", JOptionPane.WARNING_MESSAGE);
-//                        return;
-//                    }
-//
-//                    // Só aceita pastas
-//                    if (!dropped.isDirectory()) {
-//                        JOptionPane.showMessageDialog(FavoritesPanel.this,
-//                                "Apenas pastas podem ser adicionadas aos favoritos.\n\n" +
-//                                        dropped.getName(),
-//                                "Tipo inválido", JOptionPane.WARNING_MESSAGE);
-//                        dtde.dropComplete(false);
-//                        return;
-//                    }
-//
-//                    // Já é favorito?
-//                    if (favoritesService.isFavorite(dropped.getAbsolutePath())) {
-//                        JOptionPane.showMessageDialog(FavoritesPanel.this,
-//                                "Esta pasta já está nos favoritos!\n\n" +
-//                                        dropped.getName(),
-//                                "Aviso", JOptionPane.INFORMATION_MESSAGE);
-//                        dtde.dropComplete(false);
-//                        return;
-//                    }
-//
-//                    // Adiciona
-//                    if (favoritesService.addFavorite(dropped.getAbsolutePath())) {
-//                        dtde.dropComplete(true);
-//                        System.out.println("⭐ Adicionado via drag: " + dropped.getAbsolutePath());
-//                    } else {
-//                        dtde.dropComplete(false);
-//                    }
-//
-//                } catch (Exception e) {
-//                    e.printStackTrace();
-//                    dtde.dropComplete(false);
-//                }
-//            }
-//        };
-//
-//        // Aplica o drop tanto na lista quanto no painel inteiro
-//        new DropTarget(favoritesList, dtl);
-//        new DropTarget(this, dtl);
-//    }
-
-
 
     // Substitua setupDropTarget() por:
     private void setupDropTarget() {

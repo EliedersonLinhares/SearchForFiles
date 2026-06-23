@@ -42,7 +42,6 @@ public class BrushActionCardPanel extends ActionCardPanel {
 
     private JPanel buildPanel() {
         JPanel root = new JPanel(new GridBagLayout());
-        root.setBackground(new Color(50, 50, 50));
         root.setBorder(BorderFactory.createEmptyBorder(6, 10, 8, 10));
 
         GridBagConstraints g = new GridBagConstraints();
@@ -92,10 +91,9 @@ public class BrushActionCardPanel extends ActionCardPanel {
         root.add(makeLabel(""), g);
 
         JButton clearMaskBtn = new JButton("🗑 Limpar pintura");
-        clearMaskBtn.setBackground(new Color(80, 50, 50));
+        clearMaskBtn.setBackground(UIConfig.RED);
         clearMaskBtn.setForeground(Color.WHITE);
         clearMaskBtn.setFont(UIConfig.FONT_DEFAULT);
-        clearMaskBtn.setBorder(BorderFactory.createLineBorder(new Color(140, 70, 70)));
         clearMaskBtn.setFocusPainted(false);
         clearMaskBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         clearMaskBtn.addActionListener(e -> {
@@ -116,7 +114,6 @@ public class BrushActionCardPanel extends ActionCardPanel {
 
     private JPanel buildTargetButtonsRow() {
         JPanel row = new JPanel(new GridLayout(1, 4, 4, 0));
-        row.setBackground(new Color(50, 50, 50));
 
         record BtnDef(ImageBrushAction.BrushTarget target, String label) {}
         List<BtnDef> defs = List.of(
@@ -129,6 +126,7 @@ public class BrushActionCardPanel extends ActionCardPanel {
         for (BtnDef def : defs) {
             JButton btn = new JButton(def.label());
             btn.setForeground(Color.WHITE);
+            btn.setBackground(UIConfig.RED);
             btn.setFont(UIConfig.FONT_DEFAULT);
             btn.setFocusPainted(false);
             btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -149,7 +147,7 @@ public class BrushActionCardPanel extends ActionCardPanel {
                                 brushAction.paintStroke(cx, cy, refW, refH);
                                 editorFrame.requestPreviewRefresh();
                             },
-                            () -> brushAction.getBrushSize()
+                            brushAction::getBrushSize
                     );
                 }
                 updateTargetStyles();
@@ -172,11 +170,9 @@ public class BrushActionCardPanel extends ActionCardPanel {
 
     private static void applyTargetStyle(JButton btn, boolean active) {
         if (active) {
-            btn.setBackground(new Color(60, 100, 160));
-            btn.setBorder(BorderFactory.createLineBorder(new Color(100, 150, 220)));
+            btn.setBackground(UIConfig.BLUE);
         } else {
-            btn.setBackground(new Color(65, 65, 65));
-            btn.setBorder(BorderFactory.createLineBorder(new Color(90, 90, 90)));
+            btn.setBackground(UIConfig.RED);
         }
     }
 
@@ -189,11 +185,9 @@ public class BrushActionCardPanel extends ActionCardPanel {
         nameLabel.setPreferredSize(new Dimension(62, 16));
 
         JSlider slider = new JSlider(min, max, initial);
-        slider.setBackground(new Color(50, 50, 50));
         slider.setFocusable(false);
 
         JLabel valueLabel = new JLabel(formatter.apply(initial));
-        valueLabel.setForeground(new Color(140, 140, 140));
         valueLabel.setFont(UIConfig.FONT_SMALL);
         valueLabel.setPreferredSize(new Dimension(38, 16));
         valueLabel.setHorizontalAlignment(SwingConstants.RIGHT);
@@ -215,7 +209,6 @@ public class BrushActionCardPanel extends ActionCardPanel {
 
     private static JLabel makeLabel(String text) {
         JLabel l = new JLabel(text);
-        l.setForeground(new Color(180, 180, 180));
         l.setFont(UIConfig.FONT_SMALL);
         return l;
     }
