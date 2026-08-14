@@ -7,6 +7,7 @@ import com.esl.searchforfiles.actions.imageEditor.actions.ImageAdjust.ImageAdjus
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageBlurBrush.ImageBlurBrushAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageCrop.ImageCropAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImagePaintBrush.ImagePaintBrushAction;
+import com.esl.searchforfiles.actions.imageEditor.actions.ImageQuality.ImageQualityAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageResize.ImageResizeAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageRotate.ImageRotateAction;
 import com.esl.searchforfiles.actions.imageEditor.actions.ImageSketchFilter.ImageSketchAction;
@@ -231,6 +232,11 @@ public class ActionPresetManager {
                 fields.put("brushType",  q(bb.getBrushType().name()));
                 // Máscara não serializada (igual aos outros brush)
             }
+
+            case ImageQualityAction q -> {
+                fields.put("type",    q("quality"));
+                fields.put("quality", String.valueOf(q.getQuality()));
+            }
             default -> fields.put("type", q("unknown"));
         }
 
@@ -321,6 +327,11 @@ public class ActionPresetManager {
                     bb.setBrushType (ImageBlurBrushAction.BrushType.valueOf(
                             unq(fields.getOrDefault("brushType", "SOFT"))));
                     yield bb;
+                }
+                case "quality" -> {
+                    ImageQualityAction q = new ImageQualityAction();
+                    q.setQuality(itg(fields, "quality", 100));
+                    yield q;
                 }
                 default -> null;
             };

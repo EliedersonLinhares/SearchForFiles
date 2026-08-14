@@ -1,15 +1,15 @@
 package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.database.DatabaseManager;
+import com.esl.searchforfiles.model.FileInfo;
+import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.model.PaginationInfo;
+import com.esl.searchforfiles.model.SearchCriteria;
 import com.esl.searchforfiles.service.IndexFilterService;
 import com.esl.searchforfiles.service.MonitoringService;
 import com.esl.searchforfiles.service.SearchService;
 import com.esl.searchforfiles.service.SyncService;
 import com.esl.searchforfiles.test.AdvancedFileSearch;
-import com.esl.searchforfiles.model.FileInfo;
-import com.esl.searchforfiles.model.FileType;
-import com.esl.searchforfiles.model.SearchCriteria;
 
 import javax.swing.*;
 import java.awt.*;
@@ -25,11 +25,13 @@ import java.util.List;
  */
 public class SearchController {
 
+    private static final long MAX_FOLDER_SIZE = 50_000;
     private final AdvancedFileSearch searchSystem;
     private final JFrame parentFrame;
     private final MonitoringService monitoringService;
     private final SyncService syncService; // NOVO
-
+    private final IndexFilterService indexFilterService;
+    private final FileExplorerSwing fileExplorerSwing;
     // Armazena última busca para paginação e auto-refresh
     private SearchCriteria lastCriteria;
     private String lastSelectedPath;
@@ -40,27 +42,20 @@ public class SearchController {
     private int lastPage;
     private int lastPageSize;
     private PaginatedSearchCallback lastCallback;
-
     // NOVO: Listener para mudanças no sistema de arquivos
     private FileSystemChangeListener fileSystemChangeListener;
-
     // Controle de monitoramento automático
     private String currentMonitoredPath = null;
-    private static final long MAX_FOLDER_SIZE = 50_000;
-    private final IndexFilterService indexFilterService;
-    private final FileExplorerSwing fileExplorerSwing;
-
-    public MonitoringService getMonitoringService() {
-        return monitoringService;
-    }
-
+    // Adicione os campos
+    private Timer autoRefreshTimer;
+    private volatile boolean editInProgress = false;
     private volatile boolean transferInProgress = false;
 
     public SearchController(JFrame parentFrame, IndexFilterService indexFilterService, FileExplorerSwing fileExplorerSwing) throws SQLException {
         this.parentFrame = parentFrame;
         this.indexFilterService = indexFilterService;
-        this.searchSystem = new AdvancedFileSearch(indexFilterService);
         this.fileExplorerSwing = fileExplorerSwing;
+        this.searchSystem = new AdvancedFileSearch(indexFilterService, getFileExplorerSwing());
         this.monitoringService = searchSystem.getMonitoringService();
 
         this.syncService = new SyncService(
@@ -78,14 +73,23 @@ public class SearchController {
         // Configura callback no MonitoringService para ser notificado quando
         // arquivos forem criados, modificados ou deletados
 
-         this.monitoringService.setFileChangeCallback(this::onFileSystemChange);
+        this.monitoringService.setFileChangeCallback(this::onFileSystemChange);
 
         System.out.println("✅ Sistema de busca inicializado");
         System.out.println("📡 Monitoramento automático ativado");
     }
 
+    public MonitoringService getMonitoringService() {
+        return monitoringService;
+    }
 
-    public DatabaseManager getDbManager() { return searchSystem.getDatabaseManager(); }
+    public FileExplorerSwing getFileExplorerSwing() {
+        return fileExplorerSwing;
+    }
+
+    public DatabaseManager getDbManager() {
+        return searchSystem.getDatabaseManager();
+    }
 
     public void setTransferInProgress(boolean inProgress) {
         this.transferInProgress = inProgress;
@@ -99,12 +103,13 @@ public class SearchController {
     // ========================================================================
     // SINCRONIZAÇÃO AUTOMÁTICA (NOVO)
     // ========================================================================
+
     /**
      * Sincroniza pasta se já foi indexada
      * MODIFICADO: Valida antes de sincronizar
      *
      * @param folderPath Pasta a sincronizar
-     * @param callback Callback para notificar resultado
+     * @param callback   Callback para notificar resultado
      */
     public void syncFolderIfNeeded(String folderPath, SyncCallback callback) {
         if (folderPath == null || folderPath.trim().isEmpty()) {
@@ -138,21 +143,16 @@ public class SearchController {
 
                 return syncService.synchronizeFolder(folderPath);
             }
-
             @Override
             protected void done() {
                 try {
                     SyncService.SyncResult result = get();
 
-                    // SEMPRE notifica o callback, independente do resultado
                     if (callback != null)
-                        callback.onSyncCompleted(result);
+                        callback.onSyncCompleted(result); // ← callback SEMPRE chamado
 
-                    // Se houve mudanças, atualiza resultados via refreshCurrentSearch
-                    if (result.hasChanges() && lastCallback != null) {
-                        System.out.println("🔄 Atualizando resultados após sincronização...");
-                        refreshCurrentSearch();
-                    }
+                    // Remova a condição result.hasChanges() daqui — o callback
+                    // já decide se faz refresh
 
                 } catch (Exception e) {
                     System.err.println("❌ Erro na sincronização: " + e.getMessage());
@@ -229,43 +229,60 @@ public class SearchController {
         this.fileSystemChangeListener = listener;
     }
 
+    public void setEditInProgress(boolean inProgress) {
+        this.editInProgress = inProgress;
+    }
+
     /**
      * Notifica que houve mudança no sistema de arquivos
      * Chamado pelo MonitoringService (requer modificação naquela classe)
      * NOVO MÉTODO
      */
-//    public void onFileSystemChange() {
-//        // Notifica listener (UI)
-//        if (fileSystemChangeListener != null) {
-//            SwingUtilities.invokeLater(() -> {
-//                fileSystemChangeListener.onFileSystemChanged();
-//            });
-//        }
-//
-//        // Auto-refresh automático após pequeno delay (debounce)
-//        Timer timer = new Timer(500, e -> {
-//            refreshCurrentSearch();
-//        });
-//        timer.setRepeats(false);
-//        timer.start();
-//    }
-
     public void onFileSystemChange() {
-        // Suprime auto-refresh enquanto uma transferência está em andamento.
-        // O refresh final é feito manualmente pelo TransferDropHelper após
-        // a operação concluir (via onCompleted → performCurrentSearch).
-        if (transferInProgress) {
-            System.out.println("⏸️  Auto-refresh suspenso: transferência em andamento");
+        if (transferInProgress || editInProgress) {
+            System.out.println("⏸️  Auto-refresh suspenso: operação em andamento");
             return;
         }
 
-        if (fileSystemChangeListener != null) {
+        if (fileSystemChangeListener != null)
             SwingUtilities.invokeLater(() -> fileSystemChangeListener.onFileSystemChanged());
-        }
 
-        Timer timer = new Timer(500, e -> refreshCurrentSearch());
-        timer.setRepeats(false);
-        timer.start();
+        // Cancela o timer anterior antes de criar novo
+        if (autoRefreshTimer != null && autoRefreshTimer.isRunning())
+            autoRefreshTimer.stop();
+
+        autoRefreshTimer = new Timer(800, e -> refreshCurrentSearch()); // aumenta debounce
+        autoRefreshTimer.setRepeats(false);
+        autoRefreshTimer.start();
+    }
+
+    public void resumeAfterEdit() {
+        if (autoRefreshTimer != null && autoRefreshTimer.isRunning())
+            autoRefreshTimer.stop();
+
+        editInProgress = false;
+        transferInProgress = false;
+
+        System.out.println("resumeAfterEdit → lastSelectedPath=" + lastSelectedPath);
+
+        if (lastSelectedPath != null) {
+            syncFolderIfNeeded(lastSelectedPath, new SyncCallback() {
+                @Override
+                public void onSyncCompleted(SyncService.SyncResult result) {
+                    System.out.println("onSyncCompleted → hasChanges=" + result.hasChanges()
+                            + " notIndexed=" + result.isNotIndexed());
+                    SwingUtilities.invokeLater(() -> refreshCurrentSearch());
+                }
+
+                @Override
+                public void onSyncError(Exception e) {
+                    System.out.println("onSyncError → " + e.getMessage());
+                    SwingUtilities.invokeLater(() -> refreshCurrentSearch());
+                }
+            });
+        } else {
+            SwingUtilities.invokeLater(this::refreshCurrentSearch);
+        }
     }
 
     /**
@@ -282,11 +299,6 @@ public class SearchController {
             return;
         }
 
-//        if (isDriveRoot(newPath)) {
-//            System.out.println("⚠️ Drive raiz não será monitorado: " + newPath);
-//            stopCurrentMonitoring();
-//            return;
-//        }
 
         Path folderPath = Paths.get(newPath);
         if (!Files.exists(folderPath) || !Files.isDirectory(folderPath)) {
@@ -332,10 +344,11 @@ public class SearchController {
             }
         });
     }
+
     /**
      * Inicia monitoramento de forma assíncrona
      */
-    private void startMonitoringAsync(String path) {
+    public void startMonitoringAsync(String path) {
         SwingWorker<Boolean, Void> worker = new SwingWorker<>() {
             @Override
             protected Boolean doInBackground() throws Exception {
@@ -368,10 +381,11 @@ public class SearchController {
 
         worker.execute();
     }
+
     /**
      * Para monitoramento atual (se existir)
      */
-    private void stopCurrentMonitoring() {
+    public void stopCurrentMonitoring() {
         if (currentMonitoredPath != null && monitoringService.isMonitoring()) {
             System.out.println("🛑 Parando monitoramento de: " + currentMonitoredPath);
             monitoringService.stopMonitoring();
@@ -468,15 +482,15 @@ public class SearchController {
                     criteria.withTag(tag);
 
                 // ── CORREÇÃO: salva estado para o refreshCurrentSearch() ──
-                lastCriteria      = criteria;
-                lastSelectedPath  = path;
-                lastSearchTerm    = searchTerm != null ? searchTerm : "";
-                lastFilter        = filter;
-                lastSortBy        = sortBy;
-                lastSortOrder     = sortOrder;
-                lastPage          = page;
-                lastPageSize      = pageSize;
-                lastCallback      = callback;
+                lastCriteria = criteria;
+                lastSelectedPath = path;
+                lastSearchTerm = searchTerm != null ? searchTerm : "";
+                lastFilter = filter;
+                lastSortBy = sortBy;
+                lastSortOrder = sortOrder;
+                lastPage = page;
+                lastPageSize = pageSize;
+                lastCallback = callback;
                 // ─────────────────────────────────────────────────────────
 
                 return searchSystem.getSearchService()
@@ -623,7 +637,7 @@ public class SearchController {
                     JOptionPane.showMessageDialog(parentFrame,
                             "Indexação concluída com sucesso!",
                             "Sucesso", JOptionPane.INFORMATION_MESSAGE);
-                    fileExplorerSwing.navigateTo(path,false);
+                    fileExplorerSwing.navigateTo(path, false);
                 } catch (Exception e) {
                     callback.onIndexError(e);
                     JOptionPane.showMessageDialog(parentFrame,
@@ -663,21 +677,27 @@ public class SearchController {
 
     public interface SearchCallback {
         void onSearchStarted();
+
         void onSearchCompleted(List<FileInfo> results);
+
         void onSearchError(Exception e);
     }
 
     public interface IndexCallback {
         void onIndexCompleted();
+
         void onIndexError(Exception e);
     }
+
     /**
      * Callback para busca paginada
      * NOVA INTERFACE
      */
     public interface PaginatedSearchCallback {
         void onSearchStarted();
+
         void onSearchCompleted(List<FileInfo> results, PaginationInfo pagination);
+
         void onSearchError(Exception e);
     }
 
@@ -695,6 +715,7 @@ public class SearchController {
      */
     public interface SyncCallback {
         void onSyncCompleted(SyncService.SyncResult result);
+
         void onSyncError(Exception e);
     }
 

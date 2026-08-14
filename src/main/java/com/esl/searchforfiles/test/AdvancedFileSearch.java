@@ -6,6 +6,7 @@ import com.esl.searchforfiles.service.IndexFilterService;
 import com.esl.searchforfiles.service.IndexService;
 import com.esl.searchforfiles.service.MonitoringService;
 import com.esl.searchforfiles.service.SearchService;
+import com.esl.searchforfiles.ui.FileExplorerSwing;
 import com.esl.searchforfiles.util.PathUtils;
 
 import java.io.File;
@@ -32,17 +33,19 @@ public class AdvancedFileSearch {
     private final SearchService searchService;
     private final MonitoringService monitoringService;
     private final IndexFilterService indexFilterService;
+    private final FileExplorerSwing fileExplorerSwing;
 
     /**
      * Construtor principal - Inicializa todos os serviços
      * @throws SQLException se houver erro ao conectar com o banco de dados
      */
-    public AdvancedFileSearch(IndexFilterService indexFilterService) throws SQLException {
+    public AdvancedFileSearch(IndexFilterService indexFilterService, FileExplorerSwing fileExplorerSwing) throws SQLException {
         this.indexFilterService = indexFilterService;
+        this.fileExplorerSwing = fileExplorerSwing;
         this.dbManager = new DatabaseManager();
         this.indexService = new IndexService(dbManager,indexFilterService);
         this.searchService = new SearchService(dbManager);
-        this.monitoringService = new MonitoringService(dbManager, searchService);
+        this.monitoringService = new MonitoringService(dbManager, searchService, fileExplorerSwing);
     }
 
     // ========================================================================

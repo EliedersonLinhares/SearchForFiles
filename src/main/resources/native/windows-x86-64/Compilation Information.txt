@@ -1,0 +1,19 @@
+1- In the src/main/resources/native/windows-86-64 folder with files
+ "CMakeLists.txt" "and ffmpeg_bridge.c" and "FFmpegBridge.java" in somewhere in project
+
+ 2 - Create "build" name folder
+
+ 3- In MSYS2 MINGW64
+    - Commands:
+    - cmake .. -G "MinGW Makefiles"
+    - cmake ..
+    - cmake --build .
+
+ 4 - Copy From build to windows-86-64 folder the files:
+   -avcodec-62.dll
+   -avformat-62.dll
+   -avutil-60.dll
+   -swresample-6.dll
+   -swscale-9.dll
+
+ 5- The name of compiled file need to be: ffmpeg_bridge.dll

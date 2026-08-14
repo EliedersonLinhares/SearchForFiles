@@ -6,6 +6,7 @@ import com.esl.searchforfiles.configuration.UIConfig;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.io.File;
 import java.io.IOException;
 
 /**
@@ -15,10 +16,12 @@ public class CacheContextMenu extends JPopupMenu {
 
     private final Component parent;
     private final ThumbnailCacheManager cacheManager;
+    private final FileExplorerSwing fileExplorerSwing;
 
-    public CacheContextMenu(Component parent, ThumbnailCacheManager cacheManager) {
+    public CacheContextMenu(Component parent, ThumbnailCacheManager cacheManager, FileExplorerSwing fileExplorerSwing) {
         this.parent = parent;
         this.cacheManager = cacheManager;
+        this.fileExplorerSwing = fileExplorerSwing;
 
         createMenuItems();
     }
@@ -324,8 +327,8 @@ public class CacheContextMenu extends JPopupMenu {
     /**
      * Método estático para mostrar o menu facilmente
      */
-    public static void show(Component parent, ThumbnailCacheManager cacheManager, int x, int y) {
-        CacheContextMenu menu = new CacheContextMenu(parent, cacheManager);
+    public static void show(Component parent, ThumbnailCacheManager cacheManager, int x, int y, FileExplorerSwing fileExplorerSwing) {
+        CacheContextMenu menu = new CacheContextMenu(parent, cacheManager,fileExplorerSwing);
         menu.show(parent, x, y);
     }
 }

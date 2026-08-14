@@ -2,6 +2,7 @@ package com.esl.searchforfiles.ui;
 
 
 import com.esl.searchforfiles.Theme.ThemeManager;
+import com.esl.searchforfiles.actions.fileTransfer.TransferService;
 import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
 import com.esl.searchforfiles.actions.renameFile.RenameMode;
 import com.esl.searchforfiles.actions.renameFile.RenameModeManager;
@@ -11,13 +12,10 @@ import com.esl.searchforfiles.model.PaginationInfo;
 import com.esl.searchforfiles.others.ThumbnailSize;
 import com.esl.searchforfiles.service.FavoritesService;
 import com.esl.searchforfiles.service.IndexFilterService;
-import com.esl.searchforfiles.actions.fileTransfer.TransferService;
+import com.esl.searchforfiles.service.SyncService;
 
-import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
@@ -37,50 +35,24 @@ public class FileExplorerSwing extends JFrame {
     private final FavoritesService favoritesService; // NOVO
     private final PaginationPanel paginationPanel;
     private final NavigationHistory navigationHistory = new NavigationHistory();
+    private final EditModeManager editModeManager = new EditModeManager();
+    private final RenameModeManager renameModeFiles =
+            new RenameModeManager(RenameMode.FILES);
+    private final RenameModeManager renameModeFolders =
+            new RenameModeManager(RenameMode.FOLDERS);
     private FolderTreePanel treePanel;
     private FavoritesPanel favoritesPanel; // NOVO
     private ConfigManager configManager;
     private BottomIndicatorPanel bottomIndicatorPanel;
     private IndexFilterService indexFilterService;
     private TransferService transferService;
-    private final EditModeManager editModeManager = new EditModeManager();
     private ThemeManager themeManager;
-
     private String selectedPath = "C:\\";
     private int currentPage = 1; // NOVO
     private String currentSortBy = "last_modified"; // NOVO
     private String currentSortOrder = "DESC"; // NOVO
     private SubFolderPanel subFolderPanel;           // NOVO
     private boolean showSubfolderContents = false; // NOVO — controlado pelo menu
-
-   private final RenameModeManager renameModeFiles   =
-           new RenameModeManager(RenameMode.FILES);
-   private final RenameModeManager renameModeFolders=
-           new RenameModeManager(RenameMode.FOLDERS);
-
-    public SearchController getController() {
-        return controller;
-    }
-    public BottomIndicatorPanel getBottomIndicatorPanel() {return bottomIndicatorPanel;}
-    public SearchPanel getSearchPanel() {
-        return searchPanel;
-    }
-    public TransferService getTransferService() {
-        return transferService;
-    }
-    public ThemeManager getThemeManager() {return themeManager;}
-
-    public EditModeManager getEditModeManager() {
-        return editModeManager;
-    }
-
-    public RenameModeManager getRenameModeFiles() {
-        return renameModeFiles;
-    }
-
-    public RenameModeManager getRenameModeFolders() {
-        return renameModeFolders;
-    }
 
     public FileExplorerSwing(ThemeManager themeManager) {
         super("Advanced File Search - Interface Gráfica");
@@ -103,14 +75,14 @@ public class FileExplorerSwing extends JFrame {
         indexFilterService.excludeFolder("C:\\ProgramData");
         indexFilterService.excludeFolder("C:\\Program Files (x86)");
 
-       // Dentro de C:\Projects, indexar SOMENTE as pastas src e docs
+        // Dentro de C:\Projects, indexar SOMENTE as pastas src e docs
         indexFilterService.allowOnly("C:\\Projects\\MeuApp",
                 "C:\\Projects\\MeuApp\\src",
                 "C:\\Projects\\MeuApp\\docs"
         );
 
         try {
-            controller = new SearchController(this, indexFilterService,this);
+            controller = new SearchController(this, indexFilterService, this);
             controller.setFileSystemChangeListener(this::onFileSystemChanged);
         } catch (SQLException e) {
             JOptionPane.showMessageDialog(this,
@@ -141,7 +113,6 @@ public class FileExplorerSwing extends JFrame {
         searchPanel.setThumbnailSizeListener(resultsPanel::setThumbnailSize);
 
 
-
         //  add(searchPanel, BorderLayout.NORTH);
         // Envolve o searchPanel num wrapper com BorderLayout para que o
         // WrapLayout interno recalcule a altura e o NORTH se expanda ao fazer wrap.
@@ -154,7 +125,7 @@ public class FileExplorerSwing extends JFrame {
 
         // === PAINEL CENTRAL (resultados + paginação) ===
 
-       // resultsPanel.setBackgroundColor(new Color(45, 45, 45));
+        // resultsPanel.setBackgroundColor(new Color(45, 45, 45));
         resultsPanel.setFileItemClickListener(new ResultsPanel.FileItemClickListener() {
             @Override
             public void onFileDoubleClick(File file) {
@@ -220,7 +191,8 @@ public class FileExplorerSwing extends JFrame {
         //centerPanel.add(paginationPanel, BorderLayout.SOUTH);
 
         // === PAINEL DIREITO (subpastas) ===
-        subFolderPanel = new SubFolderPanel(this,configManager);
+        subFolderPanel = new SubFolderPanel(this, configManager);
+        resultsPanel.setSubFolderPanel(subFolderPanel);
         subFolderPanel.setFolderClickListener(folder ->
                 navigateTo(folder.getAbsolutePath(), true));
 
@@ -234,7 +206,6 @@ public class FileExplorerSwing extends JFrame {
         // Divider location em pixels após o frame estar visível (veja abaixo)
 
         subFolderPanel.setParentSplit(rightSplit); // ← adicione esta linha
-
 
 
         // 2. mainSplit: leftPanel + rightSplit
@@ -254,9 +225,9 @@ public class FileExplorerSwing extends JFrame {
         setVisible(true);
 
 
-// Salva posição do divider sempre que o usuário o mover.
-// Salvamos a largura do subFolderPanel (rightSplit.getWidth() - dividerPos)
-// em vez da posição absoluta do divider, pois ela é invariante ao resize da janela.
+    // Salva posição do divider sempre que o usuário o mover.
+    // Salvamos a largura do subFolderPanel (rightSplit.getWidth() - dividerPos)
+    // em vez da posição absoluta do divider, pois ela é invariante ao resize da janela.
 
         // Flag — só salva após a inicialização estar completa
         final boolean[] splitReady = {false};
@@ -272,11 +243,6 @@ public class FileExplorerSwing extends JFrame {
                     configManager.saveRightSplitPos(subFolderWidth);
             }
         });
-
-// ── Restaura posição salva exatamente uma vez, quando o frame estiver pronto ──
-
-
-// ── Restaura posição salva exatamente uma vez, quando o frame estiver pronto ──
 
         addWindowListener(new WindowAdapter() {
             @Override
@@ -298,13 +264,6 @@ public class FileExplorerSwing extends JFrame {
                 }));
             }
         });
-        // Define divider do rightSplit após o frame estar visível
-        // (só assim getWidth() tem valor real)
-//        SwingUtilities.invokeLater(() -> {
-//            int totalWidth = rightSplit.getWidth();
-//            rightSplit.setDividerLocation((int) (totalWidth * 0.80));
-//        });
-
 
         transferService = new TransferService();
 
@@ -312,14 +271,6 @@ public class FileExplorerSwing extends JFrame {
         // passa pelo navigateTo() para que a sincronização aconteça
         // antes de exibir os resultados
         navigateTo(selectedPath, true);  // selectedPath = "C:\" por padrão
-
-//        JPanel blockPanel = new JPanel();
-//        JLabel label = new JLabel("Processando... Por favor, aguarde.");
-//        label.setForeground(Color.WHITE);
-//        label.setFont(new Font("Arial", Font.BOLD, 16));
-//        blockPanel.add(label);
-//        setGlassPane(blockPanel);
-
 
         // Ouve a mudança em tempo real
         bottomIndicatorPanel.addPropertyChangeListener(evt -> {
@@ -334,6 +285,26 @@ public class FileExplorerSwing extends JFrame {
         });
 
 
+    }
+
+    public SearchController getController() {
+        return controller;
+    }
+
+    public BottomIndicatorPanel getBottomIndicatorPanel() {
+        return bottomIndicatorPanel;
+    }
+
+    public SearchPanel getSearchPanel() {
+        return searchPanel;
+    }
+
+    public TransferService getTransferService() {
+        return transferService;
+    }
+
+    public ThemeManager getThemeManager() {
+        return themeManager;
     }
 
     public ResultsPanel getResultsPanel() {
@@ -379,6 +350,23 @@ public class FileExplorerSwing extends JFrame {
      */
 
 
+//    public void navigateTo(String path, boolean pushHistory) {
+//        selectedPath = path;
+//        if (pushHistory) navigationHistory.push(path);
+//
+//        searchPanel.updateNavigationState(navigationHistory);
+//        bottomIndicatorPanel.showSyncIndicator("🔄 Verificando mudanças...");
+//        bottomIndicatorPanel.setWorking(true);
+//
+//        searchPanel.clearSearchTerm();
+//        subFolderPanel.loadSubfolders(selectedPath, controller);
+//
+//        currentPage = 1;
+//        performCurrentSearch();
+//
+//        controller.updateMonitoredFolder(path, bottomIndicatorPanel.createSyncCallback(path));
+//    }
+
     public void navigateTo(String path, boolean pushHistory) {
         selectedPath = path;
         if (pushHistory) navigationHistory.push(path);
@@ -389,11 +377,33 @@ public class FileExplorerSwing extends JFrame {
 
         searchPanel.clearSearchTerm();
         subFolderPanel.loadSubfolders(selectedPath, controller);
-
         currentPage = 1;
-        performCurrentSearch();
 
-        controller.updateMonitoredFolder(path, bottomIndicatorPanel.createSyncCallback(path));
+        // Mostra loading enquanto sincroniza
+        resultsPanel.showMessage("🔄 Sincronizando...", ResultsPanel.MessageType.LOADING);
+
+        // Sincroniza primeiro, só então busca
+        controller.syncFolderIfNeeded(path, new SearchController.SyncCallback() {
+            @Override
+            public void onSyncCompleted(SyncService.SyncResult result) {
+                // Sync terminou — agora busca com dados atualizados
+                SwingUtilities.invokeLater(() -> performCurrentSearch());
+
+                // Inicia monitoramento após sync
+                if (!result.isNotIndexed()) {
+                    controller.startMonitoringAsync(path);
+                }
+
+                bottomIndicatorPanel.createSyncCallback(path).onSyncCompleted(result);
+            }
+
+            @Override
+            public void onSyncError(Exception e) {
+                // Mesmo com erro, tenta mostrar o que tem no índice
+                SwingUtilities.invokeLater(() -> performCurrentSearch());
+                bottomIndicatorPanel.createSyncCallback(path).onSyncError(e);
+            }
+        });
     }
 
 
@@ -596,7 +606,6 @@ public class FileExplorerSwing extends JFrame {
         );
 
 
-
         int option = JOptionPane.showConfirmDialog(this,
                 message,
                 "Indexar Pasta",
@@ -614,10 +623,14 @@ public class FileExplorerSwing extends JFrame {
         controller.indexFolder(selectedPath, includeSubfolders,
                 new SearchController.IndexCallback() {
                     @Override
-                    public void onIndexCompleted() {bottomIndicatorPanel.getStatusLabel().setText("✓ Indexação concluída: " + selectedPath);}
+                    public void onIndexCompleted() {
+                        bottomIndicatorPanel.getStatusLabel().setText("✓ Indexação concluída: " + selectedPath);
+                    }
 
                     @Override
-                    public void onIndexError(Exception e) {bottomIndicatorPanel.getStatusLabel().setText("❌ Erro na indexação");}
+                    public void onIndexError(Exception e) {
+                        bottomIndicatorPanel.getStatusLabel().setText("❌ Erro na indexação");
+                    }
                 });
     }
 
@@ -697,7 +710,9 @@ public class FileExplorerSwing extends JFrame {
     }
 
 
-    /** Botão "Renomear arquivos" */
+    /**
+     * Botão "Renomear arquivos"
+     */
     public void toggleRenameModeFiles() {
         deactivateOtherModes(renameModeFiles);
         if (renameModeFiles.isActive()) {
@@ -707,7 +722,9 @@ public class FileExplorerSwing extends JFrame {
         }
     }
 
-    /** Botão "Renomear pastas" */
+    /**
+     * Botão "Renomear pastas"
+     */
     public void toggleRenameModeFolders() {
         deactivateOtherModes(renameModeFolders);
         if (renameModeFolders.isActive()) {
@@ -721,10 +738,10 @@ public class FileExplorerSwing extends JFrame {
         if (renameModeFolders.isActive() || renameModeFiles.isActive()) {
             resultsPanel.exitRenameMode();
         }
-        if(editModeManager.isEditModeActive()) {
+        if (editModeManager.isEditModeActive()) {
             resultsPanel.exitEditMode();
         }
-        if(transferService.isTransferModeActive()) {
+        if (transferService.isTransferModeActive()) {
             resultsPanel.exitTransferMode();
         }
         resultsPanel.openConfiguration();
@@ -743,5 +760,28 @@ public class FileExplorerSwing extends JFrame {
             resultsPanel.exitRenameMode();
         if (keepActive != renameModeFolders && renameModeFolders.isActive())
             resultsPanel.exitRenameMode();
+    }
+
+    public void createNewFolder() {
+        if (getSelectedPath() == null) {
+            JOptionPane.showMessageDialog(this,
+                    "Selecione uma pasta pai antes de criar uma nova pasta.",
+                    "Aviso", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        String name = JOptionPane.showInputDialog(this,
+                "Nome da nova pasta:", "Nova pasta");
+        if (name == null || name.isBlank()) return;
+
+        File newDir = new File(getSelectedPath(), name.trim());
+        if (newDir.mkdirs()) {
+            JOptionPane.showMessageDialog(this,
+                    "Pasta criada: " + newDir.getAbsolutePath());
+            subFolderPanel.reload();
+        } else {
+            JOptionPane.showMessageDialog(this,
+                    "Não foi possível criar a pasta.", "Erro",
+                    JOptionPane.ERROR_MESSAGE);
+        }
     }
 }

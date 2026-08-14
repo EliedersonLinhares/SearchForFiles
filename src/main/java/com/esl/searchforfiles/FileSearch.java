@@ -1,6 +1,7 @@
 package com.esl.searchforfiles;
 
 import com.esl.searchforfiles.Theme.ThemeManager;
+import com.esl.searchforfiles.Video.VideoThumbnail;
 import com.esl.searchforfiles.ui.FileExplorerSwing;
 import com.esl.searchforfiles.ui.FileItemPanel;
 import com.formdev.flatlaf.intellijthemes.FlatArcDarkOrangeIJTheme;
@@ -12,6 +13,15 @@ import javax.swing.*;
 
 public class FileSearch {
     static void main() {
+
+        // ═══════════════════════════════════════════════════════════════════
+//  2. CAPTURA + SALVAR em uma linha
+// ═══════════════════════════════════════════════════════════════════
+//        VideoThumbnail.Result r = VideoThumbnail.captureAndSave(
+//                "C:/videos/filme.mp4",
+//                "C:/thumbs/filme_thumb.jpg"
+//        );
+//        System.out.println(r); // Thumbnail[1920x1080 @ 01:23 from 'filme.mp4']
 
         SwingUtilities.invokeLater(() -> {
             System.out.println("╔════════════════════════════════════════════════════════════════╗");

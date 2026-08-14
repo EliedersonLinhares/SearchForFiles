@@ -2,23 +2,20 @@ package com.esl.searchforfiles.actions.fileTransfer;
 
 
 import javax.swing.*;
-import java.io.*;
-import java.nio.file.*;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 public class TransferService {
-    /** Listener chamado na EDT após operação concluir ou falhar. */
-    public interface TransferListener {
-        void onProgress(int done, int total, String currentFile);
-        void onCompleted(int success, int failed);
-        void onError(String message);
-    }
-
     // ── Estado de seleção ─────────────────────────────────────────────
     private final Set<File> selectedFiles = new LinkedHashSet<>();
     private boolean transferModeActive = false;
 
-    public boolean isTransferModeActive() { return transferModeActive; }
+    public boolean isTransferModeActive() {
+        return transferModeActive;
+    }
 
     public void enterTransferMode() {
         transferModeActive = true;
@@ -34,22 +31,29 @@ public class TransferService {
         if (!selectedFiles.remove(file)) selectedFiles.add(file);
     }
 
-    public void selectAll(List<File> files) { selectedFiles.addAll(files); }
+    public void selectAll(List<File> files) {
+        selectedFiles.addAll(files);
+    }
 
-    public void clearSelection() { selectedFiles.clear(); }
+    public void clearSelection() {
+        selectedFiles.clear();
+    }
 
     public Set<File> getSelectedFiles() {
         return Collections.unmodifiableSet(selectedFiles);
     }
 
-    public boolean isSelected(File file) { return selectedFiles.contains(file); }
+    public boolean isSelected(File file) {
+        return selectedFiles.contains(file);
+    }
 
-    public int getSelectedCount() { return selectedFiles.size(); }
+    public int getSelectedCount() {
+        return selectedFiles.size();
+    }
+
     public void selectFile(File f) {
         selectedFiles.add(f);
     }
-
-    // ── Operações de arquivo ──────────────────────────────────────────
 
     /**
      * Executa COPY ou MOVE para destino, em SwingWorker.
@@ -93,7 +97,11 @@ public class TransferService {
         }.execute();
     }
 
-    /** Executa DELETE, pedindo confirmação antes de chamar. */
+    // ── Operações de arquivo ──────────────────────────────────────────
+
+    /**
+     * Executa DELETE, pedindo confirmação antes de chamar.
+     */
     public void executeDelete(TransferListener listener) {
         List<File> toDelete = new ArrayList<>(selectedFiles);
 
@@ -130,10 +138,13 @@ public class TransferService {
         }.execute();
     }
 
-    // ── Helpers privados ──────────────────────────────────────────────
-
     private void transferFile(File src, File destDir, TransferMode mode) throws IOException {
         File dest = resolveDestination(src, destDir);
+        System.out.println("transferFile → src=" + src.getAbsolutePath()
+                + " dest=" + dest.getAbsolutePath()
+                + " mode=" + mode
+                + " srcExists=" + src.exists()
+                + " destExists=" + dest.exists());
 
         if (src.isDirectory()) {
             copyDirectoryRecursively(src, dest);
@@ -144,17 +155,26 @@ public class TransferService {
         }
     }
 
-    /** Resolve nome de destino, adicionando sufixo "_cópia" se já existir. */
+    // ── Helpers privados ──────────────────────────────────────────────
     private File resolveDestination(File src, File destDir) {
         File dest = new File(destDir, src.getName());
+
+        // Se destino não existe, usa direto
         if (!dest.exists()) return dest;
+
+        // Se origem e destino são o mesmo arquivo (mesmo path absoluto), retorna direto
+        // Evita adicionar _cópia quando src já está no destino (caso de MOVE)
+        try {
+            if (dest.getCanonicalPath().equals(src.getCanonicalPath())) return dest;
+        } catch (IOException ignored) {
+        }
 
         String name = src.getName();
         String base, ext = "";
         int dot = name.lastIndexOf('.');
         if (!src.isDirectory() && dot > 0) {
             base = name.substring(0, dot);
-            ext  = name.substring(dot);         // inclui o ponto
+            ext = name.substring(dot);
         } else {
             base = name;
         }
@@ -182,5 +202,16 @@ public class TransferService {
             if (children != null) for (File c : children) deleteRecursively(c);
         }
         Files.delete(f.toPath());
+    }
+
+    /**
+     * Listener chamado na EDT após operação concluir ou falhar.
+     */
+    public interface TransferListener {
+        void onProgress(int done, int total, String currentFile);
+
+        void onCompleted(int success, int failed);
+
+        void onError(String message);
     }
 }

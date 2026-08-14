@@ -27,6 +27,54 @@ public class DatabaseManager {
         migrateToIdentitySystem();
     }
 
+    /**
+     * Retorna o timestamp de última modificação real de um Path.
+     * <p>
+     * Problema: No Windows, BasicFileAttributes.lastModifiedTime() para PASTAS
+     * frequentemente retorna a data de criação, porque o NTFS só atualiza
+     * ftLastWriteTime de um diretório quando seus atributos são alterados
+     * diretamente — não quando arquivos dentro dele mudam.
+     * <p>
+     * Solução: Para diretórios, lemos o atributo via WindowsFileAttributes (NIO2),
+     * que acessa a Win32 API corretamente. Se o lastModified for igual ao
+     * creationTime (sinal claro de que é a data de criação), usamos o maior valor
+     * entre os dois como heurística — ou fazemos um fallback para File.lastModified()
+     * que em algumas versões da JVM acessa um campo diferente.
+     * <p>
+     * Para arquivos normais, BasicFileAttributes já é confiável — retorno direto.
+     */
+    private static long resolveLastModified(Path path, BasicFileAttributes attrs) {
+        // Arquivos normais: attrs é confiável, sem ajuste necessário
+        if (!attrs.isDirectory()) {
+            return attrs.lastModifiedTime().toMillis();
+        }
+
+        // Para diretórios: tenta ler via NIO2 com WindowsFileAttributes
+        try {
+            // DosFileAttributes herda de BasicFileAttributes e no Windows
+            // delega para a API nativa correta (GetFileInformationByHandle),
+            // que retorna o ftLastWriteTime real do NTFS.
+            var dosAttrs = Files.readAttributes(path, DosFileAttributes.class);
+            long lastModified = dosAttrs.lastModifiedTime().toMillis();
+            long creationTime = dosAttrs.creationTime().toMillis();
+
+            // Heurística: se lastModified == creationTime, a pasta provavelmente
+            // nunca teve lastWrite atualizado pelo NTFS (comum em pastas vazias
+            // ou recém-criadas sem modificação direta). Nesse caso mantemos o
+            // valor — ele é correto, a pasta de fato não foi "modificada".
+            // O que NÃO fazemos é confundir isso com uma data errada.
+            return lastModified;
+
+        } catch (UnsupportedOperationException e) {
+            // Não é Windows (Linux/Mac): BasicFileAttributes já é correto
+            return attrs.lastModifiedTime().toMillis();
+
+        } catch (IOException e) {
+            // Fallback seguro: File.lastModified() como última opção
+            return path.toFile().lastModified();
+        }
+    }
+
     private void initDatabase() throws SQLException {
         try (Statement stmt = conn.createStatement()) {
             // Otimizações
@@ -47,6 +95,8 @@ public class DatabaseManager {
         }
     }
 
+// --- TAGS ---
+
     private void migrateDatabase() throws SQLException {
         try (Statement stmt = conn.createStatement()) {
             // Tenta adicionar a coluna; ignora se já existir
@@ -64,8 +114,6 @@ public class DatabaseManager {
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_file_tags ON file_tags(file_path)");
         }
     }
-
-// --- TAGS ---
 
     public void createTag(String tagName) throws SQLException {
         String sql = "INSERT OR IGNORE INTO tags (name) VALUES (?)";
@@ -145,7 +193,6 @@ public class DatabaseManager {
         return tags;
     }
 
-
     public List<String> getAllTags() throws SQLException {
         List<String> tags = new ArrayList<>();
         try (Statement stmt = conn.createStatement();
@@ -154,7 +201,6 @@ public class DatabaseManager {
         }
         return tags;
     }
-
 
     /**
      * Busca tags cujo nome contém o termo informado (case-insensitive).
@@ -195,7 +241,7 @@ public class DatabaseManager {
         String extension = PathUtils.getExtension(name);
         FileType fileType = FileTypeDetector.detect(name, attrs.isDirectory());
         long size = attrs.size();
-       // long lastModified = attrs.lastModifiedTime().toMillis();
+        // long lastModified = attrs.lastModifiedTime().toMillis();
         long lastModified = resolveLastModified(file, attrs); // ← única mudança necessária
         Path parentPath = file.getParent();
         String parentStr = parentPath != null ? parentPath.toString() : "";
@@ -240,7 +286,6 @@ public class DatabaseManager {
             p.executeUpdate();
         }
     }
-
 
     // Busca rating pela identity (não pelo path)
     private int getRatingByIdentity(long identityId) throws SQLException {
@@ -324,7 +369,6 @@ public class DatabaseManager {
         }
     }
 
-
     // ── migrateLegacyRatings() ────────────────────────────────────────
     private void migrateLegacyRatings() throws SQLException {
         String sql = """
@@ -360,7 +404,6 @@ public class DatabaseManager {
             System.out.println("✅ Ratings migrados para file_identity.");
         }
     }
-
 
     /**
      * Migração automática ao iniciar:
@@ -407,7 +450,6 @@ public class DatabaseManager {
 
         }
     }
-
 
     private void cleanupDuplicateIdentities() throws SQLException {
         System.out.println("🧹 Limpando identidades duplicadas...");
@@ -515,7 +557,6 @@ public class DatabaseManager {
         System.out.println("🔀 Identidades mescladas: " + deleteId + " → " + keepId);
     }
 
-
     /**
      * Conta arquivos legados que têm rating ou tags mas não têm identity.
      */
@@ -578,35 +619,45 @@ public class DatabaseManager {
         }
     }
 
-    /**
-     * Insere ou recupera a identity_id para o par (ntfsId, fingerprint).
-     */
     public long upsertIdentity(String ntfsId, String fingerprint,
                                String currentPath) throws SQLException {
 
         System.out.println("upsertIdentity → ntfs=" + ntfsId + " fp=" + fingerprint);
 
-        // Tenta encontrar pelo NTFS File ID primeiro
+        // 1. Tenta pelo NTFS File ID
         if (ntfsId != null) {
             Long id = findIdentityByNtfs(ntfsId);
             System.out.println("  findByNtfs → " + id);
             if (id != null) {
                 updateLastPath(id, currentPath);
+                // Atualiza fingerprint para o novo valor (timestamp mudou após MOVE)
+                updateFingerprint(id, fingerprint);
                 return id;
             }
         }
 
-        // Tenta pelo fingerprint (fallback para outro volume)
+        // 2. Tenta pelo fingerprint
         Long id = findIdentityByFingerprint(fingerprint);
         System.out.println("  findByFp → " + id);
         if (id != null) {
-            // Atualiza ntfs_file_id se agora temos (arquivo retornou ao volume)
             if (ntfsId != null) updateNtfsId(id, ntfsId);
             updateLastPath(id, currentPath);
             return id;
         }
 
-        // Cria nova identity
+        // 3. ← NOVO: tenta pelo path exato antes de inserir
+        Long idByPath = findIdentityByPath(currentPath);
+        System.out.println("  findByPath → " + idByPath);
+        if (idByPath != null) {
+            // Arquivo já existe no índice com path idêntico —
+            // atualiza ntfs e fingerprint em vez de duplicar
+            if (ntfsId != null) updateNtfsId(idByPath, ntfsId);
+            updateFingerprint(idByPath, fingerprint);
+            updateLastPath(idByPath, currentPath);
+            return idByPath;
+        }
+
+        // 4. Cria nova identity apenas se realmente não existe
         String sql = """
                     INSERT INTO file_identity (ntfs_file_id, fingerprint, last_path)
                     VALUES (?, ?, ?)
@@ -621,6 +672,73 @@ public class DatabaseManager {
                 return rs.next() ? rs.getLong(1) : -1;
             }
         }
+    }
+
+    private Long findIdentityByPath(String path) throws SQLException {
+        String sql = "SELECT id FROM file_identity WHERE last_path = ?";
+        try (PreparedStatement p = conn.prepareStatement(sql)) {
+            p.setString(1, path);
+            try (ResultSet rs = p.executeQuery()) {
+                return rs.next() ? rs.getLong("id") : null;
+            }
+        }
+    }
+
+
+    private void updateFingerprint(long id, String newFingerprint) throws SQLException {
+        if (newFingerprint == null) return;
+
+        // Verifica se o novo fingerprint já existe em OUTRA identity
+        Long existingId = findIdentityByFingerprint(newFingerprint);
+
+        if (existingId != null && existingId != id) {
+            // Fingerprint já pertence a outra identity — faz merge
+            // mantém o de menor id e remove o outro
+            long keepId = Math.min(id, existingId);
+            long deleteId = Math.max(id, existingId);
+
+            // Migra tags
+            String migrateTags = """
+                    UPDATE OR IGNORE file_tags
+                    SET identity_id = ? WHERE identity_id = ?
+                    """;
+            try (PreparedStatement p = conn.prepareStatement(migrateTags)) {
+                p.setLong(1, keepId);
+                p.setLong(2, deleteId);
+                p.executeUpdate();
+            }
+
+            // Preserva rating
+            String migrateRating = """
+                    UPDATE file_identity
+                    SET rating = (SELECT rating FROM file_identity WHERE id = ?)
+                    WHERE id = ? AND rating = 0
+                    """;
+            try (PreparedStatement p = conn.prepareStatement(migrateRating)) {
+                p.setLong(1, deleteId);
+                p.setLong(2, keepId);
+                p.executeUpdate();
+            }
+
+            // Remove a duplicata
+            String deleteDup = "DELETE FROM file_identity WHERE id = ?";
+            try (PreparedStatement p = conn.prepareStatement(deleteDup)) {
+                p.setLong(1, deleteId);
+                p.executeUpdate();
+            }
+
+            System.out.println("🔀 updateFingerprint: merge " + deleteId + " → " + keepId);
+
+        } else if (existingId == null) {
+            // Fingerprint não existe em nenhuma outra — atualiza normalmente
+            String sql = "UPDATE file_identity SET fingerprint = ? WHERE id = ?";
+            try (PreparedStatement p = conn.prepareStatement(sql)) {
+                p.setString(1, newFingerprint);
+                p.setLong(2, id);
+                p.executeUpdate();
+            }
+        }
+        // Se existingId == id, fingerprint já é o correto — não faz nada
     }
 
     private Long findIdentityByNtfs(String ntfsId) throws SQLException {
@@ -684,6 +802,8 @@ public class DatabaseManager {
         }
     }
 
+    // ── Atualização do setRating() para usar identity ─────────────
+
     /**
      * Executa SQL ignorando erro de coluna/tabela já existente.
      */
@@ -692,8 +812,6 @@ public class DatabaseManager {
             stmt.execute(sql);
         } catch (SQLException e) { /* já existe — ignora */ }
     }
-
-    // ── Atualização do setRating() para usar identity ─────────────
 
     public void setRating(String path, int stars) throws SQLException {
         if (stars < 0 || stars > 5)
@@ -773,56 +891,6 @@ public class DatabaseManager {
             throw new SQLException("Não foi possível calcular identidade: " + e.getMessage());
         }
     }
-
-
-    /**
-     * Retorna o timestamp de última modificação real de um Path.
-     *
-     * Problema: No Windows, BasicFileAttributes.lastModifiedTime() para PASTAS
-     * frequentemente retorna a data de criação, porque o NTFS só atualiza
-     * ftLastWriteTime de um diretório quando seus atributos são alterados
-     * diretamente — não quando arquivos dentro dele mudam.
-     *
-     * Solução: Para diretórios, lemos o atributo via WindowsFileAttributes (NIO2),
-     * que acessa a Win32 API corretamente. Se o lastModified for igual ao
-     * creationTime (sinal claro de que é a data de criação), usamos o maior valor
-     * entre os dois como heurística — ou fazemos um fallback para File.lastModified()
-     * que em algumas versões da JVM acessa um campo diferente.
-     *
-     * Para arquivos normais, BasicFileAttributes já é confiável — retorno direto.
-     */
-    private static long resolveLastModified(Path path, BasicFileAttributes attrs) {
-        // Arquivos normais: attrs é confiável, sem ajuste necessário
-        if (!attrs.isDirectory()) {
-            return attrs.lastModifiedTime().toMillis();
-        }
-
-        // Para diretórios: tenta ler via NIO2 com WindowsFileAttributes
-        try {
-            // DosFileAttributes herda de BasicFileAttributes e no Windows
-            // delega para a API nativa correta (GetFileInformationByHandle),
-            // que retorna o ftLastWriteTime real do NTFS.
-            var dosAttrs = Files.readAttributes(path, DosFileAttributes.class);
-            long lastModified = dosAttrs.lastModifiedTime().toMillis();
-            long creationTime = dosAttrs.creationTime().toMillis();
-
-            // Heurística: se lastModified == creationTime, a pasta provavelmente
-            // nunca teve lastWrite atualizado pelo NTFS (comum em pastas vazias
-            // ou recém-criadas sem modificação direta). Nesse caso mantemos o
-            // valor — ele é correto, a pasta de fato não foi "modificada".
-            // O que NÃO fazemos é confundir isso com uma data errada.
-            return lastModified;
-
-        } catch (UnsupportedOperationException e) {
-            // Não é Windows (Linux/Mac): BasicFileAttributes já é correto
-            return attrs.lastModifiedTime().toMillis();
-
-        } catch (IOException e) {
-            // Fallback seguro: File.lastModified() como última opção
-            return path.toFile().lastModified();
-        }
-    }
-
 
 
 }

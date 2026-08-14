@@ -7,6 +7,7 @@ import com.esl.searchforfiles.actions.imageEditor.ImageEditorFrame;
 import com.esl.searchforfiles.actions.renameFile.RenameFrame;
 import com.esl.searchforfiles.actions.renameFile.RenameModeManager;
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
+import com.esl.searchforfiles.configuration.KeyboardManager;
 import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.others.ThumbnailSize;
@@ -37,7 +38,6 @@ public class ResultsPanel extends JPanel {
     // Armazena últimos resultados para re-renderizar ao redimensionar
     private List<FileInfo> lastResults;
     // Cor de fundo customizável
-//    private Color backgroundColor = new Color(245, 245, 250); // Cinza azulado claro
     private ThumbnailSize currentThumbSize = ThumbnailSize.MEDIO; // NOVO
     private int selectedIndex = -1;  // índice do item selecionado no grid
     private List<FileItemPanel> currentItems = new ArrayList<>(); // refs aos panels
@@ -50,6 +50,8 @@ public class ResultsPanel extends JPanel {
     private FileItemPanel item;
     private RenameModeManager renameModeManager;
     private JToolBar renameToolBar;
+    private int anchorIndex = -1; // último item clicado sem Shift
+    private SubFolderPanel subFolderPanel; // adicione junto aos outros campos
 
     public ResultsPanel(FileExplorerSwing fileExplorerSwing) {
         this.fileExplorerSwing = fileExplorerSwing;
@@ -87,6 +89,43 @@ public class ResultsPanel extends JPanel {
 
         setupKeyboardScroll();
 
+        KeyboardManager.Action(
+                this,
+                "exitModes",
+                KeyEvent.VK_ESCAPE,
+                0,
+                this::exitModes
+        );
+        KeyboardManager.Action(
+                this,
+                "enterTransferMode",
+                KeyEvent.VK_S,
+                0,
+                () -> getFileExplorerSwing().toggleTransferMode()
+        );
+        KeyboardManager.Action(
+                this,
+                "enterEditMode",
+                KeyEvent.VK_E,
+                0,
+                () -> getFileExplorerSwing().toggleEditMode()
+        );
+        KeyboardManager.Action(
+                this,
+                "enterRenameFile",
+                KeyEvent.VK_R,
+                0,
+                () -> getFileExplorerSwing().toggleRenameModeFiles()
+        );
+        KeyboardManager.Action(
+                this,
+                "enterRenameFolder",
+                KeyEvent.VK_F,
+                0,
+                () -> getFileExplorerSwing().toggleRenameModeFolders()
+        );
+
+
         getFileExplorerSwing().getThemeManager().addThemeChangeListener(() ->
                 SwingUtilities.invokeLater(() -> {
                     gridPanel.setBackground(getBackgroundColor());
@@ -98,6 +137,18 @@ public class ResultsPanel extends JPanel {
 
     }
 
+    public void exitModes(){
+        if(editModeManager != null){
+            exitEditMode();
+        }
+        if(renameModeManager != null){
+            exitRenameMode();
+        }
+        if (transferService != null){
+            exitTransferMode();
+        }
+    }
+
     public FileExplorerSwing getFileExplorerSwing() {
         return fileExplorerSwing;
     }
@@ -106,20 +157,6 @@ public class ResultsPanel extends JPanel {
      * Obtém cor de fundo atual
      * NOVO MÉTODO
      */
-//    public Color getBackgroundColor() {
-//        // Tenta pegar a cor de painel do tema atual
-//        Color themed = UIManager.getColor("Panel.background");
-//        if (themed != null) {
-//            if (fileExplorerSwing.getThemeManager().getCurrentTheme().contentEquals("FlatArcOrangeIJTheme")) {
-//               return new Color(245, 245, 250);
-//            } else if (fileExplorerSwing.getThemeManager().getCurrentTheme().contentEquals("FlatArcDarkOrangeIJTheme")) {
-//                return  new Color(40, 40, 50);
-//            } else if (fileExplorerSwing.getThemeManager().getCurrentTheme().contentEquals("FlatDraculaIJTheme")) {
-//              return new  Color(40, 40, 50);
-//            }
-//        }
-//        return  new  Color(40, 40, 50); // fallback para quando não há tema
-//    }
     public Color getBackgroundColor() {
         Color bg = UIManager.getColor("Panel.background");
         if (bg == null) return new Color(40, 40, 50);
@@ -133,7 +170,6 @@ public class ResultsPanel extends JPanel {
     }
 
     public void setupKeyboardScroll() {
-//        JScrollBar vBar = scrollPane.getVerticalScrollBar();
         int unit = 60;
         int block = 300;
 
@@ -151,7 +187,6 @@ public class ResultsPanel extends JPanel {
                     SwingUtilities.isDescendingFrom(focused, ResultsPanel.this);
 
             if (!focusIsHere) return false; // ← devolve o evento para quem tem o foco
-
 
             // Teclas de navegação de item só são bloqueadas por JTextField
             boolean isTextField = focused instanceof JTextField
@@ -234,15 +269,6 @@ public class ResultsPanel extends JPanel {
                     return false; // sem seleção: Enter chega ao searchField
                 }
 
-                // ── Escape limpa seleção ──────────────────────────────
-                case KeyEvent.VK_ESCAPE -> {
-                    if (selectedIndex >= 0 && selectedIndex < currentItems.size()) {
-                        currentItems.get(selectedIndex).setSelected(false);
-                        selectedIndex = -1;
-                        return true;
-                    }
-                    return false;
-                }
             }
 
             return false;
@@ -331,7 +357,7 @@ public class ResultsPanel extends JPanel {
                 // Só mostra o menu se não clicar em um FileItemPanel
                 Component comp = gridPanel.getComponentAt(e.getPoint());
                 if (comp == gridPanel || comp == null) {
-                    CacheContextMenu.show(gridPanel, cacheManager, e.getX(), e.getY());
+                    CacheContextMenu.show(gridPanel, cacheManager, e.getX(), e.getY(), getFileExplorerSwing());
                 }
             }
         });
@@ -352,7 +378,7 @@ public class ResultsPanel extends JPanel {
                 // Mostra menu no centro do painel
                 int x = gridPanel.getWidth() / 2;
                 int y = gridPanel.getHeight() / 2;
-                CacheContextMenu.show(gridPanel, cacheManager, x, y);
+                CacheContextMenu.show(gridPanel, cacheManager, x, y, getFileExplorerSwing());
             }
         });
     }
@@ -399,6 +425,7 @@ public class ResultsPanel extends JPanel {
 
         currentItems.clear();   // NOVO: limpa lista de itens
         selectedIndex = -1;     // NOVO: reseta seleção
+        anchorIndex = -1;
 
         int panelWidth = scrollPane.getViewport().getWidth();
         if (panelWidth <= 0) panelWidth = getWidth();
@@ -426,14 +453,53 @@ public class ResultsPanel extends JPanel {
             item.setBounds(x, y, dynamicWidth, cardHeight);
 
             if (clickListener != null) item.setClickListener(clickListener);
-
-            // NOVO: clique simples seleciona o item
             final int idx = count;
             item.addMouseListener(new MouseAdapter() {
+
                 @Override
                 public void mousePressed(MouseEvent e) {
-                    if (!e.isPopupTrigger())
+                    if (e.isPopupTrigger()) return;
+                    item.putClientProperty("dragStarted", false); // reseta
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    if (e.isPopupTrigger()) return;
+
+                    // Se virou drag, não mexe na seleção
+                    Boolean dragged = (Boolean) item.getClientProperty("dragStarted");
+                    if (Boolean.TRUE.equals(dragged)) return;
+
+                    boolean inMode = transferService != null
+                            || editModeManager != null
+                            || renameModeManager != null;
+
+                    if (!inMode) {
                         selectItem(idx);
+                        anchorIndex = idx;
+                        return;
+                    }
+
+                    boolean ctrl  = (e.getModifiersEx() & InputEvent.CTRL_DOWN_MASK)  != 0;
+                    boolean shift = (e.getModifiersEx() & InputEvent.SHIFT_DOWN_MASK) != 0;
+
+                    if (shift && anchorIndex >= 0) {
+                        selectRange(anchorIndex, idx);
+                    } else if (ctrl) {
+                        toggleItemInMode(idx);
+                        anchorIndex = idx;
+                    } else {
+                        clearModeSelection();
+                        toggleItemInMode(idx);
+                        anchorIndex = idx;
+                    }
+                }
+            });
+
+            item.addMouseMotionListener(new MouseMotionAdapter() {
+                @Override
+                public void mouseDragged(MouseEvent e) {
+                    item.putClientProperty("dragStarted", true);
                 }
             });
 
@@ -464,7 +530,93 @@ public class ResultsPanel extends JPanel {
         SwingUtilities.invokeLater(gridPanel::requestFocusInWindow);
     }
 
+   //============ Para Seleção mutipla =============================
+    /** Alterna a seleção de um único item dentro do modo ativo. */
+    private void toggleItemInMode(int idx) {
+        if (idx < 0 || idx >= currentItems.size()) return;
+        FileItemPanel item = currentItems.get(idx);
 
+        if (transferService != null) {
+            transferService.toggleSelection(item.getDisplayFile());
+            if (item.selectionCheckbox != null)
+                item.selectionCheckbox.setSelected(
+                        transferService.isSelected(item.getDisplayFile()));
+
+        } else if (editModeManager != null
+                && EditModeManager.isAccepted(item.getDisplayFile())) {
+            editModeManager.toggleSelection(item.getDisplayFile());
+            if (item.editSelectionCheckbox != null)
+                item.editSelectionCheckbox.setSelected(
+                        editModeManager.isSelected(item.getDisplayFile()));
+
+        } else if (renameModeManager != null
+                && renameModeManager.accepts(item.getDisplayFile())) {
+            renameModeManager.toggleSelection(item.getDisplayFile());
+            if (item.renameSelectionCheckbox != null)
+                item.renameSelectionCheckbox.setSelected(
+                        renameModeManager.isSelected(item.getDisplayFile()));
+        }
+
+        item.updateModeBackground();
+    }
+
+    /** Seleciona todos os itens no intervalo [from, to] dentro do modo ativo. */
+    private void selectRange(int from, int to) {
+        int start = Math.min(from, to);
+        int end   = Math.max(from, to);
+
+        for (int i = start; i <= end; i++) {
+            FileItemPanel item = currentItems.get(i);
+
+            if (transferService != null) {
+                transferService.selectFile(item.getDisplayFile());
+                if (item.selectionCheckbox != null)
+                    item.selectionCheckbox.setSelected(true);
+
+            } else if (editModeManager != null
+                    && EditModeManager.isAccepted(item.getDisplayFile())) {
+                editModeManager.selectFile(item.getDisplayFile());
+                if (item.editSelectionCheckbox != null)
+                    item.editSelectionCheckbox.setSelected(true);
+
+            } else if (renameModeManager != null
+                    && renameModeManager.accepts(item.getDisplayFile())) {
+                renameModeManager.selectFile(item.getDisplayFile());
+                if (item.renameSelectionCheckbox != null)
+                    item.renameSelectionCheckbox.setSelected(true);
+            }
+
+            item.updateModeBackground();
+        }
+    }
+
+    /** Limpa toda a seleção do modo ativo e atualiza os checkboxes. */
+    private void clearModeSelection() {
+        if (transferService != null) {
+            transferService.clearSelection();
+            currentItems.forEach(p -> {
+                if (p.selectionCheckbox != null)
+                    p.selectionCheckbox.setSelected(false);
+                p.updateModeBackground();
+            });
+
+        } else if (editModeManager != null) {
+            editModeManager.clearSelection();
+            currentItems.forEach(p -> {
+                if (p.editSelectionCheckbox != null)
+                    p.editSelectionCheckbox.setSelected(false);
+                p.updateModeBackground();
+            });
+
+        } else if (renameModeManager != null) {
+            renameModeManager.clearSelection();
+            currentItems.forEach(p -> {
+                if (p.renameSelectionCheckbox != null)
+                    p.renameSelectionCheckbox.setSelected(false);
+                p.updateModeBackground();
+            });
+        }
+    }
     // ── Método de seleção ─────────────────────────────────────────────
     private void selectItem(int index) {
         if (index < 0 || index >= currentItems.size()) return;
@@ -591,6 +743,8 @@ public class ResultsPanel extends JPanel {
     public void exitTransferMode() {
         if (transferService != null) transferService.exitTransferMode();
         transferService = null;
+        anchorIndex = -1;
+
 
         // Remove a toolbar
         if (transferToolBar != null) {
@@ -612,11 +766,6 @@ public class ResultsPanel extends JPanel {
      * Chamado no final de renderGrid() para re-aplicar o modo
      * de transferência caso esteja ativo.
      */
-//    private void reapplyTransferModeIfActive() {
-//        if (transferService != null && transferService.isTransferModeActive()) {
-//            applyTransferModeToItems(transferService);
-//        }
-//    }
     private void reapplyTransferModeIfActive() {
         if (transferService != null && transferService.isTransferModeActive()) {
             for (FileItemPanel item : currentItems) {
@@ -680,19 +829,31 @@ public class ResultsPanel extends JPanel {
         JButton copy = new JButton(" Copiar ");
         copy.setFont(UIConfig.FONT_DEFAULT);
         copy.setForeground(UIConfig.SELECTED_BORDER);
-        copy.addActionListener(e -> item.requestTransfer(TransferMode.COPY));
-
+      //  copy.addActionListener(e -> item.requestTransfer(TransferMode.COPY));
+        copy.addActionListener(e -> {
+            if (item == null) return;
+            item.requestTransfer(TransferMode.COPY, this::onTransferOperationCompleted);
+        });
         bar.add(copy);
+
         JButton move = new JButton(" Mover ");
         move.setFont(UIConfig.FONT_DEFAULT);
         move.setForeground(UIConfig.SELECTED_BORDER);
-        move.addActionListener(e -> item.requestTransfer(TransferMode.MOVE));
+      //  move.addActionListener(e -> item.requestTransfer(TransferMode.MOVE));
+        move.addActionListener(e -> {
+            if (item == null) return;
+            item.requestTransfer(TransferMode.MOVE, this::onTransferOperationCompleted);
+        });
         bar.add(move);
 
         JButton delete = new JButton(" Apagar ");
         delete.setFont(UIConfig.FONT_DEFAULT);
         delete.setForeground(UIConfig.SELECTED_BORDER);
-        delete.addActionListener(e -> item.requestDelete());
+      //  delete.addActionListener(e -> item.requestDelete());
+        delete.addActionListener(e -> {
+            if (item == null) return;
+            item.requestDelete(this::onTransferOperationCompleted);
+        });
         bar.add(delete);
 
         bar.addSeparator();
@@ -721,6 +882,8 @@ public class ResultsPanel extends JPanel {
     public void exitEditMode() {
         if (editModeManager != null) editModeManager.exitEditMode();
         editModeManager = null;
+        anchorIndex = -1;
+
 
         if (editToolBar != null) {
             remove(editToolBar);
@@ -742,6 +905,7 @@ public class ResultsPanel extends JPanel {
         if (editModeManager != null && editModeManager.isEditModeActive()) {
             for (FileItemPanel item : currentItems) {
                 item.enableEditMode(editModeManager);
+                // Só restaura cor se estava selecionado — evita chamadas desnecessárias
                 if (savedEditSelected.contains(item.getDisplayFile())) {
                     editModeManager.selectFile(item.getDisplayFile());
                     if (item.editSelectionCheckbox != null)
@@ -862,6 +1026,8 @@ public class ResultsPanel extends JPanel {
     public void exitRenameMode() {
         if (renameModeManager != null) renameModeManager.exitMode();
         renameModeManager = null;
+        anchorIndex = -1;
+
 
         if (renameToolBar != null) {
             remove(renameToolBar);
@@ -875,12 +1041,6 @@ public class ResultsPanel extends JPanel {
     private void applyRenameModeToItems(RenameModeManager rm) {
         for (FileItemPanel item : currentItems) item.enableRenameMode(rm);
     }
-
-    // Adicione ao final de renderGrid(), após reapplyEditModeIfActive():
-//    private void reapplyRenameModeIfActive() {
-//        if (renameModeManager != null && renameModeManager.isActive())
-//            applyRenameModeToItems(renameModeManager);
-//    }
     private void reapplyRenameModeIfActive() {
         if (renameModeManager != null && renameModeManager.isActive()) {
             for (FileItemPanel item : currentItems) {
@@ -967,7 +1127,7 @@ public class ResultsPanel extends JPanel {
         bar.add(renameBtn);
         bar.addSeparator();
 
-        JButton exitBtn = new JButton(" ✕ Sair ");
+        JButton exitBtn = new JButton(" ✕ Sair");
         exitBtn.setFont(UIConfig.FONT_DEFAULT);
         exitBtn.setForeground(UIConfig.LIGHT_RED);
 
@@ -976,8 +1136,6 @@ public class ResultsPanel extends JPanel {
 
         return bar;
     }
-
-
     public enum MessageType {
         WELCOME, LOADING, NO_RESULTS, ERROR
     }
@@ -988,5 +1146,13 @@ public class ResultsPanel extends JPanel {
         void onFileRightClick(File file, FileInfo fileInfo,
                               Component source, int x, int y,
                               FileItemPanel itemPanel); // NOVO
+    }
+
+    public void setSubFolderPanel(SubFolderPanel panel) {
+        this.subFolderPanel = panel;
+    }
+    private void onTransferOperationCompleted() {
+        if (subFolderPanel != null)
+            SwingUtilities.invokeLater(subFolderPanel::reload);
     }
 }

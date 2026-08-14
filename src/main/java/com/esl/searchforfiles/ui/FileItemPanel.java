@@ -1,5 +1,6 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.Video.VideoThumbnail;
 import com.esl.searchforfiles.actions.fileTransfer.*;
 import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
 import com.esl.searchforfiles.actions.renameFile.RenameMode;
@@ -12,9 +13,6 @@ import com.esl.searchforfiles.service.IconService;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.PDFRenderer;
-import org.bytedeco.javacv.FFmpegFrameGrabber;
-import org.bytedeco.javacv.Frame;
-import org.bytedeco.javacv.Java2DFrameConverter;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReadParam;
@@ -49,7 +47,7 @@ public class FileItemPanel extends JPanel {
     // No topo da classe
     private static final ThumbnailCacheManager THUMBNAIL_CACHE = new ThumbnailCacheManager();
     private static final ExecutorService THUMBNAIL_EXECUTOR = Executors.newFixedThreadPool(2);
-//    private static final Color SELECTED_COLOR = new Color(33, 150, 243, 80); // azul semitransparente
+    //    private static final Color SELECTED_COLOR = new Color(33, 150, 243, 80); // azul semitransparente
 //    private static final Color SELECTED_BORDER = new Color(33, 150, 243);
     // Campo estático — compartilhado entre todas as instâncias
     private static final Map<String, List<WeakReference<JLabel>>> PENDING_TARGETS
@@ -62,6 +60,9 @@ public class FileItemPanel extends JPanel {
     private static final Set<String> VIDEO_EXTS = new HashSet<>(Arrays.asList(
             "mp4", "m4v", "mov", "avi", "mkv", "webm", "flv", "wmv", "mpeg", "mpg"
     ));
+    private static final Color BG_TRANSFER_SELECTED = new Color(33, 150, 243, 80);   // azul
+    private static final Color BG_EDIT_SELECTED = new Color(60, 180, 60, 80);   // verde
+    private static final Color BG_RENAME_SELECTED = new Color(200, 120, 20, 80);   // laranja
     private static boolean showRatingOverlay = true; // NOVO — controlado pelo menu de contexto
     private static boolean showExtensionFileOverlay = true; // NOVO — controlado pelo menu de contexto
     private static boolean showAnimatedGif = true; // NOVO — controlado pelo menu de contexto
@@ -69,15 +70,14 @@ public class FileItemPanel extends JPanel {
     private final FileInfo fileInfo;
     private final ThumbnailCacheManager cacheManager;
     private final ResultsPanel resultsPanel;
+    private final int thumbSize;
+    SelectionCheckbox selectionCheckbox;
+    SelectionCheckbox editSelectionCheckbox;   // package-private para acesso da toolbar
+    SelectionCheckbox renameSelectionCheckbox; // package-private
     // Cores para estados
     private Color normalColor;
     private Color hoverColor;
     private Color borderColor;
-//    private final Color normalColor = new Color(56, 56, 56);
-//    private final Color hoverColor = new Color(70, 70, 70);
-//    private final Color borderColor = new Color(33, 150, 243);
-    private final int thumbSize;
-    SelectionCheckbox selectionCheckbox;
     private File displayFile;
     private ResultsPanel.FileItemClickListener clickListener;
     private RatingOverlay ratingOverlay; // NOVO
@@ -87,14 +87,8 @@ public class FileItemPanel extends JPanel {
     private AnimatedGifThumb animatedGifThumb;
     private JComponent iconSlot;
     private TransferService transferService;
-    SelectionCheckbox editSelectionCheckbox;   // package-private para acesso da toolbar
     private EditModeManager editModeManager;   // renomeie o campo de transferência se necessário
-    SelectionCheckbox renameSelectionCheckbox; // package-private
     private RenameModeManager renameModeManager;
-
-    private static final Color BG_TRANSFER_SELECTED = new Color(33, 150, 243, 80);   // azul
-    private static final Color BG_EDIT_SELECTED      = new Color(60, 180, 60,  80);   // verde
-    private static final Color BG_RENAME_SELECTED    = new Color(200, 120, 20, 80);   // laranja
 
     public FileItemPanel(File file, FileInfo fileInfo, int width, int height, int thumbSize, ResultsPanel resultsPanel) {
 
@@ -109,8 +103,8 @@ public class FileItemPanel extends JPanel {
         if (SimpleLinkResolver.isShortcut(file)) {
             File target = SimpleLinkResolver.resolveShortcut(file);
             this.displayFile = (target != null && target.exists()) ? target : file;
-
             if (target != null) {
+                resultsPanel.getFileExplorerSwing().getBottomIndicatorPanel().showSyncIndicator("Localizando Atalhos...");
                 System.out.println("📎 " + file.getName() + " ➜ " + target.getName());
             }
         } else {
@@ -190,43 +184,6 @@ public class FileItemPanel extends JPanel {
                 }
             }
 
-//            @Override
-//            public void mouseEntered(MouseEvent e) {
-//                if (!selected && !isAnyCheckboxSelected()) {
-//
-//                    setBackground(hoverColor);
-//
-//                    if (fileInfo.isDirectory()) {
-//                        setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
-//                        setBorder(BorderFactory.createLineBorder(
-//                               borderColor, 1));
-//                    } else {
-//                        setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-//                    }
-//                    // NOVO: repinta área do pai para limpar borda anterior
-//                    repaint();
-//                    Container parent = getParent();
-//                    if (parent != null)
-//                        parent.repaint(getX() - 2, getY() - 2, getWidth() + 4, getHeight() + 4);
-//                }
-//            }
-//
-//            @Override
-//            public void mouseExited(MouseEvent e) {
-//
-//                if (!selected && !isAnyCheckboxSelected()) {
-//                    setBackground(normalColor);
-//                    setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
-//                    // NOVO: repinta área do pai para limpar borda anterior
-//                    repaint();
-//
-//                    Container parent = getParent();
-//                    if (parent != null)
-//                        parent.repaint(getX() - 2, getY() - 2, getWidth() + 4, getHeight() + 4);
-//                }
-//                setCursor(Cursor.getDefaultCursor());
-//            }
-
         });
         // Drag & Drop — só pastas podem ser arrastadas para os favoritos
         // arquivos comuns também podem ser arrastados (para uso futuro)
@@ -242,30 +199,8 @@ public class FileItemPanel extends JPanel {
                 })
         );
 
+
     }
-
-    private boolean isAnyCheckboxSelected() {
-        return (selectionCheckbox      != null && selectionCheckbox.isSelected())
-                || (editSelectionCheckbox  != null && editSelectionCheckbox.isSelected())
-                || (renameSelectionCheckbox != null && renameSelectionCheckbox.isSelected());
-    }
-
-
-    private void refreshColors() {
-
-        if(UIManager.getBoolean("laf.dark")){
-            normalColor =  UIConfig.DARK_HOVER_COLOR;
-            hoverColor  = UIConfig.sliderTrackColor();
-        }else {
-            normalColor = UIConfig.sliderTrackColor();
-            hoverColor  = UIConfig.LIGHT_HOVER_COLOR;
-        }
-
-        // borderColor geralmente pode vir direto do tema
-        borderColor = Optional.ofNullable(UIConfig.accent())
-                .orElse(UIConfig.SELECTED_BORDER);
-    }
-
 
     public static boolean isShowRatingOverlay() {
         return showRatingOverlay;
@@ -310,10 +245,6 @@ public class FileItemPanel extends JPanel {
             }
         }
     }
-
-// ==============================================================
-// NOVO MÉTODO: Atualiza ícone do label
-// ==============================================================
 
     // Utilitário auxiliar (se não existir em outro lugar)
     public static String getExtension(File file) {
@@ -365,6 +296,10 @@ public class FileItemPanel extends JPanel {
 
         return "application/octet-stream"; // genérico
     }
+
+// ==============================================================
+// NOVO MÉTODO: Atualiza ícone do label
+// ==============================================================
 
     private static boolean isImage(File file) {
         String mime = getMimeType(file);
@@ -419,6 +354,27 @@ public class FileItemPanel extends JPanel {
         return THUMBNAIL_CACHE;
     }
 
+    private boolean isAnyCheckboxSelected() {
+        return (selectionCheckbox != null && selectionCheckbox.isSelected())
+                || (editSelectionCheckbox != null && editSelectionCheckbox.isSelected())
+                || (renameSelectionCheckbox != null && renameSelectionCheckbox.isSelected());
+    }
+
+    private void refreshColors() {
+
+        if (UIManager.getBoolean("laf.dark")) {
+            normalColor = UIConfig.DARK_HOVER_COLOR;
+            hoverColor = UIConfig.sliderTrackColor();
+        } else {
+            normalColor = UIConfig.sliderTrackColor();
+            hoverColor = UIConfig.LIGHT_HOVER_COLOR;
+        }
+
+        // borderColor geralmente pode vir direto do tema
+        borderColor = Optional.ofNullable(UIConfig.accent())
+                .orElse(UIConfig.SELECTED_BORDER);
+    }
+
     public File getDisplayFile() {
         return displayFile;
     }
@@ -434,16 +390,6 @@ public class FileItemPanel extends JPanel {
     }
 
     private void updateVisual() {
-//        if (selected) {
-//            if(isAnyCheckboxSelected()){
-//                updateModeBackground();
-//            }
-//            setBackground(UIConfig.SELECTED_COLOR);
-//            setBorder(BorderFactory.createLineBorder(UIConfig.SELECTED_BORDER, 2));
-//        } else {
-//            setBackground(normalColor);
-//            setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
-//        }
         if (selected) {
             setBackground(UIConfig.SELECTED_COLOR);
             setBorder(BorderFactory.createLineBorder(UIConfig.SELECTED_BORDER, 2));
@@ -1030,83 +976,25 @@ public class FileItemPanel extends JPanel {
         return ICON_CACHE.computeIfAbsent(key, k -> generator.get());
     }
 
-    // Atualizado  com melhor tratamento de erros:
+    //Atualizaçao: Não usa mais o javaCV para extrair thumbnails dos videos
     private BufferedImage extractVideoThumbnail(File file, int size) {
-        FFmpegFrameGrabber grabber = null;
-        Java2DFrameConverter converter = null;
-
         try {
-            grabber = new FFmpegFrameGrabber(file);
-            grabber.setFormat(null);
-            grabber.setImageMode(FFmpegFrameGrabber.ImageMode.COLOR);
+            BufferedImage raw = VideoThumbnail.builder(file.getAbsolutePath())
+                    .position(0.33)   // 1/3 do vídeo, evita intro preta
+                    .capture()
+                    .image();
 
-            // Timeout para evitar travamentos
-            grabber.setOption("timeout", "5000000"); // 5 segundos em microsegundos
-
-            try {
-                grabber.start();
-            } catch (FFmpegFrameGrabber.Exception e) {
-                throw new RuntimeException(e);
-            }
-
-            // Tenta pegar um frame do meio do vídeo
-            int totalFrames = grabber.getLengthInFrames();
-            if (totalFrames > 10) {
-                grabber.setFrameNumber(Math.min(totalFrames / 4, 50));
-            }
-
-            Frame frame = null;
-            int attempts = 0;
-            int maxAttempts = 10;
-
-            // Tenta pegar um frame válido
-            while (frame == null && attempts < maxAttempts) {
-                frame = grabber.grabImage();
-                attempts++;
-
-                if (frame == null && attempts < maxAttempts) {
-                    Thread.sleep(50); // Pequena pausa entre tentativas
-                }
-            }
-
-            if (frame == null || frame.image == null) {
-                System.err.println("Nenhum frame válido encontrado para: " + file.getName());
+            if (raw == null) {
+                System.err.println("VideoThumbnail retornou null: " + file.getName());
                 return null;
             }
 
-            converter = new Java2DFrameConverter();
-            BufferedImage img = converter.convert(frame);
-
-            if (img == null) {
-                System.err.println("Falha ao converter frame para BufferedImage: " + file.getName());
-                return null;
-            }
-
-            return scaleWithPreset(img, size, Preset.MEDIO);
+            return scaleWithPreset(raw, size, Preset.MEDIO);
 
         } catch (Exception e) {
             System.err.println("Erro ao extrair thumbnail do vídeo: " + file.getName());
             e.printStackTrace();
             return null;
-
-        } finally {
-            // Libera recursos na ordem correta
-            if (converter != null) {
-                try {
-                    converter.close();
-                } catch (Exception e) {
-                    System.err.println("Erro ao fechar converter: " + e.getMessage());
-                }
-            }
-
-            if (grabber != null) {
-                try {
-                    grabber.stop();
-                    grabber.release();
-                } catch (Exception e) {
-                    System.err.println("Erro ao fechar grabber: " + e.getMessage());
-                }
-            }
         }
     }
 
@@ -1254,12 +1142,10 @@ public class FileItemPanel extends JPanel {
 
         if (selectionCheckbox == null) {
             selectionCheckbox = new SelectionCheckbox();
+            selectionCheckbox.setEnabled(false);
             selectionCheckbox.setBounds(4, 4, 22, 22);
             selectionCheckbox.setSelected(tm.isSelected(displayFile));
 
-            // Clique no checkbox alterna seleção
-//            selectionCheckbox.addActionListener(e ->
-//                    tm.toggleSelection(displayFile));
             selectionCheckbox.addActionListener(e -> {
                 tm.toggleSelection(displayFile);      // ← adiciona
                 updateModeBackground();
@@ -1296,47 +1182,31 @@ public class FileItemPanel extends JPanel {
                 }
             }
         }
-
-        // Clique no painel (fora do checkbox): mostra menu de ação
-        // (registrado via addMouseListener para não sobrescrever os existentes)
-        addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (!tm.isTransferModeActive()) return;
-                if (e.getClickCount() == 1 && !e.isPopupTrigger()) {
-                    // Alterna seleção
-                    tm.toggleSelection(displayFile);
-                    if (selectionCheckbox != null)
-                        selectionCheckbox.setSelected(tm.isSelected(displayFile));
-                }
-            }
-        });
     }
 
     /**
      * Abre o seletor de destino e executa COPY ou MOVE.
      */
-    public void requestTransfer(TransferMode mode) {
+    public void requestTransfer(TransferMode mode, Runnable onDone) {
         Window owner = SwingUtilities.getWindowAncestor(this);
-
         int n = transferService.getSelectedCount();
-        if(n <= 0){
-            System.out.println("Nenhum item selecionado");
-            return;
-        }
+        if (n <= 0) return;
 
         new DestinationChooserDialog(owner, mode,
                 transferService.getSelectedCount(),
-                dest -> performTransfer(mode, dest))
+                dest -> performTransfer(mode, dest, onDone))
                 .setVisible(true);
     }
 
-    private void performTransfer(TransferMode mode, java.io.File dest) {
+    private void performTransfer(TransferMode mode, File dest, Runnable onDone) {
+        // Sinaliza que transferência está em andamento
+        resultsPanel.getFileExplorerSwing()
+                .getController()
+                .setTransferInProgress(true);
+
         Window owner = SwingUtilities.getWindowAncestor(this);
         int total = transferService.getSelectedCount();
         TransferProgressDialog progress = new TransferProgressDialog(owner, mode, total);
-
-        // Abre o diálogo de progresso em thread separada para não bloquear o worker
         SwingUtilities.invokeLater(() -> progress.setVisible(true));
 
         transferService.execute(mode, dest, new TransferService.TransferListener() {
@@ -1344,15 +1214,24 @@ public class FileItemPanel extends JPanel {
             public void onProgress(int done, int t, String file) {
                 progress.update(done, t, file);
             }
-
             @Override
             public void onCompleted(int success, int failed) {
                 progress.dispose();
-                String msg = String.format("✅ %d transferido(s)" +
-                        (failed > 0 ? "\n⚠️ %d com erro" : ""), success, failed);
+                String msg = String.format("✅ %d transferido(s)"
+                        + (failed > 0 ? "\n⚠️ %d com erro" : ""), success, failed);
                 JOptionPane.showMessageDialog(owner, msg);
-                // Dispara refresh no ResultsPanel via callback no FileExplorerSwing
-                resultsPanel.getFileExplorerSwing().performCurrentSearch();
+
+                // Libera o flag de transferência antes do refresh
+                resultsPanel.getFileExplorerSwing()
+                        .getController()
+                        .setTransferInProgress(false);
+
+                // Força sync + refresh imediato
+                resultsPanel.getFileExplorerSwing()
+                        .getController()
+                        .resumeAfterEdit();
+
+                if (onDone != null) onDone.run();
             }
 
             @Override
@@ -1367,14 +1246,10 @@ public class FileItemPanel extends JPanel {
     /**
      * Apagar com confirmação.
      */
-    public void requestDelete() {
+    public void requestDelete(Runnable onDone) {
         Window owner = SwingUtilities.getWindowAncestor(this);
         int n = transferService.getSelectedCount();
-
-        if(n <= 0){
-            System.out.println("Nenhum item selecionado");
-            return;
-        }
+        if (n <= 0) return;
 
         int opt = JOptionPane.showConfirmDialog(owner,
                 "Apagar " + n + " item(s) permanentemente?\nEsta ação não pode ser desfeita.",
@@ -1390,12 +1265,20 @@ public class FileItemPanel extends JPanel {
             public void onProgress(int done, int t, String file) {
                 progress.update(done, t, file);
             }
-
             @Override
             public void onCompleted(int success, int failed) {
                 progress.dispose();
                 JOptionPane.showMessageDialog(owner, "✅ " + success + " apagado(s).");
-                resultsPanel.getFileExplorerSwing().performCurrentSearch();
+
+                resultsPanel.getFileExplorerSwing()
+                        .getController()
+                        .setTransferInProgress(false);
+
+                resultsPanel.getFileExplorerSwing()
+                        .getController()
+                        .resumeAfterEdit();
+
+                if (onDone != null) onDone.run();
             }
 
             @Override
@@ -1421,16 +1304,9 @@ public class FileItemPanel extends JPanel {
         revalidate();
         repaint();
 
-   // Restaura DragAction sem TransferService
-   dragAction = new DragAction(() -> displayFile, this, null);
+        // Restaura DragAction sem TransferService
+        dragAction = new DragAction(() -> displayFile, this, null);
     }
-
-    public enum Preset {
-        RAPIDO,
-        MEDIO,
-        ALTA_QUALIDADE
-    }
-
 
     public void enableEditMode(EditModeManager em) {
         // Só mostra checkbox em arquivos aceitos pelo modo de edição
@@ -1440,10 +1316,10 @@ public class FileItemPanel extends JPanel {
 
         if (editSelectionCheckbox == null) {
             editSelectionCheckbox = new SelectionCheckbox();
+            editSelectionCheckbox.setEnabled(false);
             // Borda verde para diferenciar do modo de transferência (azul)
             editSelectionCheckbox.setBounds(4, 4, 22, 22);
             editSelectionCheckbox.setSelected(em.isSelected(displayFile));
-//            editSelectionCheckbox.addActionListener(e -> em.toggleSelection(displayFile));
             editSelectionCheckbox.addActionListener(e -> {
                 em.toggleSelection(displayFile);    // ← adiciona
                 updateModeBackground();
@@ -1454,7 +1330,10 @@ public class FileItemPanel extends JPanel {
             } else {
                 int idx = -1;
                 for (int i = 0; i < getComponentCount(); i++) {
-                    if (getComponent(i) == iconSlot) { idx = i; break; }
+                    if (getComponent(i) == iconSlot) {
+                        idx = i;
+                        break;
+                    }
                 }
                 if (idx >= 0) {
                     int bs = this.thumbSize;
@@ -1473,20 +1352,6 @@ public class FileItemPanel extends JPanel {
                 }
             }
         }
-
-        // Clique no card alterna seleção
-        addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (editModeManager == null || !editModeManager.isEditModeActive()) return;
-                if (!EditModeManager.isAccepted(displayFile)) return;
-                if (e.getClickCount() == 1 && !e.isPopupTrigger()) {
-                    em.toggleSelection(displayFile);
-                    if (editSelectionCheckbox != null)
-                        editSelectionCheckbox.setSelected(em.isSelected(displayFile));
-                }
-            }
-        });
     }
 
     public void disableEditMode() {
@@ -1500,7 +1365,6 @@ public class FileItemPanel extends JPanel {
         repaint();
     }
 
-
     public void enableRenameMode(RenameModeManager rm) {
         if (!rm.accepts(displayFile)) return;
 
@@ -1508,6 +1372,7 @@ public class FileItemPanel extends JPanel {
 
         if (renameSelectionCheckbox == null) {
             renameSelectionCheckbox = new SelectionCheckbox();
+            renameSelectionCheckbox.setEnabled(false);
             // Cor laranja para arquivos, amarelo-torrado para pastas
             Color bg = rm.getMode() == RenameMode.FILES
                     ? new Color(60, 120, 30, 70)
@@ -1515,8 +1380,6 @@ public class FileItemPanel extends JPanel {
             renameSelectionCheckbox.setBackground(bg);
             renameSelectionCheckbox.setBounds(4, 4, 20, 20);
             renameSelectionCheckbox.setSelected(rm.isSelected(displayFile));
-//            renameSelectionCheckbox.addActionListener(e ->
-//                    rm.toggleSelection(displayFile));
             renameSelectionCheckbox.addActionListener(e -> {
                 rm.toggleSelection(displayFile);  // ← adiciona
                 updateModeBackground();
@@ -1527,7 +1390,10 @@ public class FileItemPanel extends JPanel {
             } else {
                 int idx = -1;
                 for (int i = 0; i < getComponentCount(); i++) {
-                    if (getComponent(i) == iconSlot) { idx = i; break; }
+                    if (getComponent(i) == iconSlot) {
+                        idx = i;
+                        break;
+                    }
                 }
                 if (idx >= 0) {
                     int bs = this.thumbSize;
@@ -1546,18 +1412,6 @@ public class FileItemPanel extends JPanel {
                 }
             }
         }
-
-        addMouseListener(new MouseAdapter() {
-            @Override public void mouseClicked(MouseEvent e) {
-                if (renameModeManager == null || !renameModeManager.isActive()) return;
-                if (!rm.accepts(displayFile)) return;
-                if (e.getClickCount() == 1 && !e.isPopupTrigger()) {
-                    rm.toggleSelection(displayFile);
-                    if (renameSelectionCheckbox != null)
-                        renameSelectionCheckbox.setSelected(rm.isSelected(displayFile));
-                }
-            }
-        });
     }
 
     public void disableRenameMode() {
@@ -1571,14 +1425,11 @@ public class FileItemPanel extends JPanel {
         revalidate();
         repaint();
     }
-    public void updateModeBackground() {
-        boolean transferChecked   = selectionCheckbox         != null && selectionCheckbox.isSelected();
-        boolean editChecked       = editSelectionCheckbox     != null && editSelectionCheckbox.isSelected();
-        boolean renameChecked     = renameSelectionCheckbox   != null && renameSelectionCheckbox.isSelected();
 
-        System.out.println("updateModeBackground → transfer=" + transferChecked
-                + " edit=" + editChecked + " rename=" + renameChecked
-                + " selected=" + selected);
+    public void updateModeBackground() {
+        boolean transferChecked = selectionCheckbox != null && selectionCheckbox.isSelected();
+        boolean editChecked = editSelectionCheckbox != null && editSelectionCheckbox.isSelected();
+        boolean renameChecked = renameSelectionCheckbox != null && renameSelectionCheckbox.isSelected();
 
         if (transferChecked) {
             setBackground(BG_TRANSFER_SELECTED);
@@ -1591,18 +1442,24 @@ public class FileItemPanel extends JPanel {
             setBackground(selected ? UIConfig.SELECTED_COLOR : normalColor);
         }
         repaint();
-        // NOVO: repinta área do pai para limpar borda anterior
+        //  NOVO: repinta área do pai para limpar borda anterior
 
-//        Container parent = getParent();
-//        if (parent != null) {
-//            // Invalida a região do pai que cobre este componente
-//            // incluindo 2px extras para cobrir a borda anterior
-//            parent.repaint(
-//                    getX() - 2,
-//                    getY() - 2,
-//                    getWidth() + 4,
-//                    getHeight() + 4
-//            );
-//        }
+        Container parent = getParent();
+        if (parent != null) {
+            // Invalida a região do pai que cobre este componente
+            // incluindo 2px extras para cobrir a borda anterior
+            parent.repaint(
+                    getX() - 2,
+                    getY() - 2,
+                    getWidth() + 4,
+                    getHeight() + 4
+            );
+        }
+    }
+
+    public enum Preset {
+        RAPIDO,
+        MEDIO,
+        ALTA_QUALIDADE
     }
 }

@@ -31,6 +31,7 @@ public class SearchPanel extends JPanel {
     private final JButton renameFilesBtn;
     private final JButton renameFoldersBtn;
     private final JButton configurationBtn;
+    private final JButton newFilesBtn;
 
     // NOVO ▼
     private final JComboBox<String> ratingFilterCombo;   // "Qualquer", "1+", "2+", …, "5"
@@ -118,8 +119,6 @@ public class SearchPanel extends JPanel {
 
 
         // ComboBox de filtro por tipo
-
-
         filterBox = new JComboBox<>(new String[]{
                 "TODOS", "AUDIO", "VIDEO", "IMAGE", "DOCUMENT", "COMPRESSED", "EXECUTABLE", "CONFIGURATION", "FOLDER"
         });
@@ -134,8 +133,6 @@ public class SearchPanel extends JPanel {
         });
 
         // Botão de busca
-//        searchButton = new JButton("🔍 Buscar");
-//        searchButton.setFont(UIConfig.FONT_DEFAULT_BOLD);
         searchButton = makeTextBtn("🔍 Buscar",
                 "Confirmar busca",
                 "Slider.trackColor",
@@ -143,9 +140,6 @@ public class SearchPanel extends JPanel {
         searchButton.addActionListener(e -> triggerSearch());
 
         // Botão de indexar
-//        indexButton = new JButton("📊 Indexar");
-//        indexButton.setFont(UIConfig.FONT_DEFAULT_BOLD);
-//        indexButton.setToolTipText("Indexar pasta selecionada");
         indexButton = makeTextBtn("\uD83D\uDCCA Indexar",
                 "Indexar pasta selecionada",
                 "Slider.trackColor",
@@ -157,7 +151,6 @@ public class SearchPanel extends JPanel {
                 "★ Qualquer", "★ 1+", "★★ 2+", "★★★ 3+", "★★★★ 4+", "★★★★★ 5"
         });
 
-//        ratingFilterCombo.setSelectedItem(fileExplorerSwing.getConfigManager().getSavedStarRating());
         ratingFilterCombo.setSelectedItem(
                 ratingToComboItem(fileExplorerSwing.getConfigManager().getSavedStarRating())
         );
@@ -177,52 +170,44 @@ public class SearchPanel extends JPanel {
         tagFilterField.addActionListener(e -> triggerSearch());
 
 
-        transferButton = makeTextBtn("✂️ Selecionar",
+        transferButton = makeTextBtn("✂️ Selecionar(S)",
                 "Ativar modo de transferência de arquivos",
                 "Slider.trackColor",
                 "Component.accentColor");
         transferButton.addActionListener(e -> fileExplorerSwing.toggleTransferMode());
-//        transferButton = new JButton("✂️ Selecionar");
-//        transferButton.setFont(UIConfig.FONT_DEFAULT_BOLD);
-//        transferButton.setToolTipText("Ativar modo de transferência de arquivos");
-//        transferButton.addActionListener(e -> fileExplorerSwing.toggleTransferMode());
 
-//        editModeBtn = new JButton("🖼 Editar imagens");
-//        editModeBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
-//        editModeBtn.setToolTipText("Ativar modo de edição de Imagens");
-        editModeBtn = makeTextBtn("🖼 Editar imagens",
+        editModeBtn = makeTextBtn("🖼 Editar imagens(E)",
                 "Ativar modo de edição de Imagens",
                 "Slider.trackColor",
                 "Component.accentColor");
         editModeBtn.addActionListener(e -> fileExplorerSwing.toggleEditMode());
 
 
-//        renameFilesBtn = new JButton("🗒 Renomear arquivos");
-//        renameFilesBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
-//        renameFilesBtn.setToolTipText("Ativar modo para renomear arquivos");
-        renameFilesBtn = makeTextBtn("🗒 Renomear arquivos",
+        renameFilesBtn = makeTextBtn("🗒 Renomear arquivos(R)",
                 "Ativar modo para renomear arquivos",
                 "Slider.trackColor",
                 "Component.accentColor");
         renameFilesBtn.addActionListener(e -> fileExplorerSwing.toggleRenameModeFiles());
 
-//        renameFoldersBtn = new JButton("📁 Renomear pastas");
-//        renameFoldersBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
-//        renameFoldersBtn.setToolTipText("Ativar modo para renomear pastas");
-        renameFoldersBtn = makeTextBtn("📁 Renomear pastas",
+
+        renameFoldersBtn = makeTextBtn("📁 Renomear pastas(F)",
                 "Ativar modo para renomear arquivos",
                 "Slider.trackColor",
                 "Component.accentColor");
         renameFoldersBtn.addActionListener(e -> fileExplorerSwing.toggleRenameModeFolders());
 
-//        configurationBtn = new JButton("Configurações");
-//        configurationBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
-//        configurationBtn.setToolTipText("Painel de configurações do aplicativo");
+
         configurationBtn = makeTextBtn("\uD83D\uDD27 Configurações",
                 "Painel de configurações do aplicativo",
                 "Slider.trackColor",
                 "Component.accentColor");
         configurationBtn.addActionListener(e -> fileExplorerSwing.toggleConfigurationMode());
+
+        newFilesBtn = makeTextBtn("📁 Nova pasta",
+                "Crie uma nova pasta no destino atual",
+                "Slider.trackColor",
+                "Component.accentColor");
+        newFilesBtn.addActionListener(e -> fileExplorerSwing.createNewFolder());
 
 
 // Envolve todo o conteúdo num painel com WrapLayout
@@ -281,6 +266,7 @@ public class SearchPanel extends JPanel {
         wrapPanel.add(searchButton);
         wrapPanel.add(indexButton);
         wrapPanel.add(configurationBtn);
+        wrapPanel.add(newFilesBtn);
 
 // ── Monta o painel principal com scroll vertical ──────────────────────────────
 
@@ -430,26 +416,6 @@ public class SearchPanel extends JPanel {
         field.setFont(UIConfig.FONT_DEFAULT);
         field.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Digite para pesquisar...");
         field.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, isDark ?  fileExplorerSwing.getThemeManager().inverterColorIcon(searchIcon) : searchIcon);
-//        String placeholderText = "Digite um nome para pesquisa...";
-//        field.setText(placeholderText);
-//
-//        // Placeholder behavior
-//        field.addFocusListener(new FocusAdapter() {
-//            @Override
-//            public void focusGained(FocusEvent e) {
-//                if (field.getText().equals(placeholderText)) {
-//                    field.setText("");
-//                }
-//            }
-//
-//            @Override
-//            public void focusLost(FocusEvent e) {
-//                if (field.getText().isEmpty()) {
-//                    field.setText(placeholderText);
-//                }
-//            }
-//        });
-
         field.addActionListener(e -> triggerSearch());
 
         return field;
@@ -485,9 +451,6 @@ public class SearchPanel extends JPanel {
 
     public String getSearchTerm() {
         String text = searchField.getText().trim();
-//        if (text.equals("Digite um nome para pesquisa...")) {
-//            return "";
-//        }
         return text;
     }
 

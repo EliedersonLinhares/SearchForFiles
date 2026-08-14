@@ -55,19 +55,6 @@ public class RenameFrame extends JFrame {
         this.tableModel = new RenameTableModel(mode, items);
 
         if (owner != null) owner.setEnabled(false);
-        addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosed(WindowEvent e) {
-                if (owner != null) {
-                    owner.setEnabled(true);
-                    owner.toFront();
-                }
-                if(renamedActionPerformed) {
-                    resultsPanel.getFileExplorerSwing().getSearchPanel().triggerSearch();
-                }
-                resultsPanel.exitRenameMode();
-            }
-        });
 
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setSize(1400, 800);
@@ -76,6 +63,28 @@ public class RenameFrame extends JFrame {
         setLayout(new BorderLayout());
         setResizable(false);
         refreshColors();
+
+        // No construtor, após as inicializações:
+        resultsPanel.getFileExplorerSwing()
+                .getController()
+                .setEditInProgress(true);   // ← suspende auto-refresh
+
+
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosed(java.awt.event.WindowEvent e) {
+                if (owner != null) owner.setEnabled(true);
+                owner.toFront();
+
+                // Libera flag E dispara refresh em um único ponto controlado
+                resultsPanel.getFileExplorerSwing()
+                        .getController()
+                        .resumeAfterEdit();
+
+                resultsPanel.exitRenameMode();
+            }
+        });
+
 
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                 buildLeftPanel(), buildRightPanel());

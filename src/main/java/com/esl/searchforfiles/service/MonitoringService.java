@@ -1,7 +1,10 @@
 package com.esl.searchforfiles.service;
 
 import com.esl.searchforfiles.configuration.FingerprintCalculator;
+import com.esl.searchforfiles.configuration.logger.AppLogger;
+import com.esl.searchforfiles.configuration.logger.LogDialog;
 import com.esl.searchforfiles.database.DatabaseManager;
+import com.esl.searchforfiles.ui.FileExplorerSwing;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -44,10 +47,12 @@ public class MonitoringService {
     private Thread monitorThread;
     // NOVO: Callback para notificar mudanças
     private FileChangeCallback fileChangeCallback;
+    private  final FileExplorerSwing fileExplorerSwing;
 
-    public MonitoringService(DatabaseManager dbManager, SearchService searchService) {
+    public MonitoringService(DatabaseManager dbManager, SearchService searchService, FileExplorerSwing fileExplorerSwing) {
         this.dbManager = dbManager;
         this.searchService = searchService;
+        this.fileExplorerSwing = fileExplorerSwing;
         // Virtual Thread Executor - pode lidar com milhares de eventos simultâneos!
         this.virtualExecutor = Executors.newVirtualThreadPerTaskExecutor();
         this.watchKeys = new ConcurrentHashMap<>();
@@ -368,6 +373,11 @@ public class MonitoringService {
 
                     Path fileName = file.getFileName();
                     String name = (fileName != null) ? fileName.toString() : file.toString();
+
+//                    LogDialog.show(fileExplorerSwing);
+//                    AppLogger.get().info("✏️  Arquivo modificado: " + name +
+//                            " [VThread: " + Thread.currentThread().threadId() + "]");
+
 
                     System.out.println("✏️  Arquivo modificado: " + name +
                             " [VThread: " + Thread.currentThread().threadId() + "]");

@@ -93,6 +93,9 @@ public class TransferDropHelper {
                                     Component owner,
                                     Runnable onDone) {
 
+        System.out.println("runTransfer → mode=" + mode + " files=" + files.size());
+        files.forEach(f -> System.out.println("  → " + f.getAbsolutePath()));
+
         Window win = SwingUtilities.getWindowAncestor(owner);
         TransferProgressDialog progress = new TransferProgressDialog(win, mode, files.size());
         SwingUtilities.invokeLater(() -> progress.setVisible(true));
@@ -107,26 +110,36 @@ public class TransferDropHelper {
         tm.enterTransferMode();
         files.forEach(tm::toggleSelection);
 
+        // Suspende o transferService original para não executar em paralelo
+        if (transferService != null) {
+            transferService.clearSelection(); // ← impede double-execution
+        }
         tm.execute(mode, destination, new TransferService.TransferListener() {
-            @Override public void onProgress(int done, int t, String file) {
+            @Override
+            public void onProgress(int done, int t, String file) {
                 progress.update(done, t, file);
             }
-            @Override public void onCompleted(int success, int failed) {
+            @Override
+            public void onCompleted(int success, int failed) {
                 progress.dispose();
 
-                // Reativa o auto-refresh ANTES de fazer o refresh final
-                if (controller != null) controller.setTransferInProgress(false);
+                // Reativa e força sync + refresh imediato
+                if (controller != null) {
+                    controller.resumeAfterEdit(); // ← substitui o setTransferInProgress(false) solto
+                }
 
-                // Limpa seleção do TM original se existir
                 if (transferService != null) transferService.clearSelection();
 
                 String msg = "✅ " + success + " item(s) " +
                         (mode == TransferMode.MOVE ? "movido(s)" : "copiado(s)") +
                         (failed > 0 ? "\n⚠️ " + failed + " com erro" : "");
                 JOptionPane.showMessageDialog(owner, msg);
+
                 if (onDone != null) SwingUtilities.invokeLater(onDone);
             }
-            @Override public void onError(String message) {
+
+            @Override
+            public void onError(String message) {
                 progress.dispose();
                 JOptionPane.showMessageDialog(owner,
                         "Erro: " + message, "Erro", JOptionPane.ERROR_MESSAGE);
