@@ -7,6 +7,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#undef com_esl_searchforfiles_Video_VideoThumbnail_MAX_CONCURRENT
+#define com_esl_searchforfiles_Video_VideoThumbnail_MAX_CONCURRENT 4L
 /*
  * Class:     com_esl_searchforfiles_Video_VideoThumbnail
  * Method:    captureThumbnail

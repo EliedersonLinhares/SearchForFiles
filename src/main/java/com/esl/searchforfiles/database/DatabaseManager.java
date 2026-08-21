@@ -13,20 +13,40 @@ import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.DosFileAttributes;
 import java.sql.*;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 
 public class DatabaseManager {
     private static final String DB_NAME = "file_index.db";
     private final Connection conn;
+    private static final Path DB_DIR = Paths.get(
+            System.getProperty("user.home"), ".jupiterFileControl", "database");
+    static final Path DB_PATH = DB_DIR.resolve(DB_NAME);
+    private final DatabaseInformation databaseInformation;
 
     public DatabaseManager() throws SQLException {
-        conn = DriverManager.getConnection("jdbc:sqlite:" + DB_NAME);
+        createDatabaseDirectory();
+        conn = DriverManager.getConnection("jdbc:sqlite:" + DB_PATH.toAbsolutePath());
+        databaseInformation = new DatabaseInformation(this);
         initDatabase();
         migrateToIdentitySystem();
     }
 
+    private void createDatabaseDirectory() {
+        try {
+            Files.createDirectories(DB_DIR);
+            System.out.println("✓ Diretório do banco criado/verificado: " + DB_DIR);
+        } catch (IOException e) {
+            throw new RuntimeException("Não foi possível criar o diretório do banco: " + e.getMessage(), e);
+        }
+    }
     /**
      * Retorna o timestamp de última modificação real de um Path.
      * <p>
@@ -893,4 +913,11 @@ public class DatabaseManager {
     }
 
 
+    public Connection getConn() {
+        return conn;
+    }
+
+    public DatabaseInformation getDatabaseInformation() {
+        return databaseInformation;
+    }
 }

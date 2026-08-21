@@ -35,7 +35,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.5.13</version>
+            <version>1.6.1</version>
         </dependency>
         <dependency>
             <groupId>com.formdev</groupId>
@@ -164,11 +164,18 @@
                 <version>3.5.1</version>
             </plugin>
         </plugins>
+            <resources>
+                <resource>
+                    <directory>src/main/resources</directory>
+                </resource>
+            </resources>
     </build>
     <repositories>
         <repository>
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
         </repository>
+
     </repositories>
+
 </project>

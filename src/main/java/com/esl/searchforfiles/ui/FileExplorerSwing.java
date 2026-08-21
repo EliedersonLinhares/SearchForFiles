@@ -21,7 +21,10 @@ import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Interface gráfica para o sistema de busca avançada
@@ -55,10 +58,24 @@ public class FileExplorerSwing extends JFrame {
     private boolean showSubfolderContents = false; // NOVO — controlado pelo menu
 
     public FileExplorerSwing(ThemeManager themeManager) {
-        super("Advanced File Search - Interface Gráfica");
+        super("Jupiter - Gerenciador de Arquivos");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setSize(1480, 800);
         setLocationRelativeTo(null);
+
+        try {
+            List<Image> icons = new ArrayList<>();
+            icons.add(new ImageIcon(Objects.requireNonNull(getClass().getResource("/img/jupiter16.png"))).getImage());
+            icons.add(new ImageIcon(Objects.requireNonNull(getClass().getResource("/img/jupiter32.png"))).getImage());
+            icons.add(new ImageIcon(Objects.requireNonNull(getClass().getResource("/img/jupiter64.png"))).getImage());
+            icons.add(new ImageIcon(Objects.requireNonNull(getClass().getResource("/img/jupiter128.png"))).getImage());
+            setIconImages(icons); // Use setIconImages (plural)
+        } catch (NullPointerException e) {
+            JOptionPane.showMessageDialog(this, "Icones não encontrados" + " " + e.getMessage());
+        }
+
+
+
         setLayout(new BorderLayout(10, 10));
 
         favoritesService = new FavoritesService();
@@ -350,61 +367,117 @@ public class FileExplorerSwing extends JFrame {
      */
 
 
+
 //    public void navigateTo(String path, boolean pushHistory) {
 //        selectedPath = path;
 //        if (pushHistory) navigationHistory.push(path);
 //
 //        searchPanel.updateNavigationState(navigationHistory);
+//
+//
 //        bottomIndicatorPanel.showSyncIndicator("🔄 Verificando mudanças...");
+//
 //        bottomIndicatorPanel.setWorking(true);
+//
 //
 //        searchPanel.clearSearchTerm();
 //        subFolderPanel.loadSubfolders(selectedPath, controller);
-//
 //        currentPage = 1;
-//        performCurrentSearch();
 //
-//        controller.updateMonitoredFolder(path, bottomIndicatorPanel.createSyncCallback(path));
+//        // Mostra loading enquanto sincroniza
+//        resultsPanel.showMessage("🔄 Sincronizando...", ResultsPanel.MessageType.LOADING);
+//
+//        // Sincroniza primeiro, só então busca
+//        controller.syncFolderIfNeeded(path, new SearchController.SyncCallback() {
+//            @Override
+//            public void onSyncCompleted(SyncService.SyncResult result) {
+//                // Sync terminou — agora busca com dados atualizados
+//                SwingUtilities.invokeLater(() -> performCurrentSearch());
+//
+//                // Inicia monitoramento após sync
+//                if (!result.isNotIndexed()) {
+//                    controller.startMonitoringAsync(path);
+//                }
+//
+//                bottomIndicatorPanel.createSyncCallback(path).onSyncCompleted(result);
+//            }
+//
+//            @Override
+//            public void onSyncError(Exception e) {
+//                // Mesmo com erro, tenta mostrar o que tem no índice
+//                SwingUtilities.invokeLater(() -> performCurrentSearch());
+//                bottomIndicatorPanel.createSyncCallback(path).onSyncError(e);
+//            }
+//        });
 //    }
-
     public void navigateTo(String path, boolean pushHistory) {
         selectedPath = path;
         if (pushHistory) navigationHistory.push(path);
 
         searchPanel.updateNavigationState(navigationHistory);
-        bottomIndicatorPanel.showSyncIndicator("🔄 Verificando mudanças...");
-        bottomIndicatorPanel.setWorking(true);
-
         searchPanel.clearSearchTerm();
         subFolderPanel.loadSubfolders(selectedPath, controller);
         currentPage = 1;
 
-        // Mostra loading enquanto sincroniza
-        resultsPanel.showMessage("🔄 Sincronizando...", ResultsPanel.MessageType.LOADING);
+        bottomIndicatorPanel.showSyncIndicator("🔄 Verificando mudanças...");
+        bottomIndicatorPanel.setWorking(true);
 
-        // Sincroniza primeiro, só então busca
-        controller.syncFolderIfNeeded(path, new SearchController.SyncCallback() {
-            @Override
-            public void onSyncCompleted(SyncService.SyncResult result) {
-                // Sync terminou — agora busca com dados atualizados
-                SwingUtilities.invokeLater(() -> performCurrentSearch());
+        // Cria o diálogo antecipadamente para poder referenciar dentro da tarefa
+        BlockingDialog dlg = new BlockingDialog(
+                this,
+                "Aguarde, verificando mudanças...",
+                path);
 
-                // Inicia monitoramento após sync
-                if (!result.isNotIndexed()) {
-                    controller.startMonitoringAsync(path);
+        BlockingTaskRunner.run(dlg,
+                // ── Tarefa em background (Runnable, não Consumer) ─────
+                () -> {
+                    try {
+                        CountDownLatch latch = new CountDownLatch(1);
+
+                        controller.syncFolderIfNeeded(path,
+                                new SearchController.SyncCallback() {
+                                    @Override
+                                    public void onSyncCompleted(SyncService.SyncResult result) {
+                                        if (!result.isNotIndexed()) {
+                                            // dlg é acessado diretamente — sem parâmetro
+                                            dlg.setSubMessage(
+                                                    result.hasChanges()
+                                                            ? String.format("Sincronizado: +%d | ↻%d | -%d",
+                                                            result.getAdded(),
+                                                            result.getUpdated(),
+                                                            result.getDeleted())
+                                                            : "Índice atualizado");
+
+                                            controller.startMonitoringAsync(path);
+                                        } else {
+                                            dlg.setSubMessage("Pasta não indexada");
+                                        }
+                                        latch.countDown();
+                                    }
+
+                                    @Override
+                                    public void onSyncError(Exception e) {
+                                        dlg.setSubMessage("Erro na sincronização");
+                                        latch.countDown();
+                                    }
+                                });
+
+                        latch.await();
+
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                },
+
+                // ── Callback na EDT após a tarefa ─────────────────────
+                () -> {
+                    bottomIndicatorPanel.hideSyncIndicator(false);
+                    bottomIndicatorPanel.setWorking(false);
+                    performCurrentSearch();
                 }
-
-                bottomIndicatorPanel.createSyncCallback(path).onSyncCompleted(result);
-            }
-
-            @Override
-            public void onSyncError(Exception e) {
-                // Mesmo com erro, tenta mostrar o que tem no índice
-                SwingUtilities.invokeLater(() -> performCurrentSearch());
-                bottomIndicatorPanel.createSyncCallback(path).onSyncError(e);
-            }
-        });
+        );
     }
+
 
 
     /**

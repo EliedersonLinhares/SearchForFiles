@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static com.esl.searchforfiles.ui.AnimatedGifThumb.isAnimatedGif;
@@ -685,6 +686,7 @@ public class FileItemPanel extends JPanel {
 
     private void loadVideoThumbnailFit(File file, int boxSize, JLabel target) {
         String key = "vidfit_" + file.getAbsolutePath() + "_" + boxSize;
+       // System.out.println("Entrou no loadVideoThumbnailFit");
 
         // 1. Cache em memória — retorno imediato
         ImageIcon cached = ICON_CACHE.get(key);
@@ -715,6 +717,7 @@ public class FileItemPanel extends JPanel {
 
         THUMBNAIL_EXECUTOR.submit(() -> {
             try {
+
                 BufferedImage raw = extractVideoThumbnail(file, boxSize);
                 ImageIcon ic;
 
@@ -976,23 +979,22 @@ public class FileItemPanel extends JPanel {
         return ICON_CACHE.computeIfAbsent(key, k -> generator.get());
     }
 
-    //Atualizaçao: Não usa mais o javaCV para extrair thumbnails dos videos
     private BufferedImage extractVideoThumbnail(File file, int size) {
         try {
-            BufferedImage raw = VideoThumbnail.builder(file.getAbsolutePath())
-                    .position(0.33)   // 1/3 do vídeo, evita intro preta
-                    .capture()
-                    .image();
+            VideoThumbnail.Result result = VideoThumbnail.builder(file.getAbsolutePath())
+                    .position(0.33)
+                   .size(size, size)   // ← redimensiona já no C, evita alocar imagem grande
+                    .capture();
 
-            if (raw == null) {
+            if (result == null) {
                 System.err.println("VideoThumbnail retornou null: " + file.getName());
                 return null;
             }
 
-            return scaleWithPreset(raw, size, Preset.MEDIO);
+            return scaleWithPreset(result.image(), size, Preset.MEDIO);
 
         } catch (Exception e) {
-            System.err.println("Erro ao extrair thumbnail do vídeo: " + file.getName());
+            System.err.println("Erro ao extrair thumbnail: " + file.getName());
             e.printStackTrace();
             return null;
         }

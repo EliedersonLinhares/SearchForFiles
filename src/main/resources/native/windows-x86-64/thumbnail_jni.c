@@ -26,11 +26,11 @@ FN(captureThumbnail)(JNIEnv *env, jclass cls,
 {
     const char *path = (*env)->GetStringUTFChars(env, jpath, NULL);
 
-    ThumbnailOptions opts  = thumbnail_default_options();
-    opts.position_ratio    = (double)position_ratio;
-    opts.out_width         = (int)out_width;
-    opts.out_height        = (int)out_height;
-    opts.max_attempts      = 5;
+    ThumbnailOptions opts = thumbnail_default_options();
+    opts.position_ratio   = (double)position_ratio;
+    opts.out_width        = (int)out_width;
+    opts.out_height       = (int)out_height;
+    opts.max_attempts     = 5;
 
     ThumbnailResult *res = thumbnail_capture(path, &opts);
     (*env)->ReleaseStringUTFChars(env, jpath, path);
@@ -38,26 +38,46 @@ FN(captureThumbnail)(JNIEnv *env, jclass cls,
     if (!res) return NULL;
 
     if (res->error[0] != '\0') {
-        /* Propagar erro como exceção Java */
         jclass ex = (*env)->FindClass(env, "java/lang/RuntimeException");
         (*env)->ThrowNew(env, ex, res->error);
         thumbnail_free(res);
         return NULL;
     }
 
-    int size        = res->width * res->height * 3;
-    jbyteArray arr  = (*env)->NewByteArray(env, size);
-    (*env)->SetByteArrayRegion(env, arr, 0, size, (jbyte *)res->data);
+    /*
+     * Empacotar em um único array (sem campos estáticos compartilhados):
+     * [ width(4) | height(4) | timestamp_ms(8) | RGB24... ]
+     */
+    int    rgb_size  = res->width * res->height * 3;
+    int    total     = 16 + rgb_size;
+    int64_t ts_ms   = (int64_t)(res->timestamp_s * 1000.0);
 
-    /* Guardar metadados em campos estáticos para o Java ler depois  */
-    jclass  jcls   = (*env)->FindClass(env,
-        "com/esl/searchforfiles/Video/VideoThumbnail");
-    jfieldID fW    = (*env)->GetStaticFieldID(env, jcls, "lastWidth",  "I");
-    jfieldID fH    = (*env)->GetStaticFieldID(env, jcls, "lastHeight", "I");
-    jfieldID fTS   = (*env)->GetStaticFieldID(env, jcls, "lastTimestampSeconds", "D");
-    (*env)->SetStaticIntField   (env, jcls, fW,  res->width);
-    (*env)->SetStaticIntField   (env, jcls, fH,  res->height);
-    (*env)->SetStaticDoubleField(env, jcls, fTS, res->timestamp_s);
+    jbyteArray arr = (*env)->NewByteArray(env, total);
+    if (!arr) { thumbnail_free(res); return NULL; }
+
+    jbyte header[16];
+    /* width big-endian */
+    header[0] = (res->width  >> 24) & 0xFF;
+    header[1] = (res->width  >> 16) & 0xFF;
+    header[2] = (res->width  >>  8) & 0xFF;
+    header[3] =  res->width         & 0xFF;
+    /* height big-endian */
+    header[4] = (res->height >> 24) & 0xFF;
+    header[5] = (res->height >> 16) & 0xFF;
+    header[6] = (res->height >>  8) & 0xFF;
+    header[7] =  res->height        & 0xFF;
+    /* timestamp_ms big-endian 64-bit */
+    header[8]  = (ts_ms >> 56) & 0xFF;
+    header[9]  = (ts_ms >> 48) & 0xFF;
+    header[10] = (ts_ms >> 40) & 0xFF;
+    header[11] = (ts_ms >> 32) & 0xFF;
+    header[12] = (ts_ms >> 24) & 0xFF;
+    header[13] = (ts_ms >> 16) & 0xFF;
+    header[14] = (ts_ms >>  8) & 0xFF;
+    header[15] =  ts_ms        & 0xFF;
+
+    (*env)->SetByteArrayRegion(env, arr, 0,   16,       header);
+    (*env)->SetByteArrayRegion(env, arr, 16,  rgb_size, (jbyte *)res->data);
 
     thumbnail_free(res);
     return arr;
