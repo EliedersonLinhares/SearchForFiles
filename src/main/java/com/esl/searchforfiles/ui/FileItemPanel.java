@@ -48,8 +48,6 @@ public class FileItemPanel extends JPanel {
     // No topo da classe
     private static final ThumbnailCacheManager THUMBNAIL_CACHE = new ThumbnailCacheManager();
     private static final ExecutorService THUMBNAIL_EXECUTOR = Executors.newFixedThreadPool(2);
-    //    private static final Color SELECTED_COLOR = new Color(33, 150, 243, 80); // azul semitransparente
-//    private static final Color SELECTED_BORDER = new Color(33, 150, 243);
     // Campo estático — compartilhado entre todas as instâncias
     private static final Map<String, List<WeakReference<JLabel>>> PENDING_TARGETS
             = new ConcurrentHashMap<>();

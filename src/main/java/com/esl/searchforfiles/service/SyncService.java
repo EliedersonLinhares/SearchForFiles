@@ -19,6 +19,8 @@ public class SyncService {
     private final DatabaseManager dbManager;
     private final SearchService searchService;
 
+    private boolean isFolderNotIndexed;
+
     public SyncService(DatabaseManager dbManager, SearchService searchService) {
         this.dbManager = dbManager;
         this.searchService = searchService;
@@ -44,7 +46,7 @@ public class SyncService {
                         boolean isIndexed = count > 0;
 
                         if (!isIndexed) {
-                            System.out.println("⚠️ Pasta não indexada: " + folderPath);
+                            System.out.println("⚠️ Pasta não indexada: " + folderPath);///////
                             System.out.println("   Use 'Indexar' antes de buscar nesta pasta");
                         }
 
@@ -250,7 +252,7 @@ public class SyncService {
         if (Files.exists(filePath)) {
             BasicFileAttributes attrs = Files.readAttributes(filePath, BasicFileAttributes.class);
             dbManager.indexFile(filePath, attrs);
-            System.out.println("  ➕ Novo: " + getFileName(path));
+            System.out.println("  ➕ Novo: " + getFileName(path));//////
         }
     }
 
@@ -469,5 +471,9 @@ public class SyncService {
 
             return sb.toString();
         }
+    }
+
+    public boolean isFolderNotIndexed() {
+        return isFolderNotIndexed;
     }
 }

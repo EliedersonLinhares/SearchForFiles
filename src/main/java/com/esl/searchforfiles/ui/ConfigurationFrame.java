@@ -6,6 +6,7 @@ import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.configuration.AboutConfigPanel;
 import com.esl.searchforfiles.configuration.CacheConfigPanel;
 import com.esl.searchforfiles.configuration.LibrariesConfigPanel;
+import com.esl.searchforfiles.configuration.OptionConfigPanel;
 import com.esl.searchforfiles.database.DatabaseConfigPanel;
 
 import javax.swing.*;
@@ -19,7 +20,7 @@ public class ConfigurationFrame extends JFrame {
     private final JTabbedPane tabbedPane;
 
     public ConfigurationFrame(Window owner, ResultsPanel resultsPanel,
-                              ThemeManager themeManager, JFrame mainFrame) {
+                              ThemeManager themeManager, FileExplorerSwing mainFrame) {
         super("Configurações");
 
         if (owner != null) owner.setEnabled(false);
@@ -45,6 +46,7 @@ public class ConfigurationFrame extends JFrame {
         tabbedPane.addTab("Banco de dados",
                 new DatabaseConfigPanel(resultsPanel.getFileExplorerSwing().getController().getDbManager()));
         tabbedPane.addTab("Cache",     new CacheConfigPanel((Frame) owner, cacheManager));
+        tabbedPane.addTab("Opções",     new OptionConfigPanel(mainFrame));
         tabbedPane.addTab("Aparência", new ThemeConfigPanel(themeManager, mainFrame));
         tabbedPane.addTab("Bibliotecas", new LibrariesConfigPanel());
         tabbedPane.addTab("Sobre", new AboutConfigPanel());

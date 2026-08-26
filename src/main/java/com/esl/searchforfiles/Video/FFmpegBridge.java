@@ -90,4 +90,7 @@ public class FFmpegBridge {
     public native int      getAudioChannels(long ctx);
     public native int      getTotalAudioStreams(long ctx);
     public native String   getVideoCodecName(long ctx);
+
+    public native double getDurationInSeconds(long contextPtr);
+    public native String getContainerFormatName(long contextPtr);
 }

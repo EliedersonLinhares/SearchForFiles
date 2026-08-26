@@ -248,27 +248,27 @@ Java_com_esl_searchforfiles_Video_FFmpegBridge_openVideo(
     }
 
     /* ── Decoder de áudio ── */
-    if (ctx->audio_stream_idx >= 0) {
-        AVCodecParameters *par =
-            ctx->fmt_ctx->streams[ctx->audio_stream_idx]->codecpar;
-        const AVCodec *codec = avcodec_find_decoder(par->codec_id);
+   if (ctx->audio_stream_idx >= 0) {
+       AVCodecParameters *par =
+           ctx->fmt_ctx->streams[ctx->audio_stream_idx]->codecpar;
+       const AVCodec *codec = avcodec_find_decoder(par->codec_id);
 
-        ctx->audio_ctx = avcodec_alloc_context3(codec);
-        avcodec_parameters_to_context(ctx->audio_ctx, par);
-        avcodec_open2(ctx->audio_ctx, codec, NULL);
+       ctx->audio_ctx = avcodec_alloc_context3(codec);
+       avcodec_parameters_to_context(ctx->audio_ctx, par);
+       avcodec_open2(ctx->audio_ctx, codec, NULL);
 
-        /* SWR: qualquer formato de entrada → stereo S16 44100Hz */
-        swr_alloc_set_opts2(
-            &ctx->swr_ctx,
-            &(AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO,
-            AV_SAMPLE_FMT_S16,
-            ctx->audio_ctx->sample_rate, /* manter sample rate original */
-            &ctx->audio_ctx->ch_layout,
-            ctx->audio_ctx->sample_fmt,
-            ctx->audio_ctx->sample_rate,
-            0, NULL);
-        swr_init(ctx->swr_ctx);
-    }
+       /* MODIFICAÇÃO AQUI: Força a saída do conversor SWR a ser SEMPRE STEREO (2 canais) */
+       swr_alloc_set_opts2(
+           &ctx->swr_ctx,
+           &(AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO, // Canal de saída (Fixo Estéreo)
+           AV_SAMPLE_FMT_S16,
+           ctx->audio_ctx->sample_rate,
+           &ctx->audio_ctx->ch_layout,                 // Canal de entrada do arquivo (Ex: 5.1 ou 6 canais)
+           ctx->audio_ctx->sample_fmt,
+           ctx->audio_ctx->sample_rate,
+           0, NULL);
+       swr_init(ctx->swr_ctx);
+   }
 
     ctx->decode_frame = av_frame_alloc();
     ctx->packet       = av_packet_alloc();
@@ -461,4 +461,23 @@ Java_com_esl_searchforfiles_Video_FFmpegBridge_getVideoCodecName(
     if (!ctx || !ctx->video_ctx || !ctx->video_ctx->codec)
         return (*env)->NewStringUTF(env, "unknown");
     return (*env)->NewStringUTF(env, ctx->video_ctx->codec->name);
+}
+JNIEXPORT jstring JNICALL
+Java_com_esl_searchforfiles_Video_FFmpegBridge_getContainerFormatName
+  (JNIEnv *env, jobject obj, jlong contextPtr) {
+    PlayerContext *ctx = (PlayerContext*) contextPtr;
+    if (!ctx || !ctx->fmt_ctx || !ctx->fmt_ctx->iformat) return (*env)->NewStringUTF(env, "Desconhecido");
+    return (*env)->NewStringUTF(env, ctx->fmt_ctx->iformat->name);
+}
+
+JNIEXPORT jdouble JNICALL
+Java_com_esl_searchforfiles_Video_FFmpegBridge_getDurationInSeconds
+  (JNIEnv *env, jobject obj, jlong contextPtr) {
+    PlayerContext *ctx = (PlayerContext*) contextPtr;
+    if (!ctx || !ctx->fmt_ctx) return 0.0;
+
+    if (ctx->fmt_ctx->duration != AV_NOPTS_VALUE) {
+        return (double)ctx->fmt_ctx->duration / AV_TIME_BASE;
+    }
+    return 0.0;
 }

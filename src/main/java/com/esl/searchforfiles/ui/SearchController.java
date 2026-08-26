@@ -79,6 +79,10 @@ public class SearchController {
         System.out.println("📡 Monitoramento automático ativado");
     }
 
+    public SyncService getSyncService() {
+        return syncService;
+    }
+
     public MonitoringService getMonitoringService() {
         return monitoringService;
     }

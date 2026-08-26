@@ -24,6 +24,7 @@ public class ImagePreviewPanel extends JPanel implements Scrollable {
 
     // ── Imagem e zoom ─────────────────────────────────────────────
     private BufferedImage sourceImage;
+    private ImageIcon     gifIcon;
     private double        zoomScale = 1.0;
     private int           imgW, imgH;
 
@@ -48,11 +49,20 @@ public class ImagePreviewPanel extends JPanel implements Scrollable {
     private static final Color HANDLE_BORDER = new Color(80, 80, 80);
     private static final int   HANDLE_SIZE   = 8;
 
+
     // ══════════════════════════════════════════════════════════════
     // Construtor
     // ══════════════════════════════════════════════════════════════
     public ImagePreviewPanel() {
-        setBackground(UIConfig.background());
+       // setBackground(UIConfig.background());
+
+        // Fallback caso a classe externa dependa de UIConfig.background()
+        try {
+            setBackground(UIConfig.background());
+        } catch (Exception e) {
+            setBackground(Color.DARK_GRAY);
+        }
+
         setOpaque(true);
 
         MouseAdapter ma = new MouseAdapter() {
@@ -65,11 +75,38 @@ public class ImagePreviewPanel extends JPanel implements Scrollable {
         addMouseMotionListener(ma);
     }
 
+
     // ══════════════════════════════════════════════════════════════
     // API pública — imagem e zoom
     // ══════════════════════════════════════════════════════════════
+//    public void setImage(BufferedImage img) {
+//        this.sourceImage = img;
+//        updatePanelSize();
+//        repaint();
+//    }
     public void setImage(BufferedImage img) {
         this.sourceImage = img;
+        this.gifIcon = null; // Limpa o GIF se uma imagem estática for definida
+        updatePanelSize();
+        repaint();
+    }
+
+    /** Define um GIF animado para exibição contínua. */
+    public void setImageIcon(ImageIcon icon) {
+        this.gifIcon = icon;
+        if (icon != null && icon.getImage() != null) {
+            // Extrai as dimensões reais do GIF para calcular o tamanho do painel
+            int rawW = icon.getIconWidth();
+            int rawH = icon.getIconHeight();
+
+            // Cria um fallback estático básico em cache caso precise ativar crop/brush no GIF
+            this.sourceImage = new BufferedImage(Math.max(1, rawW), Math.max(1, rawH), BufferedImage.TYPE_INT_ARGB);
+            Graphics g = this.sourceImage.createGraphics();
+            g.drawImage(icon.getImage(), 0, 0, null);
+            g.dispose();
+        } else {
+            this.sourceImage = null;
+        }
         updatePanelSize();
         repaint();
     }
@@ -180,10 +217,34 @@ public class ImagePreviewPanel extends JPanel implements Scrollable {
     // ══════════════════════════════════════════════════════════════
     // Pintura
     // ══════════════════════════════════════════════════════════════
+//    @Override
+//    protected void paintComponent(Graphics g0) {
+//        super.paintComponent(g0);
+//        if (sourceImage == null) return;
+//
+//        Graphics2D g = (Graphics2D) g0;
+//        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+//                zoomScale >= 1.0
+//                        ? RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
+//                        : RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+//
+//        // Centraliza quando menor que o painel
+//        int pw = getWidth(), ph = getHeight();
+//        int drawX = Math.max(0, (pw - imgW) / 2);
+//        int drawY = Math.max(0, (ph - imgH) / 2);
+//
+//        g.drawImage(sourceImage, drawX, drawY, imgW, imgH, null);
+//
+//        if (cropMode && cropTool.hasSelection())
+//            drawCropOverlay(g, drawX, drawY);
+//
+//        if (brushMode && lastMouseX >= 0 && brushSizeSupplier != null)
+//            drawBrushCursor(g);
+//    }
     @Override
     protected void paintComponent(Graphics g0) {
         super.paintComponent(g0);
-        if (sourceImage == null) return;
+        if (sourceImage == null && gifIcon == null) return;
 
         Graphics2D g = (Graphics2D) g0;
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
@@ -196,7 +257,14 @@ public class ImagePreviewPanel extends JPanel implements Scrollable {
         int drawX = Math.max(0, (pw - imgW) / 2);
         int drawY = Math.max(0, (ph - imgH) / 2);
 
-        g.drawImage(sourceImage, drawX, drawY, imgW, imgH, null);
+        // Se houver um GIF definido e NÃO estiver em modo de edição ativo, renderiza a animação
+        if (gifIcon != null && !cropMode && !brushMode) {
+            // Desenha a imagem do ImageIcon redimensionada de acordo com o zoomScale atual
+            g.drawImage(gifIcon.getImage(), drawX, drawY, imgW, imgH, this);
+        } else if (sourceImage != null) {
+            // Renderiza o frame estático para fotos ou para as ferramentas de edição
+            g.drawImage(sourceImage, drawX, drawY, imgW, imgH, null);
+        }
 
         if (cropMode && cropTool.hasSelection())
             drawCropOverlay(g, drawX, drawY);

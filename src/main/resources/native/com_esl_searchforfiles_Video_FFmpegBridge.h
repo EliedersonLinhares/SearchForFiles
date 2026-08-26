@@ -127,6 +127,22 @@ JNIEXPORT jint JNICALL Java_com_esl_searchforfiles_Video_FFmpegBridge_getTotalAu
 JNIEXPORT jstring JNICALL Java_com_esl_searchforfiles_Video_FFmpegBridge_getVideoCodecName
   (JNIEnv *, jobject, jlong);
 
+/*
+ * Class:     com_esl_searchforfiles_Video_FFmpegBridge
+ * Method:    getDurationInSeconds
+ * Signature: (J)D
+ */
+JNIEXPORT jdouble JNICALL Java_com_esl_searchforfiles_Video_FFmpegBridge_getDurationInSeconds
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_esl_searchforfiles_Video_FFmpegBridge
+ * Method:    getContainerFormatName
+ * Signature: (J)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_esl_searchforfiles_Video_FFmpegBridge_getContainerFormatName
+  (JNIEnv *, jobject, jlong);
+
 #ifdef __cplusplus
 }
 #endif

@@ -10,6 +10,8 @@ import com.esl.searchforfiles.configuration.ConfigManager;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.PaginationInfo;
 import com.esl.searchforfiles.others.ThumbnailSize;
+import com.esl.searchforfiles.preview.ImageViewerFrame;
+import com.esl.searchforfiles.preview.VideoPlayerFrame;
 import com.esl.searchforfiles.service.FavoritesService;
 import com.esl.searchforfiles.service.IndexFilterService;
 import com.esl.searchforfiles.service.SyncService;
@@ -56,6 +58,10 @@ public class FileExplorerSwing extends JFrame {
     private String currentSortOrder = "DESC"; // NOVO
     private SubFolderPanel subFolderPanel;           // NOVO
     private boolean showSubfolderContents = false; // NOVO — controlado pelo menu
+
+    private boolean useDefaultWindowsProgramImage = false;
+    private boolean useDefaultWindowsProgramVideo = false;
+
 
     public FileExplorerSwing(ThemeManager themeManager) {
         super("Jupiter - Gerenciador de Arquivos");
@@ -130,7 +136,6 @@ public class FileExplorerSwing extends JFrame {
         searchPanel.setThumbnailSizeListener(resultsPanel::setThumbnailSize);
 
 
-        //  add(searchPanel, BorderLayout.NORTH);
         // Envolve o searchPanel num wrapper com BorderLayout para que o
         // WrapLayout interno recalcule a altura e o NORTH se expanda ao fazer wrap.
         JPanel searchWrapper = new JPanel(new BorderLayout());
@@ -142,7 +147,6 @@ public class FileExplorerSwing extends JFrame {
 
         // === PAINEL CENTRAL (resultados + paginação) ===
 
-        // resultsPanel.setBackgroundColor(new Color(45, 45, 45));
         resultsPanel.setFileItemClickListener(new ResultsPanel.FileItemClickListener() {
             @Override
             public void onFileDoubleClick(File file) {
@@ -150,12 +154,18 @@ public class FileExplorerSwing extends JFrame {
                     navigateTo(file.getAbsolutePath(), true);
                 } else {
                     try {
-                        Desktop.getDesktop().open(file);
+                        if(isImageFile(file) && !useDefaultWindowsProgramImage) {
+                            new ImageViewerFrame(FileExplorerSwing.this, file);
+                        } else if (isVideoFile(file) && !useDefaultWindowsProgramVideo) {
+                            new VideoPlayerFrame(FileExplorerSwing.this,file);
+                        } else {
+                             Desktop.getDesktop().open(file);
+                        }
+
                     } catch (IOException | IllegalArgumentException e) {
                         JOptionPane.showMessageDialog(FileExplorerSwing.this,
                                 "Erro ao abrir: " + e.getMessage());
                     }
-
                 }
             }
 
@@ -303,7 +313,29 @@ public class FileExplorerSwing extends JFrame {
 
 
     }
-
+    private boolean isVideoFile(File file) {
+        String name = file.getName().toLowerCase();
+        return name.endsWith(".mp4") || name.endsWith(".avi") ||
+                name.endsWith(".mkv") || name.endsWith(".mov") ||
+                name.endsWith(".wmv") || name.endsWith(".flv") ||
+                name.endsWith(".webm") || name.endsWith(".m4v");
+    }
+    private boolean isImageFile(File file) {
+        String name = file.getName().toLowerCase();
+        return name.endsWith(".jpg") || name.endsWith(".jpeg") ||
+                name.endsWith(".bmp") || name.endsWith(".tiff") ||
+                name.endsWith(".tif") || name.endsWith(".webp") ||
+                name.endsWith(".gif") || name.endsWith(".tga") ||
+                name.endsWith(".ppm") || name.endsWith(".pgm") ||
+                name.endsWith(".pbm") || name.endsWith(".hdr") ||
+                name.endsWith(".exr") || name.endsWith(".heic") ||
+                name.endsWith(".heif") || name.endsWith(".avif") ||
+                name.endsWith(".jxl") || name.endsWith(".dds") ||
+                name.endsWith(".pcx") || name.endsWith(".sgi") ||
+                name.endsWith(".jp2") || name.endsWith(".j2k") ||
+                name.endsWith(".ico") || name.endsWith(".png") ||
+                name.endsWith(".psd");
+    }
     public SearchController getController() {
         return controller;
     }
@@ -723,7 +755,7 @@ public class FileExplorerSwing extends JFrame {
     /**
      * Mensagem de boas-vindas
      * MODIFICADO: Menciona busca vazia
-     */
+     */////////////
     private void showWelcomeMessage() {
         resultsPanel.showMessage(
                 "Sistema de Busca Avançada\n" +
@@ -856,5 +888,21 @@ public class FileExplorerSwing extends JFrame {
                     "Não foi possível criar a pasta.", "Erro",
                     JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    public boolean isUseDefaultWindowsProgramVideo() {
+        return useDefaultWindowsProgramVideo;
+    }
+
+    public void setUseDefaultWindowsProgramVideo(boolean useDefaultWindowsProgramVideo) {
+        this.useDefaultWindowsProgramVideo = useDefaultWindowsProgramVideo;
+    }
+
+    public boolean isUseDefaultWindowsProgramImage() {
+        return useDefaultWindowsProgramImage;
+    }
+
+    public void setUseDefaultWindowsProgramImage(boolean useDefaultWindowsProgramImage) {
+        this.useDefaultWindowsProgramImage = useDefaultWindowsProgramImage;
     }
 }

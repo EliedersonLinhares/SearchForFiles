@@ -642,12 +642,12 @@ public class DatabaseManager {
     public long upsertIdentity(String ntfsId, String fingerprint,
                                String currentPath) throws SQLException {
 
-        System.out.println("upsertIdentity → ntfs=" + ntfsId + " fp=" + fingerprint);
+      //  System.out.println("upsertIdentity → ntfs=" + ntfsId + " fp=" + fingerprint);
 
         // 1. Tenta pelo NTFS File ID
         if (ntfsId != null) {
             Long id = findIdentityByNtfs(ntfsId);
-            System.out.println("  findByNtfs → " + id);
+      //      System.out.println("  findByNtfs → " + id);
             if (id != null) {
                 updateLastPath(id, currentPath);
                 // Atualiza fingerprint para o novo valor (timestamp mudou após MOVE)
@@ -658,7 +658,7 @@ public class DatabaseManager {
 
         // 2. Tenta pelo fingerprint
         Long id = findIdentityByFingerprint(fingerprint);
-        System.out.println("  findByFp → " + id);
+      //  System.out.println("  findByFp → " + id);
         if (id != null) {
             if (ntfsId != null) updateNtfsId(id, ntfsId);
             updateLastPath(id, currentPath);
@@ -667,7 +667,7 @@ public class DatabaseManager {
 
         // 3. ← NOVO: tenta pelo path exato antes de inserir
         Long idByPath = findIdentityByPath(currentPath);
-        System.out.println("  findByPath → " + idByPath);
+       // System.out.println("  findByPath → " + idByPath);
         if (idByPath != null) {
             // Arquivo já existe no índice com path idêntico —
             // atualiza ntfs e fingerprint em vez de duplicar
