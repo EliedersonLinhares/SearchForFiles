@@ -5,7 +5,6 @@ import com.esl.searchforfiles.ui.FileExplorerSwing;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
 
 public class OptionConfigPanel extends ConfigPanelBase {
     private final FileExplorerSwing mainFrame;
@@ -21,13 +20,15 @@ public class OptionConfigPanel extends ConfigPanelBase {
 
         JCheckBox imageChBox = new JCheckBox("Usar aplicativo default do Windows para Imagens");
         imageChBox.setFont(UIConfig.FONT_DEFAULT);
-        // CORREÇÃO: Define o estado inicial com base no valor atual do mainFrame
         imageChBox.setSelected(mainFrame.isUseDefaultWindowsProgramImage());
 
         JCheckBox videoChBox = new JCheckBox("Usar aplicativo default do Windows para Videos");
         videoChBox.setFont(UIConfig.FONT_DEFAULT);
-        // CORREÇÃO: Define o estado inicial com base no valor atual do mainFrame
         videoChBox.setSelected(mainFrame.isUseDefaultWindowsProgramVideo());
+
+        JCheckBox pdfChBox = new JCheckBox("Usar aplicativo default do Windows para arquivos PDF");
+        pdfChBox.setFont(UIConfig.FONT_DEFAULT);
+        pdfChBox.setSelected(mainFrame.isUseDefaultWindowsProgramPdf());
 
 
         // Lado direito: nome + descrição empilhados
@@ -38,6 +39,7 @@ public class OptionConfigPanel extends ConfigPanelBase {
         textBlock.setOpaque(false);
         textBlock.add(imageChBox);
         textBlock.add(videoChBox);
+        textBlock.add(pdfChBox);
         textBlock.add(Box.createVerticalStrut(6));
 
         // Row: logo | textBlock
@@ -59,6 +61,10 @@ public class OptionConfigPanel extends ConfigPanelBase {
         videoChBox.addItemListener(e -> {
             mainFrame.setUseDefaultWindowsProgramVideo(e.getStateChange() == ItemEvent.SELECTED);
             System.out.println("Valor do boolean: " + mainFrame.isUseDefaultWindowsProgramVideo());
+        });
+        pdfChBox.addItemListener(e -> {
+            mainFrame.setUseDefaultWindowsProgramPdf(e.getStateChange() == ItemEvent.SELECTED);
+            System.out.println("Valor do boolean: " + mainFrame.isUseDefaultWindowsProgramPdf());
         });
     }
 }

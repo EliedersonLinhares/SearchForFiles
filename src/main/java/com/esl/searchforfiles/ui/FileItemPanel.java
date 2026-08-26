@@ -12,6 +12,7 @@ import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.service.IconService;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
 import org.apache.pdfbox.rendering.PDFRenderer;
 
 import javax.imageio.ImageIO;
@@ -26,6 +27,7 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.util.*;
 import java.util.List;
@@ -762,7 +764,7 @@ public class FileItemPanel extends JPanel {
 
         new SwingWorker<ImageIcon, Void>() {
             @Override
-            protected ImageIcon doInBackground() {
+            protected ImageIcon doInBackground() throws IOException {
                 BufferedImage raw = extractPdfThumbnail(file, boxSize);
                 if (raw == null) return null;
                 BufferedImage fitted = fitInsideSquare(raw, boxSize);
@@ -920,7 +922,7 @@ public class FileItemPanel extends JPanel {
     }
 
     private BufferedImage scaleWithPreset(BufferedImage src, int size, Preset preset) {
-        BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_RGB);
+        BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2 = img.createGraphics();
 
         switch (preset) {
@@ -1031,7 +1033,7 @@ public class FileItemPanel extends JPanel {
         }.execute();
     }
 
-    private BufferedImage extractPdfThumbnail(File file, int size) {
+    private BufferedImage extractPdfThumbnail(File file, int size) throws IOException {
         PDDocument document;
         try {
             document = Loader.loadPDF(file);
@@ -1041,10 +1043,17 @@ public class FileItemPanel extends JPanel {
             BufferedImage page = renderer.renderImageWithDPI(0, 64); // bem rápido
             return scaleWithPreset(page, size, Preset.MEDIO);
 
+        } catch (InvalidPasswordException e) {
+            InputStream inputStream = getClass().getResourceAsStream("/icons/types/document.png");
+            assert inputStream != null;
+            BufferedImage page = ImageIO.read(inputStream);
+            return scaleWithPreset(page, size, Preset.MEDIO);
+
         } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
+
     }
 
     private String createTooltip() {

@@ -98,16 +98,22 @@ static PlayerContext *get_ctx(jlong ptr) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Decode: lê pacotes e preenche as filas até ambas terem ao menos    */
-/*  1 frame, ou até EOF.                                                */
+/*  Decode: Modificado para tratar arquivos de áudio puro sem travar   */
 /* ------------------------------------------------------------------ */
 static void decode_until_queues_have_data(PlayerContext *ctx) {
     if (ctx->eof) return;
 
-    /* Continuar lendo enquanto alguma fila estiver vazia */
-    while ((ctx->video_queue->count == 0 || ctx->audio_queue->count == 0)
-           && ctx->video_queue->count < QUEUE_SIZE
-           && ctx->audio_queue->count < QUEUE_SIZE) {
+    int has_video = (ctx->video_stream_idx >= 0 && ctx->video_ctx != NULL);
+    int has_audio = (ctx->audio_stream_idx >= 0 && ctx->audio_ctx != NULL);
+
+    /* Continuar lendo enquanto as filas ativas estiverem vazias */
+    while (1) {
+        // Se as filas ativas já possuem dados ou atingiram o limite, interrompe a leitura em bloco
+        int video_ready = !has_video || (ctx->video_queue->count > 0);
+        int audio_ready = !has_audio || (ctx->audio_queue->count > 0);
+
+        if (video_ready && audio_ready) break;
+        if (ctx->video_queue->count >= QUEUE_SIZE || ctx->audio_queue->count >= QUEUE_SIZE) break;
 
         if (av_read_frame(ctx->fmt_ctx, ctx->packet) < 0) {
             ctx->eof = 1;
@@ -115,12 +121,10 @@ static void decode_until_queues_have_data(PlayerContext *ctx) {
         }
 
         /* ── Pacote de vídeo ── */
-        if (ctx->packet->stream_index == ctx->video_stream_idx
-                && ctx->video_ctx) {
+        if (has_video && ctx->packet->stream_index == ctx->video_stream_idx) {
 
             if (avcodec_send_packet(ctx->video_ctx, ctx->packet) >= 0) {
-                while (avcodec_receive_frame(ctx->video_ctx,
-                                             ctx->decode_frame) == 0) {
+                while (avcodec_receive_frame(ctx->video_ctx, ctx->decode_frame) == 0) {
 
                     /* Converter para RGB24 */
                     sws_scale(ctx->sws_ctx,
@@ -134,8 +138,7 @@ static void decode_until_queues_have_data(PlayerContext *ctx) {
                     uint8_t *copy = malloc(ctx->rgb_buffer_size);
                     memcpy(copy, ctx->rgb_buffer, ctx->rgb_buffer_size);
 
-                    if (!queue_push(ctx->video_queue, copy,
-                                    ctx->rgb_buffer_size)) {
+                    if (!queue_push(ctx->video_queue, copy, ctx->rgb_buffer_size)) {
                         free(copy); /* fila cheia, descartar */
                     }
 
@@ -144,15 +147,12 @@ static void decode_until_queues_have_data(PlayerContext *ctx) {
             }
         }
         /* ── Pacote de áudio ── */
-        else if (ctx->packet->stream_index == ctx->audio_stream_idx
-                 && ctx->audio_ctx && ctx->swr_ctx) {
+        else if (has_audio && ctx->packet->stream_index == ctx->audio_stream_idx && ctx->swr_ctx) {
 
             if (avcodec_send_packet(ctx->audio_ctx, ctx->packet) >= 0) {
-                while (avcodec_receive_frame(ctx->audio_ctx,
-                                             ctx->decode_frame) == 0) {
+                while (avcodec_receive_frame(ctx->audio_ctx, ctx->decode_frame) == 0) {
 
-                    int out_samples = swr_get_out_samples(
-                        ctx->swr_ctx, ctx->decode_frame->nb_samples);
+                    int out_samples = swr_get_out_samples(ctx->swr_ctx, ctx->decode_frame->nb_samples);
 
                     int buf_size = out_samples * 2 * 2; /* stereo S16 */
                     uint8_t *pcm = malloc(buf_size);
@@ -215,6 +215,22 @@ Java_com_esl_searchforfiles_Video_FFmpegBridge_openVideo(
     ctx->audio_stream_idx = av_find_best_stream(
         ctx->fmt_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, NULL, 0);
 
+    /* ── FILTRO DE "CAPA FALSA" ──────────────────────────────────────
+     * Alguns arquivos FLAC/WAV/OGG/M4A sem capa embutida ainda expõem
+     * um stream do tipo AVMEDIA_TYPE_VIDEO "fantasma" (metadado de
+     * imagem vazio/corrompido), com width/height zerados.
+     * Se isso acontecer, sws_getContext() adiante quebra com
+     * "w and h must be > 0". Aqui descartamos esse stream e tratamos
+     * o arquivo como áudio puro. */
+    if (ctx->video_stream_idx >= 0) {
+        AVCodecParameters *vpar =
+            ctx->fmt_ctx->streams[ctx->video_stream_idx]->codecpar;
+
+        if (vpar->width <= 0 || vpar->height <= 0) {
+            ctx->video_stream_idx = -1;
+        }
+    }
+
     /* ── Decoder de vídeo ── */
     if (ctx->video_stream_idx >= 0) {
         AVCodecParameters *par =
@@ -225,26 +241,38 @@ Java_com_esl_searchforfiles_Video_FFmpegBridge_openVideo(
         avcodec_parameters_to_context(ctx->video_ctx, par);
         ctx->video_ctx->thread_count = 0; /* auto */
         ctx->video_ctx->thread_type  = FF_THREAD_FRAME;
-        avcodec_open2(ctx->video_ctx, codec, NULL);
 
-        ctx->sws_ctx = sws_getContext(
-            ctx->video_ctx->width, ctx->video_ctx->height,
-            ctx->video_ctx->pix_fmt,
-            ctx->video_ctx->width, ctx->video_ctx->height,
-            AV_PIX_FMT_RGB24,
-            SWS_BILINEAR, NULL, NULL, NULL);
+        int opened_ok = (avcodec_open2(ctx->video_ctx, codec, NULL) >= 0);
 
-        ctx->rgb_buffer_size = av_image_get_buffer_size(
-            AV_PIX_FMT_RGB24,
-            ctx->video_ctx->width, ctx->video_ctx->height, 1);
+        if (opened_ok && ctx->video_ctx->width > 0 && ctx->video_ctx->height > 0) {
 
-        ctx->rgb_buffer = av_malloc(ctx->rgb_buffer_size);
-        ctx->rgb_frame  = av_frame_alloc();
+            ctx->sws_ctx = sws_getContext(
+                ctx->video_ctx->width, ctx->video_ctx->height,
+                ctx->video_ctx->pix_fmt,
+                ctx->video_ctx->width, ctx->video_ctx->height,
+                AV_PIX_FMT_RGB24,
+                SWS_BILINEAR, NULL, NULL, NULL);
 
-        av_image_fill_arrays(
-            ctx->rgb_frame->data, ctx->rgb_frame->linesize,
-            ctx->rgb_buffer, AV_PIX_FMT_RGB24,
-            ctx->video_ctx->width, ctx->video_ctx->height, 1);
+            ctx->rgb_buffer_size = av_image_get_buffer_size(
+                AV_PIX_FMT_RGB24,
+                ctx->video_ctx->width, ctx->video_ctx->height, 1);
+
+            ctx->rgb_buffer = av_malloc(ctx->rgb_buffer_size);
+            ctx->rgb_frame  = av_frame_alloc();
+
+            av_image_fill_arrays(
+                ctx->rgb_frame->data, ctx->rgb_frame->linesize,
+                ctx->rgb_buffer, AV_PIX_FMT_RGB24,
+                ctx->video_ctx->width, ctx->video_ctx->height, 1);
+        } else {
+            /* Falhou ao abrir ou dimensões inválidas: descarta o "vídeo"
+             * e segue o fluxo como áudio puro */
+            if (ctx->video_ctx) {
+                avcodec_free_context(&ctx->video_ctx);
+                ctx->video_ctx = NULL;
+            }
+            ctx->video_stream_idx = -1;
+        }
     }
 
     /* ── Decoder de áudio ── */
@@ -255,15 +283,19 @@ Java_com_esl_searchforfiles_Video_FFmpegBridge_openVideo(
 
        ctx->audio_ctx = avcodec_alloc_context3(codec);
        avcodec_parameters_to_context(ctx->audio_ctx, par);
+
+        /* CORREÇÃO DO TIMESTAMPS (MP3FLOAT): Vincula a base de tempo antes da inicialização */
+        ctx->audio_ctx->pkt_timebase = ctx->fmt_ctx->streams[ctx->audio_stream_idx]->time_base;
+
        avcodec_open2(ctx->audio_ctx, codec, NULL);
 
-       /* MODIFICAÇÃO AQUI: Força a saída do conversor SWR a ser SEMPRE STEREO (2 canais) */
+       /* Força a saída do conversor SWR a ser SEMPRE STEREO (2 canais) */
        swr_alloc_set_opts2(
            &ctx->swr_ctx,
            &(AVChannelLayout)AV_CHANNEL_LAYOUT_STEREO, // Canal de saída (Fixo Estéreo)
            AV_SAMPLE_FMT_S16,
            ctx->audio_ctx->sample_rate,
-           &ctx->audio_ctx->ch_layout,                 // Canal de entrada do arquivo (Ex: 5.1 ou 6 canais)
+           &ctx->audio_ctx->ch_layout,                 // Canal de entrada do arquivo
            ctx->audio_ctx->sample_fmt,
            ctx->audio_ctx->sample_rate,
            0, NULL);

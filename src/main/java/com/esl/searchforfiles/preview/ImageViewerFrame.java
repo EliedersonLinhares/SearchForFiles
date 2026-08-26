@@ -8,57 +8,48 @@ import com.esl.searchforfiles.configuration.UIConfig;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.awt.event.*;
+import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 
 /**
  * Visualizador de imagem única — sem navegação entre arquivos.
- *
+ * <p>
  * Suporta todos os formatos do ImageCodec (PNG, JPEG, WebP, TIFF,
  * PSD, EXR, HDR, AVIF, …) + zoom.
- *
+ * <p>
  * Barra inferior: resolução, tamanho em disco, DPI e bit depth.
- *
+ * <p>
  * Uso:
- *   new ImageViewerFrame(owner, new File("foto.psd"));
+ * new ImageViewerFrame(owner, new File("foto.psd"));
  */
 public class ImageViewerFrame extends JFrame {
 
     // ── Constantes ─────────────────────────────────────────────────
-    private static final double ZOOM_STEP    = 0.15;
-    private static final double ZOOM_MIN     = 0.05;
-    private static final double ZOOM_MAX     = 8.0;
-    private static final int    PREVIEW_MAX  = 1400; // px no lado maior
+    private static final double ZOOM_STEP = 0.15;
+    private static final double ZOOM_MIN = 0.05;
+    private static final double ZOOM_MAX = 8.0;
+    private static final int PREVIEW_MAX = 1400; // px no lado maior
 
     // ── Estado ─────────────────────────────────────────────────────
-    private final File          file;
-    private       BufferedImage preview;   // proxy reduzido para exibição
-    private       ImageMeta     meta;
+    private final File file;
+    private BufferedImage preview;   // proxy reduzido para exibição
+    private ImageMeta meta;
 
     private double zoomFactor = 1.0;
-    private double fitScale   = 1.0;
+    private double fitScale = 1.0;
 
     // ── Widgets ────────────────────────────────────────────────────
     private ImagePreviewPanel imagePreviewPanel;
-    private JLabel            zoomLabel;
-    private JLabel            lblFilename;
-    private JLabel            lblResolution;
-    private JLabel            lblFileSize;
-    private JLabel            lblDpi;
-    private JLabel            lblBitDepth;
-    private JLabel            lblFormat;
-
-    // ── Metadados ─────────────────────────────────────────────────
-    private record ImageMeta(
-            int    width,
-            int    height,
-            long   fileSizeBytes,
-            int    dpiX,
-            int    dpiY,
-            int    bitDepth,
-            String format
-    ) {}
+    private JLabel zoomLabel;
+    private JLabel lblFilename;
+    private JLabel lblResolution;
+    private JLabel lblFileSize;
+    private JLabel lblDpi;
+    private JLabel lblBitDepth;
+    private JLabel lblFormat;
 
     // ══════════════════════════════════════════════════════════════
     // Construtor
@@ -76,8 +67,12 @@ public class ImageViewerFrame extends JFrame {
         setLayout(new BorderLayout());
 
         addWindowListener(new WindowAdapter() {
-            @Override public void windowClosed(WindowEvent e) {
-                if (owner != null) { owner.setEnabled(true); owner.toFront(); }
+            @Override
+            public void windowClosed(WindowEvent e) {
+                if (owner != null) {
+                    owner.setEnabled(true);
+                    owner.toFront();
+                }
             }
         });
 
@@ -89,12 +84,27 @@ public class ImageViewerFrame extends JFrame {
         SwingUtilities.invokeLater(this::loadImage);
     }
 
+    private static String humanSize(long b) {
+        if (b < 1024) return b + " B";
+        if (b < 1024 * 1024) return String.format("%.1f KB", b / 1024.0);
+        if (b < 1024L * 1024 * 1024) return String.format("%.2f MB", b / 1_048_576.0);
+        return String.format("%.2f GB", b / 1_073_741_824.0);
+    }
+
+    /**
+     * HTML de chip: rótulo cinza pequeno + valor em negrito.
+     */
+    private static String chip(String key, String value) {
+        return "<html><span style='font-size:9px;color:gray'>"
+                + key + "</span><br><b>" + value + "</b></html>";
+    }
+
     // ══════════════════════════════════════════════════════════════
     // UI
     // ══════════════════════════════════════════════════════════════
     private void buildUI() {
         add(buildCenterPanel(), BorderLayout.CENTER);
-        add(buildBottomBar(),   BorderLayout.SOUTH);
+        add(buildBottomBar(), BorderLayout.SOUTH);
     }
 
     private JPanel buildCenterPanel() {
@@ -112,7 +122,7 @@ public class ImageViewerFrame extends JFrame {
             applyZoom(delta);
         });
 
-        panel.add(scroll,         BorderLayout.CENTER);
+        panel.add(scroll, BorderLayout.CENTER);
         panel.add(buildZoomBar(), BorderLayout.SOUTH);
         return panel;
     }
@@ -125,13 +135,13 @@ public class ImageViewerFrame extends JFrame {
 
         JPanel row = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 5));
 
-        JButton zoomOut   = iconBtn("−");
+        JButton zoomOut = iconBtn("−");
         JButton zoomReset = textBtn("100%");
-        JButton zoomIn    = iconBtn("+");
+        JButton zoomIn = iconBtn("+");
         zoomReset.setPreferredSize(new Dimension(75, 26));
 
-        zoomOut  .addActionListener(e -> applyZoom(-ZOOM_STEP));
-        zoomIn   .addActionListener(e -> applyZoom(+ZOOM_STEP));
+        zoomOut.addActionListener(e -> applyZoom(-ZOOM_STEP));
+        zoomIn.addActionListener(e -> applyZoom(+ZOOM_STEP));
         zoomReset.addActionListener(e -> resetZoom());
 
         zoomLabel = new JLabel("—");
@@ -165,10 +175,10 @@ public class ImageViewerFrame extends JFrame {
         chips.setOpaque(false);
 
         lblResolution = chipLabel("Resolução", "—");
-        lblFileSize   = chipLabel("Tamanho",   "—");
-        lblDpi        = chipLabel("DPI",        "—");
-        lblBitDepth   = chipLabel("Profundidade","—");
-        lblFormat     = chipLabel("Formato",   "—");
+        lblFileSize = chipLabel("Tamanho", "—");
+        lblDpi = chipLabel("DPI", "—");
+        lblBitDepth = chipLabel("Profundidade", "—");
+        lblFormat = chipLabel("Formato", "—");
 
         chips.add(lblResolution);
         chips.add(vSep());
@@ -181,41 +191,13 @@ public class ImageViewerFrame extends JFrame {
         chips.add(lblFormat);
 
         bar.add(lblFilename, BorderLayout.WEST);
-        bar.add(chips,       BorderLayout.CENTER);
+        bar.add(chips, BorderLayout.CENTER);
         return bar;
     }
 
     // ══════════════════════════════════════════════════════════════
     // Carregamento
     // ══════════════════════════════════════════════════════════════
-//    private void loadImage() {
-//        new SwingWorker<BufferedImage, Void>() {
-//            @Override
-//            protected BufferedImage doInBackground() {
-//                return readFile();
-//            }
-//
-//            @Override
-//            protected void done() {
-//                try {
-//                    BufferedImage result = get();
-//                    if (result == null) {
-//                        lblFilename.setText(file.getName() + " — formato não suportado");
-//                        return;
-//                    }
-//                    preview = result;
-//                    recalcFitScale();
-//                    imagePreviewPanel.setImage(preview);
-//                    imagePreviewPanel.setZoom(fitScale * zoomFactor);
-//                    updateZoomLabel();
-//                    if (meta != null) updateInfoBar();
-//                } catch (Exception e) {
-//                    lblFilename.setText(file.getName() + " — erro ao carregar");
-//                    System.err.println("[Viewer] " + e.getMessage());
-//                }
-//            }
-//        }.execute();
-//    }
     private void loadImage() {
         new SwingWorker<Object, Void>() {
             @Override
@@ -311,8 +293,8 @@ public class ImageViewerFrame extends JFrame {
 
                 if (r != null && r.image() != null) {
                     original = r.image();
-                    int[] dpi   = readDpi();
-                    int   depth = switch (r.format()) {
+                    int[] dpi = readDpi();
+                    int depth = switch (r.format()) {
                         case GRAY16, RGB48, RGBA64 -> 16;
                         default -> 8;
                     };
@@ -325,21 +307,22 @@ public class ImageViewerFrame extends JFrame {
                     );
                 }
             }
-        }  catch (ExceptionInInitializerError e) {
-        // Causa raiz — é isso que precisamos ver
-        System.err.println("[Viewer] ExceptionInInitializerError: "
-                + e.getCause());
-        e.getCause().printStackTrace();
-        return null;
-    } catch (Exception e) {
-        System.err.println("[Viewer] Erro: " + e.getMessage());
-        e.printStackTrace();
-        return null;
-    }
-    return original != null ? buildProxy(original) : null;
+        } catch (ExceptionInInitializerError e) {
+            // Causa raiz — é isso que precisamos ver
+            System.err.println("[Viewer] ExceptionInInitializerError: "
+                    + e.getCause());
+            e.getCause().printStackTrace();
+            return null;
+        } catch (Exception e) {
+            System.err.println("[Viewer] Erro: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
+        return original != null ? buildProxy(original) : null;
 
 
     }
+
     private ImageMeta readGifMetadata() {
         int w = 0, h = 0;
         try (var stream = javax.imageio.ImageIO.createImageInputStream(file)) {
@@ -351,7 +334,8 @@ public class ImageViewerFrame extends JFrame {
                 h = reader.getHeight(0);
                 reader.dispose();
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
 
         int[] dpi = readDpi();
         return new ImageMeta(
@@ -363,14 +347,17 @@ public class ImageViewerFrame extends JFrame {
                 "GIF ANIMADO"
         );
     }
-    /** Reduz para proxy de preview se a imagem for muito grande. */
+
+    /**
+     * Reduz para proxy de preview se a imagem for muito grande.
+     */
     private BufferedImage buildProxy(BufferedImage src) {
         int longest = Math.max(src.getWidth(), src.getHeight());
         if (longest <= PREVIEW_MAX) return src;
 
         double s = (double) PREVIEW_MAX / longest;
-        int w = Math.max(1, (int)(src.getWidth()  * s));
-        int h = Math.max(1, (int)(src.getHeight() * s));
+        int w = Math.max(1, (int) (src.getWidth() * s));
+        int h = Math.max(1, (int) (src.getHeight() * s));
 
         boolean alpha = src.getColorModel().hasAlpha();
         BufferedImage out = new BufferedImage(w, h,
@@ -390,7 +377,7 @@ public class ImageViewerFrame extends JFrame {
     // ══════════════════════════════════════════════════════════════
     private void recalcFitScale() {
         if (preview == null) return;
-        int availW = Math.max(1, imagePreviewPanel.getWidth()  - 8);
+        int availW = Math.max(1, imagePreviewPanel.getWidth() - 8);
         int availH = Math.max(1, imagePreviewPanel.getHeight() - 8);
         fitScale = Math.min(
                 (double) availW / preview.getWidth(),
@@ -398,45 +385,27 @@ public class ImageViewerFrame extends JFrame {
         fitScale = Math.min(fitScale, 1.0);
     }
 
-//    private void applyZoom(double delta) {
-//        zoomFactor = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoomFactor + delta));
-//        imagePreviewPanel.setZoom(fitScale * zoomFactor);
-//        updateZoomLabel();
-//    }
-private void applyZoom(double delta) {
-    // Restringe o zoom estritamente entre o mínimo (0.05) e o máximo (8.0)
-    zoomFactor = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoomFactor + delta));
-    imagePreviewPanel.setZoom(zoomFactor);
-    updateZoomLabel();
-}
+    private void applyZoom(double delta) {
+        // Restringe o zoom estritamente entre o mínimo (0.05) e o máximo (8.0)
+        zoomFactor = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoomFactor + delta));
+        imagePreviewPanel.setZoom(zoomFactor);
+        updateZoomLabel();
+    }
 
-//    private void resetZoom() {
-//        zoomFactor = 1.0;
-//        recalcFitScale();
-//        imagePreviewPanel.setZoom(fitScale);
-//        updateZoomLabel();
-//    }
-private void resetZoom() {
-    // 1.0 significa 100% do tamanho real nativo da imagem
-    zoomFactor = 1.0;
+    private void resetZoom() {
+        // 1.0 significa 100% do tamanho real nativo da imagem
+        zoomFactor = 1.0;
 
-    // Define o zoom diretamente como 1.0 (1 pixel da imagem = 1 pixel da tela)
-    imagePreviewPanel.setZoom(zoomFactor);
+        // Define o zoom diretamente como 1.0 (1 pixel da imagem = 1 pixel da tela)
+        imagePreviewPanel.setZoom(zoomFactor);
 
-    updateZoomLabel();
-}
-
-//    private void updateZoomLabel() {
-//        if (meta == null || preview == null) return;
-//        double ratio   = (double) preview.getWidth() / meta.width();
-//        double realPct = fitScale * zoomFactor / ratio * 100.0;
-//        zoomLabel.setText(Math.round(realPct) + "%");
-//    }
-private void updateZoomLabel() {
-    if (meta == null) return;
-    // O zoomFactor agora rastreia diretamente a escala absoluta
-    zoomLabel.setText(Math.round(zoomFactor * 100.0) + "%");
-}
+        updateZoomLabel();
+    }
+    private void updateZoomLabel() {
+        if (meta == null) return;
+        // O zoomFactor agora rastreia diretamente a escala absoluta
+        zoomLabel.setText(Math.round(zoomFactor * 100.0) + "%");
+    }
 
     // ══════════════════════════════════════════════════════════════
     // Barra de informações
@@ -444,13 +413,14 @@ private void updateZoomLabel() {
     private void updateInfoBar() {
         lblResolution.setText(chip("Resolução",
                 meta.width() + " × " + meta.height() + " px"));
-        lblFileSize  .setText(chip("Tamanho",   humanSize(meta.fileSizeBytes())));
-        lblDpi       .setText(chip("DPI",
+        lblFileSize.setText(chip("Tamanho", humanSize(meta.fileSizeBytes())));
+        lblDpi.setText(chip("DPI",
                 meta.dpiX() + (meta.dpiX() != meta.dpiY()
                         ? " × " + meta.dpiY() : "") + " dpi"));
-        lblBitDepth  .setText(chip("Profundidade", meta.bitDepth() + " bit"));
-        lblFormat    .setText(chip("Formato",   meta.format()));
+        lblBitDepth.setText(chip("Profundidade", meta.bitDepth() + " bit"));
+        lblFormat.setText(chip("Formato", meta.format()));
     }
+
 
     // ══════════════════════════════════════════════════════════════
     // Atalhos de teclado
@@ -460,20 +430,30 @@ private void updateZoomLabel() {
                 .addKeyEventDispatcher(e -> {
                     if (!isActive() || e.getID() != KeyEvent.KEY_PRESSED) return false;
                     return switch (e.getKeyCode()) {
-                        case KeyEvent.VK_EQUALS, KeyEvent.VK_ADD      -> { applyZoom(+ZOOM_STEP); yield true; }
-                        case KeyEvent.VK_MINUS,  KeyEvent.VK_SUBTRACT -> { applyZoom(-ZOOM_STEP); yield true; }
-                        case KeyEvent.VK_0      -> { resetZoom(); yield true; }
-                        case KeyEvent.VK_ESCAPE -> { dispose(); yield true; }
+                        case KeyEvent.VK_EQUALS, KeyEvent.VK_ADD -> {
+                            applyZoom(+ZOOM_STEP);
+                            yield true;
+                        }
+                        case KeyEvent.VK_MINUS, KeyEvent.VK_SUBTRACT -> {
+                            applyZoom(-ZOOM_STEP);
+                            yield true;
+                        }
+                        case KeyEvent.VK_0 -> {
+                            resetZoom();
+                            yield true;
+                        }
+                        case KeyEvent.VK_ESCAPE -> {
+                            dispose();
+                            yield true;
+                        }
                         default -> false;
                     };
                 });
     }
 
-    // ══════════════════════════════════════════════════════════════
-    // Helpers
-    // ══════════════════════════════════════════════════════════════
-
-    /** Lê DPI via javax.imageio; retorna {72,72} se indisponível. */
+    /**
+     * Lê DPI via javax.imageio; retorna {72,72} se indisponível.
+     */
     private int[] readDpi() {
         try (var stream = javax.imageio.ImageIO.createImageInputStream(file)) {
             var readers = javax.imageio.ImageIO.getImageReaders(stream);
@@ -490,28 +470,16 @@ private void updateZoomLabel() {
             var vNodes = root.getElementsByTagName("VerticalPixelSize");
             if (hNodes.getLength() > 0 && vNodes.getLength() > 0) {
                 float h = Float.parseFloat(
-                        ((org.w3c.dom.Element)hNodes.item(0)).getAttribute("value"));
+                        ((org.w3c.dom.Element) hNodes.item(0)).getAttribute("value"));
                 float v = Float.parseFloat(
-                        ((org.w3c.dom.Element)vNodes.item(0)).getAttribute("value"));
+                        ((org.w3c.dom.Element) vNodes.item(0)).getAttribute("value"));
                 int dx = Math.round(h * 25.4f);
                 int dy = Math.round(v * 25.4f);
-                return new int[]{ dx > 0 ? dx : 72, dy > 0 ? dy : 72 };
+                return new int[]{dx > 0 ? dx : 72, dy > 0 ? dy : 72};
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         return new int[]{72, 72};
-    }
-
-    private static String humanSize(long b) {
-        if (b < 1024)         return b + " B";
-        if (b < 1024 * 1024)  return String.format("%.1f KB", b / 1024.0);
-        if (b < 1024L*1024*1024) return String.format("%.2f MB", b / 1_048_576.0);
-        return String.format("%.2f GB", b / 1_073_741_824.0);
-    }
-
-    /** HTML de chip: rótulo cinza pequeno + valor em negrito. */
-    private static String chip(String key, String value) {
-        return "<html><span style='font-size:9px;color:gray'>"
-                + key + "</span><br><b>" + value + "</b></html>";
     }
 
     private JLabel chipLabel(String key, String value) {
@@ -541,5 +509,17 @@ private void updateZoomLabel() {
         JSeparator s = new JSeparator(SwingConstants.VERTICAL);
         s.setPreferredSize(new Dimension(1, 28));
         return s;
+    }
+
+    // ── Metadados ─────────────────────────────────────────────────
+    private record ImageMeta(
+            int width,
+            int height,
+            long fileSizeBytes,
+            int dpiX,
+            int dpiY,
+            int bitDepth,
+            String format
+    ) {
     }
 }

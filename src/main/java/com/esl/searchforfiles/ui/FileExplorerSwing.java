@@ -11,6 +11,7 @@ import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.PaginationInfo;
 import com.esl.searchforfiles.others.ThumbnailSize;
 import com.esl.searchforfiles.preview.ImageViewerFrame;
+import com.esl.searchforfiles.preview.PdfViewerFrame;
 import com.esl.searchforfiles.preview.VideoPlayerFrame;
 import com.esl.searchforfiles.service.FavoritesService;
 import com.esl.searchforfiles.service.IndexFilterService;
@@ -61,6 +62,7 @@ public class FileExplorerSwing extends JFrame {
 
     private boolean useDefaultWindowsProgramImage = false;
     private boolean useDefaultWindowsProgramVideo = false;
+    private boolean useDefaultWindowsProgramPdf = false;
 
 
     public FileExplorerSwing(ThemeManager themeManager) {
@@ -158,7 +160,10 @@ public class FileExplorerSwing extends JFrame {
                             new ImageViewerFrame(FileExplorerSwing.this, file);
                         } else if (isVideoFile(file) && !useDefaultWindowsProgramVideo) {
                             new VideoPlayerFrame(FileExplorerSwing.this,file);
-                        } else {
+                        } else if (isPdfFile(file) && !useDefaultWindowsProgramPdf ) {
+                            new PdfViewerFrame(FileExplorerSwing.this,file);
+                        }
+                        else {
                              Desktop.getDesktop().open(file);
                         }
 
@@ -313,12 +318,19 @@ public class FileExplorerSwing extends JFrame {
 
 
     }
+    private boolean isPdfFile(File file) {
+        String name = file.getName().toLowerCase();
+        return name.endsWith(".pdf");
+    }
     private boolean isVideoFile(File file) {
         String name = file.getName().toLowerCase();
         return name.endsWith(".mp4") || name.endsWith(".avi") ||
                 name.endsWith(".mkv") || name.endsWith(".mov") ||
                 name.endsWith(".wmv") || name.endsWith(".flv") ||
-                name.endsWith(".webm") || name.endsWith(".m4v");
+                name.endsWith(".webm") || name.endsWith(".m4v") ||
+                name.endsWith(".mp3") || name.endsWith(".flac") ||
+                name.endsWith(".ogg") || name.endsWith(".m4a") ||
+                name.endsWith(".wav");
     }
     private boolean isImageFile(File file) {
         String name = file.getName().toLowerCase();
@@ -904,5 +916,13 @@ public class FileExplorerSwing extends JFrame {
 
     public void setUseDefaultWindowsProgramImage(boolean useDefaultWindowsProgramImage) {
         this.useDefaultWindowsProgramImage = useDefaultWindowsProgramImage;
+    }
+
+    public boolean isUseDefaultWindowsProgramPdf() {
+        return useDefaultWindowsProgramPdf;
+    }
+
+    public void setUseDefaultWindowsProgramPdf(boolean useDefaultWindowsProgramPdf) {
+        this.useDefaultWindowsProgramPdf = useDefaultWindowsProgramPdf;
     }
 }
