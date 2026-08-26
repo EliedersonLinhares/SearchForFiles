@@ -102,17 +102,13 @@ public class PdfViewerFrame extends JFrame {
         bottomBar.add(rightPanel, BorderLayout.EAST);
         add(bottomBar, BorderLayout.SOUTH);
 
-        btnPrev.setFont(UIConfig.FONT_DEFAULT);
-        btnNext.setFont(UIConfig.FONT_DEFAULT);
+        for (AbstractButton b : new AbstractButton[]{btnPrev,  btnNext, btnUnlock, btnPrint, btnRotate,
+                btnZoomOut, btnZoom100, btnZoomIn}) {
+            b.setFont(UIConfig.FONT_DEFAULT);
+        }
         txtPageInput.setFont(UIConfig.FONT_DEFAULT);
         lblTotalPages.setFont(UIConfig.FONT_DEFAULT);
-        btnUnlock.setFont(UIConfig.FONT_DEFAULT);
-        btnPrint.setFont(UIConfig.FONT_DEFAULT);
-        btnRotate.setFont(UIConfig.FONT_DEFAULT);
         lblZoomInfo.setFont(UIConfig.FONT_DEFAULT);
-        btnZoomOut.setFont(UIConfig.FONT_DEFAULT);
-        btnZoom100.setFont(UIConfig.FONT_DEFAULT);
-        btnZoomIn.setFont(UIConfig.FONT_DEFAULT);
         lblFileInfo.setFont(UIConfig.FONT_DEFAULT);
 
         // ── SINCRONIZAÇÃO DE EVENTOS ENTRE COMPONENTES ──

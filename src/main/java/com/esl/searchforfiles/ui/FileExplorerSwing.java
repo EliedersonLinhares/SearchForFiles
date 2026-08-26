@@ -11,6 +11,7 @@ import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.PaginationInfo;
 import com.esl.searchforfiles.others.ThumbnailSize;
 import com.esl.searchforfiles.preview.ImageViewerFrame;
+import com.esl.searchforfiles.preview.Obj3DViewerFrame;
 import com.esl.searchforfiles.preview.PdfViewerFrame;
 import com.esl.searchforfiles.preview.VideoPlayerFrame;
 import com.esl.searchforfiles.service.FavoritesService;
@@ -162,6 +163,8 @@ public class FileExplorerSwing extends JFrame {
                             new VideoPlayerFrame(FileExplorerSwing.this,file);
                         } else if (isPdfFile(file) && !useDefaultWindowsProgramPdf ) {
                             new PdfViewerFrame(FileExplorerSwing.this,file);
+                        }else if (isObject3dFile(file) && !useDefaultWindowsProgramPdf ) {
+                            new Obj3DViewerFrame(FileExplorerSwing.this,file);
                         }
                         else {
                              Desktop.getDesktop().open(file);
@@ -317,6 +320,10 @@ public class FileExplorerSwing extends JFrame {
         });
 
 
+    }
+    private boolean isObject3dFile(File file) {
+        String name = file.getName().toLowerCase();
+        return name.endsWith(".obj");
     }
     private boolean isPdfFile(File file) {
         String name = file.getName().toLowerCase();

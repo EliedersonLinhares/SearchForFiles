@@ -71,13 +71,12 @@ public class VideoPlayerFrame extends JFrame {
 
         JLabel lblVideoInfo = new JLabel("");
         lblVideoInfo.setForeground(Color.GRAY); // Cor cinza discreta para os metadados
-        lblVideoInfo.setFont(UIConfig.FONT_SMALL);
 
-        btnPlayPause.setFont(UIConfig.FONT_DEFAULT);
-        btnRewind.setFont(UIConfig.FONT_DEFAULT);
-        btnFastForward.setFont(UIConfig.FONT_DEFAULT);
-        btnStop.setFont(UIConfig.FONT_DEFAULT);
-        btnMute.setFont(UIConfig.FONT_DEFAULT);
+
+        for (AbstractButton b : new AbstractButton[]{btnPlayPause,  btnRewind, btnFastForward, btnStop, btnMute}) {
+            b.setFont(UIConfig.FONT_DEFAULT);
+        }
+        lblVideoInfo.setFont(UIConfig.FONT_SMALL);
         lblVolume.setFont(UIConfig.FONT_SMALL);
         lblTime.setFont(UIConfig.FONT_DEFAULT);
 
