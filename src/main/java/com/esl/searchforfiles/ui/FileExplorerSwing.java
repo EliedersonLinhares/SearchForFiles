@@ -7,6 +7,7 @@ import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
 import com.esl.searchforfiles.actions.renameFile.RenameMode;
 import com.esl.searchforfiles.actions.renameFile.RenameModeManager;
 import com.esl.searchforfiles.configuration.ConfigManager;
+import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.PaginationInfo;
 import com.esl.searchforfiles.others.ThumbnailSize;
@@ -64,6 +65,7 @@ public class FileExplorerSwing extends JFrame {
     private boolean useDefaultWindowsProgramImage = false;
     private boolean useDefaultWindowsProgramVideo = false;
     private boolean useDefaultWindowsProgramPdf = false;
+    private boolean useDefaultWindowsProgram3dModel = false;
 
 
     public FileExplorerSwing(ThemeManager themeManager) {
@@ -71,17 +73,7 @@ public class FileExplorerSwing extends JFrame {
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setSize(1480, 800);
         setLocationRelativeTo(null);
-
-        try {
-            List<Image> icons = new ArrayList<>();
-            icons.add(new ImageIcon(Objects.requireNonNull(getClass().getResource("/img/jupiter16.png"))).getImage());
-            icons.add(new ImageIcon(Objects.requireNonNull(getClass().getResource("/img/jupiter32.png"))).getImage());
-            icons.add(new ImageIcon(Objects.requireNonNull(getClass().getResource("/img/jupiter64.png"))).getImage());
-            icons.add(new ImageIcon(Objects.requireNonNull(getClass().getResource("/img/jupiter128.png"))).getImage());
-            setIconImages(icons); // Use setIconImages (plural)
-        } catch (NullPointerException e) {
-            JOptionPane.showMessageDialog(this, "Icones não encontrados" + " " + e.getMessage());
-        }
+        setIconImages(UIConfig.IconsConfig(this));
 
 
 
@@ -163,7 +155,7 @@ public class FileExplorerSwing extends JFrame {
                             new VideoPlayerFrame(FileExplorerSwing.this,file);
                         } else if (isPdfFile(file) && !useDefaultWindowsProgramPdf ) {
                             new PdfViewerFrame(FileExplorerSwing.this,file);
-                        }else if (isObject3dFile(file) && !useDefaultWindowsProgramPdf ) {
+                        }else if (isObject3dFile(file) && !useDefaultWindowsProgram3dModel ) {
                             new Obj3DViewerFrame(FileExplorerSwing.this,file);
                         }
                         else {
@@ -932,4 +924,13 @@ public class FileExplorerSwing extends JFrame {
     public void setUseDefaultWindowsProgramPdf(boolean useDefaultWindowsProgramPdf) {
         this.useDefaultWindowsProgramPdf = useDefaultWindowsProgramPdf;
     }
+
+    public boolean isUseDefaultWindowsProgram3dModel() {
+        return useDefaultWindowsProgram3dModel;
+    }
+
+    public void setUseDefaultWindowsProgram3dModel(boolean useDefaultWindowsProgram3dModel) {
+        this.useDefaultWindowsProgram3dModel = useDefaultWindowsProgram3dModel;
+    }
+
 }

@@ -2,6 +2,9 @@ package com.esl.searchforfiles.configuration;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 public class UIConfig {
     private UIConfig() {
@@ -47,6 +50,22 @@ public class UIConfig {
     // Seleções
     public static Color selectionBackground() { return UIManager.getColor("TextField.selectionBackground"); }
     public static Color selectionForeground() { return UIManager.getColor("TextField.selectionForeground"); }
+
+
+    public static List<Image> IconsConfig(Frame frame){
+        List<Image> icons = new ArrayList<>();
+        try {
+
+            icons.add(new ImageIcon(Objects.requireNonNull(UIConfig.class.getResource("/img/jupiter16.png"))).getImage());
+            icons.add(new ImageIcon(Objects.requireNonNull(UIConfig.class.getResource("/img/jupiter32.png"))).getImage());
+            icons.add(new ImageIcon(Objects.requireNonNull(UIConfig.class.getResource("/img/jupiter64.png"))).getImage());
+            icons.add(new ImageIcon(Objects.requireNonNull(UIConfig.class.getResource("/img/jupiter128.png"))).getImage());
+           return icons;
+        } catch (NullPointerException e) {
+            JOptionPane.showMessageDialog(frame, "Icones não encontrados" + " " + e.getMessage());
+        }
+        return icons;
+    }
 
 }
 

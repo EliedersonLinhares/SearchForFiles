@@ -1,6 +1,7 @@
 package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
+import com.esl.searchforfiles.compressedFiles.CompressedWorker;
 import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.database.DatabaseManager;
 import com.esl.searchforfiles.model.FileInfo;
@@ -14,6 +15,7 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Date;
+import java.util.Objects;
 
 /**
  * Menu de contexto (botão direito) para arquivos
@@ -53,6 +55,19 @@ public class FileContextMenu extends JPopupMenu {
     }
 
     private void createMenuItems() {
+
+        if(fileInfo.getExtension().contains("zip") || fileInfo.getExtension().contains("rar") ) {
+            JMenuItem rarItem = new JMenuItem("Descompactar arquivo");
+            rarItem.setFont(rarItem.getFont().deriveFont(Font.BOLD)); // destaque
+            rarItem.addActionListener(e -> {
+
+                // 4. Dispara o Worker passando a nova pasta de destino configurada
+                CompressedWorker worker = new CompressedWorker(fileExplorerSwing, file);
+                worker.execute();
+            });
+            add(rarItem);
+        }
+
 
         if (fileInfo.isDirectory()) {
             // Para PASTAS: "Entrar" como ação principal
@@ -432,32 +447,6 @@ public class FileContextMenu extends JPopupMenu {
                 name.endsWith(".webm") || name.endsWith(".m4v");
     }
 
-    /**
-     *  {".png",  "image/png",               "Portable Network Graphics",      true,  true,  true,  false},
-     *                 {".jpg",  "image/jpeg",              "JPEG",                           false, false, false, false},
-     *                 {".jpeg", "image/jpeg",              "JPEG",                           false, false, false, false},
-     *                 {".bmp",  "image/bmp",               "Bitmap",                         true,  false, true,  false},
-     *                 {".tiff", "image/tiff",              "Tagged Image File Format",        true,  true,  true,  false},
-     *                 {".tif",  "image/tiff",              "Tagged Image File Format",        true,  true,  true,  false},
-     *                 {".webp", "image/webp",              "WebP",                           true,  false, true,  true },
-     *                 {".gif",  "image/gif",               "GIF",                            true,  false, true,  true },
-     *                 {".tga",  "image/x-targa",           "Truevision TGA",                 true,  false, true,  false},
-     *                 {".ppm",  "image/x-portable-pixmap", "Portable Pixmap",                false, false, true,  false},
-     *                 {".pgm",  "image/x-portable-graymap","Portable Graymap",               false, true,  true,  false},
-     *                 {".pbm",  "image/x-portable-bitmap", "Portable Bitmap",                false, false, true,  false},
-     *                 {".hdr",  "image/vnd.radiance",      "Radiance HDR",                   false, true,  true,  false},
-     *                 {".exr",  "image/x-exr",             "OpenEXR",                        true,  true,  true,  false},
-     *                 {".heic", "image/heic",              "HEIC",                           true,  false, false, false},
-     *                 {".heif", "image/heif",              "HEIF",                           true,  false, false, false},
-     *                 {".avif", "image/avif",              "AVIF",                           true,  true,  true,  false},
-     *                 {".jxl",  "image/jxl",              "JPEG XL",                         true,  true,  true,  false},
-     *                 {".dds",  "image/vnd.ms-dds",        "DirectDraw Surface",              true,  false, true,  false},
-     *                 {".pcx",  "image/x-pcx",             "PCX",                             false, false, true,  false},
-     *                 {".sgi",  "image/sgi",               "SGI",                             true,  true,  true,  false},
-     *                 {".jp2",  "image/jp2",               "JPEG 2000",                       true,  true,  true,  false},
-     *                 {".j2k",  "image/j2k",               "JPEG 2000 Codestream",            true,  true,  true,  false},
-     *                 {".ico",  "image/x-icon",            "Windows Icon",                    true,  false, true,  false},
-     */
     private void openFile() {
         try {
             if(isImageFile(file)) {

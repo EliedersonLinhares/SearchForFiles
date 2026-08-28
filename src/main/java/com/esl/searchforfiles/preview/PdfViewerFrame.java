@@ -30,6 +30,7 @@ public class PdfViewerFrame extends JFrame {
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
+        setIconImages(UIConfig.IconsConfig(this));
         setVisible(true);
 
         if (owner != null) owner.setEnabled(false);

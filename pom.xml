@@ -130,6 +130,19 @@
             <artifactId>jme3-plugins</artifactId>
             <version>3.7.0-stable</version>
         </dependency>
+        <!-- Para manipulação avançada de ZIP (Senhas e Progresso) -->
+        <dependency>
+            <groupId>net.lingala.zip4j</groupId>
+            <artifactId>zip4j</artifactId>
+            <version>2.11.5</version>
+        </dependency>
+
+        <!-- Para arquivos RAR -->
+        <dependency>
+            <groupId>com.github.junrar</groupId>
+            <artifactId>junrar</artifactId>
+            <version>7.6.1</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

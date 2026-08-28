@@ -87,6 +87,7 @@ public class ImageEditorFrame extends JFrame {
         setSize(1400, 800);
         setLocationRelativeTo(owner);
         setLayout(new BorderLayout());
+        setIconImages(UIConfig.IconsConfig(this));
 
         // No construtor, após as inicializações:
         resultsPanel.getFileExplorerSwing()

@@ -3,10 +3,7 @@ package com.esl.searchforfiles.ui;
 import com.esl.searchforfiles.Theme.ThemeConfigPanel;
 import com.esl.searchforfiles.Theme.ThemeManager;
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
-import com.esl.searchforfiles.configuration.AboutConfigPanel;
-import com.esl.searchforfiles.configuration.CacheConfigPanel;
-import com.esl.searchforfiles.configuration.LibrariesConfigPanel;
-import com.esl.searchforfiles.configuration.OptionConfigPanel;
+import com.esl.searchforfiles.configuration.*;
 import com.esl.searchforfiles.database.DatabaseConfigPanel;
 
 import javax.swing.*;
@@ -30,6 +27,7 @@ public class ConfigurationFrame extends JFrame {
         setLocationRelativeTo(owner);
         setLayout(new BorderLayout());
         setResizable(false);
+        setIconImages(UIConfig.IconsConfig(this));
 
         addWindowListener(new java.awt.event.WindowAdapter() {
             @Override

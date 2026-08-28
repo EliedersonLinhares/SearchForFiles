@@ -13,6 +13,9 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 /**
  * Visualizador de imagem única — sem navegação entre arquivos.
@@ -65,6 +68,7 @@ public class ImageViewerFrame extends JFrame {
         setMinimumSize(new Dimension(500, 380));
         setLocationRelativeTo(owner);
         setLayout(new BorderLayout());
+        setIconImages(UIConfig.IconsConfig(this));
 
         addWindowListener(new WindowAdapter() {
             @Override

@@ -30,6 +30,10 @@ public class OptionConfigPanel extends ConfigPanelBase {
         pdfChBox.setFont(UIConfig.FONT_DEFAULT);
         pdfChBox.setSelected(mainFrame.isUseDefaultWindowsProgramPdf());
 
+        JCheckBox model3dChBox = new JCheckBox("Usar aplicativo default do Windows para arquivos 3D .obj");
+        model3dChBox.setFont(UIConfig.FONT_DEFAULT);
+        model3dChBox.setSelected(mainFrame.isUseDefaultWindowsProgram3dModel());
+
 
         // Lado direito: nome + descrição empilhados
 
@@ -40,6 +44,7 @@ public class OptionConfigPanel extends ConfigPanelBase {
         textBlock.add(imageChBox);
         textBlock.add(videoChBox);
         textBlock.add(pdfChBox);
+        textBlock.add(model3dChBox);
         textBlock.add(Box.createVerticalStrut(6));
 
         // Row: logo | textBlock
@@ -65,6 +70,10 @@ public class OptionConfigPanel extends ConfigPanelBase {
         pdfChBox.addItemListener(e -> {
             mainFrame.setUseDefaultWindowsProgramPdf(e.getStateChange() == ItemEvent.SELECTED);
             System.out.println("Valor do boolean: " + mainFrame.isUseDefaultWindowsProgramPdf());
+        });
+        model3dChBox.addItemListener(e -> {
+            mainFrame.setUseDefaultWindowsProgram3dModel(e.getStateChange() == ItemEvent.SELECTED);
+            System.out.println("Valor do boolean: " + mainFrame.isUseDefaultWindowsProgram3dModel());
         });
     }
 }

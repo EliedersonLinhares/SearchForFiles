@@ -62,6 +62,7 @@ public class RenameFrame extends JFrame {
         setLocationRelativeTo(owner);
         setLayout(new BorderLayout());
         setResizable(false);
+        setIconImages(UIConfig.IconsConfig(this));
         refreshColors();
 
         // No construtor, após as inicializações:

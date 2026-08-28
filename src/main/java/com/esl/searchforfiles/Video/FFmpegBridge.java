@@ -93,4 +93,16 @@ public class FFmpegBridge {
 
     public native double getDurationInSeconds(long contextPtr);
     public native String getContainerFormatName(long contextPtr);
+
+    public native int     getAudioTrackCount(long ctx);
+    public native String  getAudioTrackLanguage(long ctx, int trackIndex);
+    public native boolean setAudioTrack(long ctx, int trackIndex);
+
+    public native int     getSubtitleTrackCount(long ctx);
+    public native String  getSubtitleTrackLanguage(long ctx, int trackIndex);
+    public native boolean setSubtitleTrack(long ctx, int trackIndex); // -1 desativa
+
+    public native String  pollSubtitleFrame(long ctx); // "start;end;texto" ou null
+    public native double pollVideoFramePts(long ctx);
+
 }

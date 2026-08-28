@@ -10,6 +10,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
+import java.util.List;
 
 public class VideoPlayerFrame extends JFrame {
 
@@ -23,6 +24,9 @@ public class VideoPlayerFrame extends JFrame {
     private final JButton btnStop;
     private final JToggleButton btnMute;
     private final JLabel lblTime;
+    private final JComboBox<String> audioTrackCombo = new JComboBox<>();
+    private final JComboBox<String> subtitleTrackCombo = new JComboBox<>();
+    private boolean suppressComboEvents = false;
     private final File currentVideoFile;
     private final JPanel controlPanel;
     private int prevW = 800, prevH = 600, prevX = 0, prevY = 0;
@@ -37,6 +41,7 @@ public class VideoPlayerFrame extends JFrame {
         setTitle("Visualizador de Vídeo — " + videoFile.getName());
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout());
+        setIconImages(UIConfig.IconsConfig(this));
 
         if (owner != null) owner.setEnabled(false);
 
@@ -71,12 +76,13 @@ public class VideoPlayerFrame extends JFrame {
 
         JLabel lblVideoInfo = new JLabel("");
         lblVideoInfo.setForeground(Color.GRAY); // Cor cinza discreta para os metadados
-
-
-        for (AbstractButton b : new AbstractButton[]{btnPlayPause,  btnRewind, btnFastForward, btnStop, btnMute}) {
-            b.setFont(UIConfig.FONT_DEFAULT);
-        }
         lblVideoInfo.setFont(UIConfig.FONT_SMALL);
+
+        btnPlayPause.setFont(UIConfig.FONT_DEFAULT);
+        btnRewind.setFont(UIConfig.FONT_DEFAULT);
+        btnFastForward.setFont(UIConfig.FONT_DEFAULT);
+        btnStop.setFont(UIConfig.FONT_DEFAULT);
+        btnMute.setFont(UIConfig.FONT_DEFAULT);
         lblVolume.setFont(UIConfig.FONT_SMALL);
         lblTime.setFont(UIConfig.FONT_DEFAULT);
 
@@ -88,6 +94,10 @@ public class VideoPlayerFrame extends JFrame {
         leftButtonsPanel.add(btnMute);
         leftButtonsPanel.add(lblVolume);
         leftButtonsPanel.add(volumeSlider);
+        leftButtonsPanel.add(new JLabel("Áudio:"));
+        leftButtonsPanel.add(audioTrackCombo);
+        leftButtonsPanel.add(new JLabel("Legenda:"));
+        leftButtonsPanel.add(subtitleTrackCombo);
 
         JPanel rightInfoPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 2));
         rightInfoPanel.add(lblVideoInfo);
@@ -180,6 +190,7 @@ public class VideoPlayerFrame extends JFrame {
 
             setLocationRelativeTo(null);
             playerPanel.play();
+            populateTrackCombos();
         } else {
             // Caso falhe ao abrir, define um tamanho padrão e exibe aviso
             setSize(800, 600);
@@ -285,6 +296,43 @@ public class VideoPlayerFrame extends JFrame {
             updateTimeLabel(0.0);
             videoHasFinished = true; // MARCA QUE O VÍDEO CHEGOU AO FIM
         });
+
+        audioTrackCombo.addActionListener(e -> {
+            if (suppressComboEvents) return;
+            int idx = audioTrackCombo.getSelectedIndex();
+            if (idx >= 0) playerPanel.setAudioTrack(idx);
+        });
+
+        subtitleTrackCombo.addActionListener(e -> {
+            if (suppressComboEvents) return;
+            int idx = subtitleTrackCombo.getSelectedIndex() - 1;
+            System.out.println("[UI] Selecionando legenda idx=" + idx);
+            playerPanel.setSubtitleTrack(idx);
+        });
+
+    }
+
+    private void populateTrackCombos() {
+        suppressComboEvents = true;
+
+        audioTrackCombo.removeAllItems();
+        List<String> audioTracks = playerPanel.getAudioTracks();
+        for (int i = 0; i < audioTracks.size(); i++) {
+            audioTrackCombo.addItem("Áudio " + (i + 1) + " (" + audioTracks.get(i) + ")");
+        }
+        audioTrackCombo.setEnabled(audioTracks.size() > 1);
+        if (audioTracks.size() > 0) audioTrackCombo.setSelectedIndex(0);
+
+        subtitleTrackCombo.removeAllItems();
+        subtitleTrackCombo.addItem("Desativada");
+        List<String> subTracks = playerPanel.getSubtitleTracks();
+        for (int i = 0; i < subTracks.size(); i++) {
+            subtitleTrackCombo.addItem("Legenda " + (i + 1) + " (" + subTracks.get(i) + ")");
+        }
+        subtitleTrackCombo.setEnabled(subTracks.size() > 0);
+        subtitleTrackCombo.setSelectedIndex(0);
+
+        suppressComboEvents = false;
     }
 
     private void togglePlayPause() {
@@ -303,6 +351,7 @@ public class VideoPlayerFrame extends JFrame {
             }
 
             playerPanel.play();
+            populateTrackCombos();
             btnPlayPause.setText("Pause");
         } else {
             playerPanel.pause();

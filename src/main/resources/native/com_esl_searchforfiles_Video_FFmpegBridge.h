@@ -143,6 +143,70 @@ JNIEXPORT jdouble JNICALL Java_com_esl_searchforfiles_Video_FFmpegBridge_getDura
 JNIEXPORT jstring JNICALL Java_com_esl_searchforfiles_Video_FFmpegBridge_getContainerFormatName
   (JNIEnv *, jobject, jlong);
 
+/*
+ * Class:     com_esl_searchforfiles_Video_FFmpegBridge
+ * Method:    getAudioTrackCount
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_esl_searchforfiles_Video_FFmpegBridge_getAudioTrackCount
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_esl_searchforfiles_Video_FFmpegBridge
+ * Method:    getAudioTrackLanguage
+ * Signature: (JI)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_esl_searchforfiles_Video_FFmpegBridge_getAudioTrackLanguage
+  (JNIEnv *, jobject, jlong, jint);
+
+/*
+ * Class:     com_esl_searchforfiles_Video_FFmpegBridge
+ * Method:    setAudioTrack
+ * Signature: (JI)Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_esl_searchforfiles_Video_FFmpegBridge_setAudioTrack
+  (JNIEnv *, jobject, jlong, jint);
+
+/*
+ * Class:     com_esl_searchforfiles_Video_FFmpegBridge
+ * Method:    getSubtitleTrackCount
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_com_esl_searchforfiles_Video_FFmpegBridge_getSubtitleTrackCount
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_esl_searchforfiles_Video_FFmpegBridge
+ * Method:    getSubtitleTrackLanguage
+ * Signature: (JI)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_esl_searchforfiles_Video_FFmpegBridge_getSubtitleTrackLanguage
+  (JNIEnv *, jobject, jlong, jint);
+
+/*
+ * Class:     com_esl_searchforfiles_Video_FFmpegBridge
+ * Method:    setSubtitleTrack
+ * Signature: (JI)Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_esl_searchforfiles_Video_FFmpegBridge_setSubtitleTrack
+  (JNIEnv *, jobject, jlong, jint);
+
+/*
+ * Class:     com_esl_searchforfiles_Video_FFmpegBridge
+ * Method:    pollSubtitleFrame
+ * Signature: (J)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_esl_searchforfiles_Video_FFmpegBridge_pollSubtitleFrame
+  (JNIEnv *, jobject, jlong);
+
+/*
+ * Class:     com_esl_searchforfiles_Video_FFmpegBridge
+ * Method:    pollVideoFramePts
+ * Signature: (J)D
+ */
+JNIEXPORT jdouble JNICALL Java_com_esl_searchforfiles_Video_FFmpegBridge_pollVideoFramePts
+  (JNIEnv *, jobject, jlong);
+
 #ifdef __cplusplus
 }
 #endif
