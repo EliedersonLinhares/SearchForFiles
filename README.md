@@ -1,4 +1,4 @@
-# SearchForFiles 📚
+# Jupiter File Management 📚
 Project to create a program to find files on computer using virtual threads and sqlLite for indexing, with
 focus on media(image, audio and video)
 
@@ -7,6 +7,11 @@ focus on media(image, audio and video)
 -  🎥 Javacv: Java interface to OpenCV, FFmpeg, and others. https://github.com/bytedeco/javacv
 -  📃 Apache PDFBox: Open source Java tool for working with PDF documents. https://pdfbox.apache.org
 -  📱 FlatLaf: Look and Feel for Java Swing desktop applications https://www.formdev.com/flatlaf/
+-  TwelveMonkeys ImageIO: Provides extended image file format support for the Java platform https://github.com/haraldk/TwelveMonkeys
+-  JMonkeyEngine: 3D game engine for .obj 3D model visualization https://jmonkeyengine.org/
+-  Zip4j: The most comprehensive Java library for zip files or streams. https://github.com/srikanth-lingala/zip4j
+-  JunRar: Read and extracts from a .rar file. https://github.com/junrar/junrar
+
 
 ## 🎯 Features until now
 - ✅ Search using virtual threads in java 25.
@@ -29,9 +34,15 @@ focus on media(image, audio and video)
 - ✅ Add Rename mode to rename many files or folders at time
 - ✅ Add Image Edit mode to edit images with filters using actions
 - ✅ The Image edit mode can save and load pipeline actions to increase agility 
+- ✅ The Image edit mode can save and load pipeline actions to increase agility
+- ✅ Add native image viewer 
+- ✅ Add native PDF viewer using Apache PDFbox
+- ✅ Add native Video and audio player with support to change different audio and subtitle im 
+  movies like video, with own bridge C class to access FFmpeg dll`s
+- ✅ Add native .obj 3d model viewer using JMonkey game engine 
+- ✅ Add possibility to decompress ZIP an RAR individual files 
 
 
 ## 🚀 Features to be implemented
 - ℹ️ Better UI design
-- ℹ️ Personalized image viewer
 
