@@ -5,7 +5,7 @@ import com.esl.searchforfiles.compressedFiles.CompressedWorker;
 import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.database.DatabaseManager;
 import com.esl.searchforfiles.model.FileInfo;
-import com.esl.searchforfiles.preview.ImageViewerFrame;
+import com.esl.searchforfiles.preview.imageViewer.ImageViewerFrame;
 import com.esl.searchforfiles.service.FavoritesService;
 
 import javax.swing.*;
@@ -15,7 +15,6 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Date;
-import java.util.Objects;
 
 /**
  * Menu de contexto (botão direito) para arquivos

@@ -252,7 +252,7 @@ public class SyncService {
         if (Files.exists(filePath)) {
             BasicFileAttributes attrs = Files.readAttributes(filePath, BasicFileAttributes.class);
             dbManager.indexFile(filePath, attrs);
-            System.out.println("  ➕ Novo: " + getFileName(path));//////
+            System.out.println("  ➕ Novo: " + getFileName(path));
         }
     }
 

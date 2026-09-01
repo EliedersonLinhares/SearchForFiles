@@ -1,4 +1,4 @@
-package com.esl.searchforfiles.preview;
+package com.esl.searchforfiles.preview.pdfViewer;
 
 
 import javax.swing.*;

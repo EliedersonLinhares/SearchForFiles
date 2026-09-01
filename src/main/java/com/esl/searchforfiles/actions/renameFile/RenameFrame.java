@@ -185,7 +185,6 @@ public class RenameFrame extends JFrame {
 
         JScrollPane tagScroll = new JScrollPane(tagList);
         tagScroll.setBorder(BorderFactory.createLineBorder(new Color(70, 70, 70)));
-      //  tagScroll.setBackground(new Color(50, 50, 50));
 
         // Centro: label colada ao topo do scroll, sem gap extra
         JPanel centerArea = new JPanel(new BorderLayout(0, 0));
@@ -216,14 +215,10 @@ public class RenameFrame extends JFrame {
 
     private JPanel buildRightPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-      //  panel.setBackground(new Color(45, 45, 45));
 
         ThumbnailCellRenderer thumbRenderer = new ThumbnailCellRenderer();
 
         table = new JTable(tableModel);
-     //   table.setBackground(new Color(45, 45, 45));
-     //   table.setForeground(new Color(210, 210, 210));
-     //   table.setGridColor(new Color(65, 65, 65));
         table.setRowHeight(ThumbnailCellRenderer.ROW_HEIGHT);
         table.setFont(UIConfig.FONT_SMALL);
         table.setSelectionBackground(UIConfig.SELECTED_COLOR);
@@ -233,7 +228,6 @@ public class RenameFrame extends JFrame {
 
         // Cabeçalho
         table.getTableHeader().setBackground(UIConfig.background());
-    //    table.getTableHeader().setForeground(new Color(150, 150, 150));
         table.getTableHeader().setFont(UIConfig.FONT_SMALL);
         table.getTableHeader().setBorder(BorderFactory.createLineBorder(normalColor));
         table.getTableHeader().setReorderingAllowed(false);
@@ -278,8 +272,6 @@ public class RenameFrame extends JFrame {
 
         JScrollPane scroll = new JScrollPane(table);
         scroll.setBorder(BorderFactory.createEmptyBorder());
-    //    scroll.setBackground(new Color(45, 45, 45));
-    //    scroll.getViewport().setBackground(new Color(45, 45, 45));
         scroll.getVerticalScrollBar().setUnitIncrement(12);
 
         panel.add(scroll, BorderLayout.CENTER);
@@ -592,7 +584,6 @@ public class RenameFrame extends JFrame {
             setFont(isSelected ? UIConfig.FONT_DEFAULT_BOLD : UIConfig.FONT_DEFAULT);
             setBorder(BorderFactory.createLineBorder(isSelected ? UIConfig.SELECTED_COLOR : normalColor));
 
-          //  setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
             return this;
         }
     }
@@ -629,8 +620,7 @@ public class RenameFrame extends JFrame {
                         : UIConfig.error());
 
             }
-
-           // setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
+;
             setFont(isSelected ? UIConfig.FONT_DEFAULT_BOLD : UIConfig.FONT_DEFAULT);
             setBorder(BorderFactory.createLineBorder(isSelected ? UIConfig.SELECTED_COLOR : normalColor));
             return this;

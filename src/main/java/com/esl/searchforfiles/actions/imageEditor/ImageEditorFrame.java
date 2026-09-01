@@ -172,18 +172,14 @@ public class ImageEditorFrame extends JFrame {
     // ── Painel esquerdo ────────────────────────────────────────────
     private JPanel buildLeftPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        //   panel.setBackground(new Color(38, 38, 38));
 
         imagePreviewPanel = new ImagePreviewPanel();
-        //     imagePreviewPanel.setBackground(new Color(30, 30, 30));
 
         // JScrollPane permite rolar quando zoom > fitScale
         JScrollPane imgScroll = new JScrollPane(imagePreviewPanel);
         imgScroll.setBorder(BorderFactory.createEmptyBorder());
         imgScroll.getVerticalScrollBar().setUnitIncrement(16);
         imgScroll.getHorizontalScrollBar().setUnitIncrement(16);
-        //  imgScroll.setBackground(new Color(30, 30, 30));
-        //  imgScroll.getViewport().setBackground(new Color(30, 30, 30));
 
         // Zoom pela rodinha — ignorado durante o modo crop
         imgScroll.addMouseWheelListener(e -> {
@@ -199,12 +195,10 @@ public class ImageEditorFrame extends JFrame {
 
     private JPanel buildNavBar() {
         JPanel wrapper = new JPanel(new BorderLayout());
-        //  wrapper.setBackground(new Color(42, 42, 42));
         wrapper.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UIConfig.foreground()));
 
         // ── Linha de navegação + zoom ──────────────────────────────
         JPanel navRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 6));
-        //  navRow.setBackground(new Color(42, 42, 42));
 
         prevBtn = makeIconBtn("◀");
         nextBtn = makeIconBtn("▶");
@@ -233,7 +227,6 @@ public class ImageEditorFrame extends JFrame {
         zoomResetBtn.addActionListener(e -> resetZoom());
 
         zoomLabel = new JLabel("100%");
-        //  zoomLabel.setForeground(new Color(140, 140, 140));
         zoomLabel.setFont(UIConfig.FONT_DEFAULT);
         zoomLabel.setPreferredSize(new Dimension(40, 16));
         zoomLabel.setHorizontalAlignment(SwingConstants.CENTER);
@@ -530,13 +523,13 @@ public class ImageEditorFrame extends JFrame {
 
         menu.addSeparator();
 
-        JMenuItem sharpItem = new JMenuItem("Nitidez (sharpen)");
-        sharpItem.addActionListener(e -> addAction(new ImageEditAction("Nitidez (sharpen)")));
-        menu.add(sharpItem);
-
-        JMenuItem waterItem = new JMenuItem("Aplicar marca d'água");
-        waterItem.addActionListener(e -> addAction(new ImageEditAction("Aplicar marca d'água")));
-        menu.add(waterItem);
+//        JMenuItem sharpItem = new JMenuItem("Nitidez (sharpen)");
+//        sharpItem.addActionListener(e -> addAction(new ImageEditAction("Nitidez (sharpen)")));
+//        menu.add(sharpItem);
+//
+//        JMenuItem waterItem = new JMenuItem("Aplicar marca d'água");
+//        waterItem.addActionListener(e -> addAction(new ImageEditAction("Aplicar marca d'água")));
+//        menu.add(waterItem);
 
         menu.show(anchor, 0, anchor.getHeight());
     }
@@ -661,11 +654,11 @@ public class ImageEditorFrame extends JFrame {
     /**
      * Adiciona um card genérico (ações dummy / futuras).
      */
-    private void addAction(ImageEditAction action) {
-        ActionCardPanel card = new ActionCardPanel(action, this::removeAction);
-        card.setAlignmentX(Component.LEFT_ALIGNMENT);
-        registerCard(card);
-    }
+//    private void addAction(ImageEditAction action) {
+//        ActionCardPanel card = new ActionCardPanel(action, this::removeAction);
+//        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+//        registerCard(card);
+//    }
 
     /**
      * Ponto único de registro: adiciona à lista, ao container e ao layout.

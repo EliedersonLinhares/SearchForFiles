@@ -1,4 +1,4 @@
-package com.esl.searchforfiles.preview;
+package com.esl.searchforfiles.preview.videoViewer;
 
 
 import com.esl.searchforfiles.Video.FFmpegBridge;
@@ -83,8 +83,14 @@ public class VideoPlayerFrame extends JFrame {
         btnFastForward.setFont(UIConfig.FONT_DEFAULT);
         btnStop.setFont(UIConfig.FONT_DEFAULT);
         btnMute.setFont(UIConfig.FONT_DEFAULT);
-        lblVolume.setFont(UIConfig.FONT_SMALL);
+        lblVolume.setFont(UIConfig.FONT_DEFAULT);
         lblTime.setFont(UIConfig.FONT_DEFAULT);
+        audioTrackCombo.setFont(UIConfig.FONT_DEFAULT);
+        subtitleTrackCombo.setFont(UIConfig.FONT_DEFAULT);
+        JLabel lblAudioTrack = new JLabel("Audio:");
+        JLabel lblSubtitleTrack = new JLabel("Subtitle:");
+        lblAudioTrack.setFont(UIConfig.FONT_DEFAULT);
+        lblSubtitleTrack.setFont(UIConfig.FONT_DEFAULT);
 
 
         leftButtonsPanel.add(btnPlayPause);
@@ -94,9 +100,9 @@ public class VideoPlayerFrame extends JFrame {
         leftButtonsPanel.add(btnMute);
         leftButtonsPanel.add(lblVolume);
         leftButtonsPanel.add(volumeSlider);
-        leftButtonsPanel.add(new JLabel("Áudio:"));
+        leftButtonsPanel.add(lblAudioTrack);
         leftButtonsPanel.add(audioTrackCombo);
-        leftButtonsPanel.add(new JLabel("Legenda:"));
+        leftButtonsPanel.add(lblSubtitleTrack);
         leftButtonsPanel.add(subtitleTrackCombo);
 
         JPanel rightInfoPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 2));

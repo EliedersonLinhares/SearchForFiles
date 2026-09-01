@@ -85,7 +85,7 @@ public class ResultsPanel extends JPanel {
         setupResizeListener();
 
         // NOVO: Configura menu de contexto do cache
-        setupCacheContextMenu();
+//        setupCacheContextMenu();
 
         setupKeyboardScroll();
 
@@ -336,52 +336,52 @@ public class ResultsPanel extends JPanel {
     /**
      * NOVO: Configura menu de contexto para gerenciar cache
      */
-    private void setupCacheContextMenu() {
-        // Adiciona listener de mouse ao gridPanel
-        gridPanel.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                if (e.isPopupTrigger()) {
-                    showCacheMenu(e);
-                }
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                if (e.isPopupTrigger()) {
-                    showCacheMenu(e);
-                }
-            }
-
-            private void showCacheMenu(MouseEvent e) {
-                // Só mostra o menu se não clicar em um FileItemPanel
-                Component comp = gridPanel.getComponentAt(e.getPoint());
-                if (comp == gridPanel || comp == null) {
-                    CacheContextMenu.show(gridPanel, cacheManager, e.getX(), e.getY(), getFileExplorerSwing());
-                }
-            }
-        });
-
-        // OPCIONAL: Adiciona atalho de teclado (Ctrl+Shift+C)
-        InputMap inputMap = getInputMap(WHEN_IN_FOCUSED_WINDOW);
-        ActionMap actionMap = getActionMap();
-
-        KeyStroke cacheKeyStroke = KeyStroke.getKeyStroke(
-                KeyEvent.VK_C,
-                InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK
-        );
-
-        inputMap.put(cacheKeyStroke, "showCacheMenu");
-        actionMap.put("showCacheMenu", new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                // Mostra menu no centro do painel
-                int x = gridPanel.getWidth() / 2;
-                int y = gridPanel.getHeight() / 2;
-                CacheContextMenu.show(gridPanel, cacheManager, x, y, getFileExplorerSwing());
-            }
-        });
-    }
+//    private void setupCacheContextMenu() {
+//        // Adiciona listener de mouse ao gridPanel
+//        gridPanel.addMouseListener(new MouseAdapter() {
+//            @Override
+//            public void mousePressed(MouseEvent e) {
+//                if (e.isPopupTrigger()) {
+//                    showCacheMenu(e);
+//                }
+//            }
+//
+//            @Override
+//            public void mouseReleased(MouseEvent e) {
+//                if (e.isPopupTrigger()) {
+//                    showCacheMenu(e);
+//                }
+//            }
+//
+//            private void showCacheMenu(MouseEvent e) {
+//                // Só mostra o menu se não clicar em um FileItemPanel
+//                Component comp = gridPanel.getComponentAt(e.getPoint());
+//                if (comp == gridPanel || comp == null) {
+//                    CacheContextMenu.show(gridPanel, cacheManager, e.getX(), e.getY(), getFileExplorerSwing());
+//                }
+//            }
+//        });
+//
+//        // OPCIONAL: Adiciona atalho de teclado (Ctrl+Shift+C)
+//        InputMap inputMap = getInputMap(WHEN_IN_FOCUSED_WINDOW);
+//        ActionMap actionMap = getActionMap();
+//
+//        KeyStroke cacheKeyStroke = KeyStroke.getKeyStroke(
+//                KeyEvent.VK_C,
+//                InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK
+//        );
+//
+//        inputMap.put(cacheKeyStroke, "showCacheMenu");
+//        actionMap.put("showCacheMenu", new AbstractAction() {
+//            @Override
+//            public void actionPerformed(ActionEvent e) {
+//                // Mostra menu no centro do painel
+//                int x = gridPanel.getWidth() / 2;
+//                int y = gridPanel.getHeight() / 2;
+//                CacheContextMenu.show(gridPanel, cacheManager, x, y, getFileExplorerSwing());
+//            }
+//        });
+//    }
 
     public void setThumbnailSize(ThumbnailSize size) {
         this.currentThumbSize = size;

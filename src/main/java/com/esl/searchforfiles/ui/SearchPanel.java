@@ -120,7 +120,43 @@ public class SearchPanel extends JPanel {
 
         // ComboBox de filtro por tipo
         filterBox = new JComboBox<>(new String[]{
-                "TODOS", "AUDIO", "VIDEO", "IMAGE", "DOCUMENT", "COMPRESSED", "EXECUTABLE", "CONFIGURATION", "FOLDER"
+                "ALL", "AUDIO", "VIDEO", "IMAGE", "DOCUMENT", "COMPRESSED", "EXECUTABLE", "CONFIGURATION", "FOLDER"
+        });
+
+        // Renderizador para traduzir o que aparece na tela
+        filterBox.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+
+                if (value != null) {
+                    String texto = value.toString();
+                    // Traduz "ALL" para "Tudo". Você pode adicionar outras traduções aqui se quiser.
+                    if ("ALL".equals(texto)) {
+                        setText("Tudo");
+                    }else if ("AUDIO".equals(texto)) {
+                        setText("Audio");
+                    }else if ("VIDEO".equals(texto)) {
+                        setText("Video");
+                    }else if ("IMAGE".equals(texto)) {
+                        setText("Imagem");
+                    }else if ("DOCUMENT".equals(texto)) {
+                        setText("Documento");
+                    }else if ("COMPRESSED".equals(texto)) {
+                        setText("Compactado");
+                    }else if ("EXECUTABLE".equals(texto)) {
+                        setText("Executável");
+                    }else if ("CONFIGURATION".equals(texto)) {
+                        setText("Configuração");
+                    }else if ("FOLDER".equals(texto)) {
+                        setText("Pasta");
+                    }
+                        else {
+                        setText(texto);
+                    }
+                }
+                return this;
+            }
         });
         filterBox.setSelectedItem(fileExplorerSwing.getConfigManager().getSavedFileType());
         filterBox.setFont(UIConfig.FONT_DEFAULT);

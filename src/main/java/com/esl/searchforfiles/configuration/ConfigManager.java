@@ -28,12 +28,17 @@ public class ConfigManager {
     public static final String KEY_SUBFOLDER_SORT_FIELD = "subfolder_sort_field";
     public static final String KEY_SUBFOLDER_SORT_ORDER = "subfolder_sort_order";
     public static final String KEY_RIGHT_SPLIT_POS = "right_split_pos";
+    public static final String KEY_ITENS_SHOW = "itensShow";
+
 
     public static final String KEY_SEARCH_HISTORY = "search_history";
     public static final String KEY_TAG_HISTORY = "tag_history";
 
     private static final String CONFIG_FILE = "app_config.properties";
     private static final String APP_DIR_NAME = ".advancedsearch";
+
+
+
     // Valores padrão para cada chave
     private static final Map<String, String> DEFAULTS = new LinkedHashMap<>();
 
@@ -51,6 +56,7 @@ public class ConfigManager {
         DEFAULTS.put(KEY_SUBFOLDER_SORT_FIELD, "name");
         DEFAULTS.put(KEY_SUBFOLDER_SORT_ORDER, "ASC");
         DEFAULTS.put(KEY_RIGHT_SPLIT_POS, "-1");
+        DEFAULTS.put(KEY_ITENS_SHOW, "100");
 
     }
 
@@ -333,6 +339,14 @@ public class ConfigManager {
     }
     public void saveRightSplitPos(int pos) {
         setInt(KEY_RIGHT_SPLIT_POS, pos);
+    }
+
+
+    public int getItensShow() {
+        return getInt(KEY_ITENS_SHOW, 100);
+    }
+    public void saveItensShow(int qty) {
+        setInt(KEY_ITENS_SHOW, qty);
     }
 
 

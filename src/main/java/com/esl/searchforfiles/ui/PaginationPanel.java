@@ -81,10 +81,14 @@ public class PaginationPanel extends JPanel {
 
         // ── Items por página ──────────────────────────────────────
         pageSizeCombo = new JComboBox<>(new Integer[]{50, 100, 200, 500, 1000});
-        pageSizeCombo.setSelectedItem(100);
+        pageSizeCombo.setSelectedItem(fileExplorerSwing.getConfigManager().getItensShow());
         pageSizeCombo.setFont(UIConfig.FONT_DEFAULT);
         pageSizeCombo.setPreferredSize(new Dimension(75, 26));
-        pageSizeCombo.addActionListener(e -> onPageSizeChanged());
+        pageSizeCombo.addActionListener(e -> {
+            onPageSizeChanged();
+            Integer itemSelecionado = (Integer) pageSizeCombo.getSelectedItem();
+            fileExplorerSwing.getConfigManager().saveItensShow(itemSelecionado);
+        });
 
         // ── Total ─────────────────────────────────────────────────
         totalLabel = new JLabel("0 resultados");

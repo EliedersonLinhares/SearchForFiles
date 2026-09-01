@@ -1,4 +1,4 @@
-package com.esl.searchforfiles.preview;
+package com.esl.searchforfiles.preview.model3DViewer;
 
 
 import com.jme3.app.SimpleApplication;
@@ -13,6 +13,8 @@ import com.jme3.material.RenderState;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
+import com.jme3.renderer.RenderManager;
+import com.jme3.renderer.Renderer;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.*;
 import com.jme3.scene.VertexBuffer.Type;
@@ -20,14 +22,10 @@ import com.jme3.scene.debug.WireBox;
 import com.jme3.util.BufferUtils;
 import com.jme3.renderer.Camera;
 import com.jme3.renderer.ViewPort;
-import com.jme3.texture.FrameBuffer;
-import com.jme3.texture.Image;
-import com.jme3.texture.Texture2D;
-import com.jme3.util.Screenshots;
-import javax.imageio.ImageIO;
+import com.jme3.bounding.BoundingBox;
+import com.jme3.bounding.BoundingSphere;
+import com.jme3.bounding.BoundingVolume;
 import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.nio.ByteBuffer;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -44,18 +42,7 @@ import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import javax.imageio.IIOImage;
-import javax.imageio.ImageWriter;
-import javax.imageio.ImageWriteParam;
-import javax.imageio.metadata.IIOMetadata;
-import javax.imageio.metadata.IIOMetadataNode;
-import javax.imageio.stream.ImageOutputStream;
-import java.util.Iterator;
 
-/**
- * Aplicação jME3 embutida no Canvas AWT. Toda a lógica de câmera orbital,
- * carregamento de OBJ e manipulação da cena vive aqui.
- */
 public class Obj3DApp extends SimpleApplication {
 
     private static final ColorRGBA KEY_LIGHT_BASE_COLOR = ColorRGBA.White;
@@ -106,21 +93,18 @@ public class Obj3DApp extends SimpleApplication {
     private volatile ToolMode toolMode = ToolMode.ORBIT;
     private static final float DRAG_ZOOM_SENSITIVITY = 0.8f; // menor = mais suave/lento
 
-    private ViewPort screenshotViewPort;
-    private Camera screenshotCamera;
-    private FrameBuffer screenshotFrameBuffer;
-    private Texture2D screenshotTexture;
-    private int screenshotWidth = -1;
-    private int screenshotHeight = -1;
-    private static final int SUPERSAMPLE_FACTOR = 4; // renderiza em 3x e reduz — ajustável (2 = mais rápido, 4 = mais suave)
-    private final Map<Geometry, Float> originalLineWidths = new HashMap<>();
+    private float minZoomDistance = 0.5f;
+    private float maxZoomDistance = 500f;
+    private float dynamicFarPlane = 1000f;
+
 
     private final java.util.Set<String> registeredTextureLocators = new java.util.HashSet<>();
     private File lastLoadedObjFile;
 
-
     public Obj3DApp() {
+
         super(); // sem StatsAppState/FlyCamAppState padrão problemáticos em canvas
+
     }
 
     @Override
@@ -340,19 +324,12 @@ public class Obj3DApp extends SimpleApplication {
         updateCameraPosition();
     }
 
-    private void zoom(float delta) {
-        camDistance = FastMath.clamp(camDistance + delta, 0.5f, 500f);
-        updateCameraPosition();
-    }
 
-    //    private void updateCameraPosition() {
-//        float x = camDistance * FastMath.cos(camPitch) * FastMath.sin(camYaw);
-//        float y = camDistance * FastMath.sin(camPitch);
-//        float z = camDistance * FastMath.cos(camPitch) * FastMath.cos(camYaw);
-//        Vector3f camPos = orbitTarget.add(x, y, z);
-//        cam.setLocation(camPos);
-//        cam.lookAt(orbitTarget, Vector3f.UNIT_Y);
-//    }
+private void zoom(float delta) {
+    camDistance = FastMath.clamp(camDistance + delta, minZoomDistance, maxZoomDistance); // ANTES: 0.5f, 500f fixos
+    updateCameraPosition();
+}
+
     private void updateCameraPosition() {
         switch (cameraMode) {
             case FREE -> updateFreeCameraPosition();
@@ -426,31 +403,6 @@ public class Obj3DApp extends SimpleApplication {
             }
         }
     }
-
-//    public void loadObjFile(File objFile, Runnable onLoaded, Consumer<String> onError) {
-//        this.onModelLoaded = onLoaded;
-//        enqueue(() -> {
-//            try {
-//                modelRoot.detachAllChildren();
-//
-//                File workingDir = prepareSanitizedModelFolder(objFile);
-//                assetManager.registerLocator(workingDir.getAbsolutePath(), FileLocator.class);
-//                assetManager.registerLocator(objFile.getParentFile().getAbsolutePath(), FileLocator.class); // NOVO: fallback para texturas
-//
-//                Spatial loaded = assetManager.loadModel(objFile.getName());
-//                ensureNormals(loaded);
-//                captureOriginalMaterials(loaded);  // salva o material vindo do .mtl
-//                applyMaterialMode(loaded);         // aplica cinza ou original conforme o modo atual
-//
-//                modelRoot.attachChild(loaded);
-//                frameModelInView(loaded);
-//                if (onLoaded != null) onLoaded.run();
-//            } catch (Exception ex) {
-//                ex.printStackTrace();
-//                if (onError != null) onError.accept(ex.getClass().getSimpleName() + ": " + ex.getMessage());
-//            }
-//        });
-//    }
 
     public void loadObjFile(File objFile, Runnable onLoaded, Consumer<String> onError) {
         this.lastLoadedObjFile = objFile; // NOVO
@@ -588,22 +540,6 @@ public class Obj3DApp extends SimpleApplication {
             }
         }
     }
-
-    //    private void ensureMaterial(Spatial spatial) {
-//        if (spatial instanceof Geometry geom) {
-//            if (geom.getMaterial() == null) {
-//                Material mat = new Material(assetManager, "Common/MatDefs/Light/Lighting.j3md");
-//                mat.setBoolean("UseMaterialColors", true);
-//                mat.setColor("Diffuse", ColorRGBA.LightGray);
-//                mat.setColor("Ambient", ColorRGBA.Gray);
-//                geom.setMaterial(mat);
-//            }
-//        } else if (spatial instanceof Node node) {
-//            for (Spatial child : node.getChildren()) {
-//                ensureMaterial(child);
-//            }
-//        }
-//    }
     private void ensureMaterial(Spatial spatial) {
         if (spatial instanceof Geometry geom) {
             applyFlatGrayMaterial(geom);
@@ -614,33 +550,42 @@ public class Obj3DApp extends SimpleApplication {
         }
     }
 
-    // Centraliza e enquadra a câmera de acordo com o bounding box do modelo carregado
-//    private void frameModelInView(Spatial model) {
-//        model.updateModelBound();
-//        com.jme3.bounding.BoundingVolume bv = model.getWorldBound();
-//        Vector3f center = bv.getCenter();
-//        float radius = (bv instanceof com.jme3.bounding.BoundingSphere bs)
-//                ? bs.getRadius()
-//                : model.getWorldBound().getVolume() > 0 ? 5f : 5f;
-//
-//        orbitTarget.set(center);
-//        camDistance = Math.max(2f, radius * 2.5f);
-//        camYaw = FastMath.QUARTER_PI;
-//        camPitch = FastMath.QUARTER_PI * 0.5f;
-//        updateCameraPosition();
-//    }
-    private void frameModelInView(Spatial model) {
-        model.updateModelBound();
-        com.jme3.bounding.BoundingVolume bv = model.getWorldBound();
-        Vector3f center = bv.getCenter();
-        float radius = (bv instanceof com.jme3.bounding.BoundingSphere bs) ? bs.getRadius() : 5f;
-        currentModelRadius = radius; // NOVO
 
-        orbitTarget.set(center);
-        camDistance = Math.max(2f, radius * 2.5f);
-        camYaw = FastMath.QUARTER_PI;
-        camPitch = FastMath.QUARTER_PI * 0.5f;
-        updateCameraPosition();
+private void frameModelInView(Spatial model) {
+    model.updateModelBound();
+    BoundingVolume bv = model.getWorldBound();
+    Vector3f center = bv.getCenter();
+    float radius = computeBoundingRadius(bv); // CORRIGIDO (antes: só funcionava para BoundingSphere)
+    currentModelRadius = radius;
+
+    orbitTarget.set(center);
+    camDistance = Math.max(2f, radius * 2.5f);
+    camYaw = FastMath.QUARTER_PI;
+    camPitch = FastMath.QUARTER_PI * 0.5f;
+
+    updateCameraLimitsForModelSize(radius);
+    updateCameraPosition();
+}
+
+    /**
+     * Recalcula os limites de zoom e o plano de corte distante (far plane)
+     * proporcionalmente ao tamanho do modelo carregado. Sem isso, modelos
+     * muito grandes ficam com partes cortadas pelo far plane fixo do jME (1000
+     * por padrão), e o zoom fica limitado demais para conseguir enquadrar o
+     * modelo inteiro na tela.
+     */
+    private void updateCameraLimitsForModelSize(float modelRadius) {
+        minZoomDistance = Math.max(0.01f, modelRadius * 0.01f); // evita "entrar" demais dentro do modelo
+        maxZoomDistance = Math.max(500f, modelRadius * 15f);    // margem generosa para dar zoom out total
+
+        // O far plane precisa cobrir a distância máxima de zoom MAIS o próprio
+        // tamanho do modelo (senão o lado mais distante do modelo, mesmo visto
+        // de longe, continua sendo cortado)
+        dynamicFarPlane = maxZoomDistance + modelRadius * 3f;
+        float dynamicNearPlane = Math.max(0.001f, modelRadius * 0.001f); // evita z-fighting em modelos minúsculos
+
+        cam.setFrustumPerspective(45f, (float) cam.getWidth() / cam.getHeight(),
+                dynamicNearPlane, dynamicFarPlane);
     }
 
     public void toggleWireframe() {
@@ -666,19 +611,20 @@ public class Obj3DApp extends SimpleApplication {
         enqueue(() -> viewPort.setBackgroundColor(color));
     }
 
-    public void resetCamera() {
-        enqueue(() -> {
-            if (modelRoot.getChildren().isEmpty()) {
-                orbitTarget.set(0, 0, 0);
-                camDistance = 10f;
-            } else {
-                frameModelInView(modelRoot);
-            }
-            camYaw = FastMath.QUARTER_PI;
-            camPitch = FastMath.QUARTER_PI * 0.5f;
-            setCameraModeInternal(CameraMode.FREE); // NOVO: reseta também para modo livre
-        });
-    }
+
+public void resetCamera() {
+    enqueue(() -> {
+        if (modelRoot.getChildren().isEmpty()) {
+            orbitTarget.set(0, 0, 0);
+            camDistance = 10f;
+        } else {
+            frameModelInView(modelRoot); // já corrigido internamente, nenhuma mudança adicional aqui
+        }
+        camYaw = FastMath.QUARTER_PI;
+        camPitch = FastMath.QUARTER_PI * 0.5f;
+        setCameraModeInternal(CameraMode.FREE);
+    });
+}
 
     public int countTriangles() {
         int[] total = {0};
@@ -801,35 +747,6 @@ public class Obj3DApp extends SimpleApplication {
      * Aplica o modo de material atual (cinza sólido ou original) a toda a hierarquia,
      * usando o material salvo em captureOriginalMaterials.
      */
-//    private void applyMaterialMode(Spatial spatial) {
-//        if (spatial instanceof Geometry geom) {
-//            if (flatGrayMode) {
-//                applyFlatGrayMaterial(geom);
-//            } else {
-//                restoreOriginalMaterial(geom);
-//            }
-//        } else if (spatial instanceof Node node) {
-//            for (Spatial child : node.getChildren()) {
-//                applyMaterialMode(child);
-//            }
-//        }
-//    }
-//    public void setRenderStyle(RenderStyle style) {
-//        boolean enteringPen = style == RenderStyle.PEN && renderStyle != RenderStyle.PEN;
-//        boolean leavingPen = style != RenderStyle.PEN && renderStyle == RenderStyle.PEN;
-//
-//        this.renderStyle = style;
-//        enqueue(() -> {
-//            if (enteringPen) {
-//                backgroundColorBeforePen = viewPort.getBackgroundColor().clone();
-//                viewPort.setBackgroundColor(ColorRGBA.White);
-//            } else if (leavingPen && backgroundColorBeforePen != null) {
-//                viewPort.setBackgroundColor(backgroundColorBeforePen);
-//                backgroundColorBeforePen = null;
-//            }
-//            applyMaterialMode(modelRoot);
-//        });
-//    }
     public void setRenderStyle(RenderStyle style) {
         boolean enteringPen = style == RenderStyle.PEN && renderStyle != RenderStyle.PEN;
         boolean leavingPen = style != RenderStyle.PEN && renderStyle == RenderStyle.PEN;
@@ -848,24 +765,6 @@ public class Obj3DApp extends SimpleApplication {
     }
 
     // ── Chame nesta ordem ao carregar o modelo ──
-// ensureNormals(loaded);
-// captureOriginalMaterials(loaded);   // NOVO: salva o material original antes de qualquer troca
-// applyMaterialMode(loaded);          // NOVO: aplica cinza ou original conforme o modo atual
-
-    //    private void applyMaterialMode(Spatial spatial) {
-//        if (spatial instanceof Geometry geom) {
-//            removePenArtifacts(geom); // limpa arestas/contorno de uma aplicação anterior
-//            switch (renderStyle) {
-//                case FLAT_GRAY -> applyFlatGrayMaterial(geom);
-//                case ORIGINAL_MATERIAL -> restoreOriginalMaterial(geom);
-//                case PEN -> applyPenStyle(geom);
-//            }
-//        } else if (spatial instanceof Node node) {
-//            for (Spatial child : node.getChildren()) {
-//                applyMaterialMode(child);
-//            }
-//        }
-//    }
     private void applyMaterialMode(Spatial spatial) {
         if (spatial instanceof Geometry geom) {
             removePenArtifacts(geom);
@@ -927,8 +826,6 @@ public class Obj3DApp extends SimpleApplication {
         Node parent = geom.getParent();
         if (parent == null) return;
 
-        // 1. Passo de profundidade: o modelo em si não desenha cor nenhuma,
-        //    só ocupa espaço no depth buffer para ocultar linhas atrás dele
         Material depthOnlyMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
         depthOnlyMat.setColor("Color", ColorRGBA.White);
         depthOnlyMat.getAdditionalRenderState().setColorWrite(false);
@@ -952,19 +849,7 @@ public class Obj3DApp extends SimpleApplication {
             artifacts.add(creaseLines);
         }
 
-        // 3. Contorno de silhueta (casca invertida)
-//        Geometry outline = buildInvertedHullOutline(geom, currentModelRadius);
-//        if (outline != null) {
-//            Material outlineMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
-//            outlineMat.setColor("Color", ColorRGBA.Black);
-//            outlineMat.getAdditionalRenderState().setFaceCullMode(RenderState.FaceCullMode.Front);
-//            outline.setMaterial(outlineMat);
-//            outline.setQueueBucket(Bucket.Opaque);
-//            parent.attachChild(outline);
-//            artifacts.add(outline);
-//        }
-//
-//        penArtifacts.put(geom, artifacts);
+
         Geometry outline = buildInvertedHullOutline(geom, currentModelRadius);
         if (outline != null) {
             Material outlineMat = new Material(assetManager, "Common/MatDefs/Misc/Unshaded.j3md");
@@ -1133,228 +1018,6 @@ public class Obj3DApp extends SimpleApplication {
         // Se por algum motivo não houver material original salvo, mantém o atual
     }
 
-    /**
-     * Cria (ou recria, se a resolução mudou) um viewport off-screen dedicado
-     * a capturas de tela, com framebuffer RGBA8 — necessário para suportar
-     * fundo transparente, já que o framebuffer principal não tem canal alpha.
-     */
-    private void ensureScreenshotViewPort(int renderWidth, int renderHeight) {
-        if (screenshotViewPort != null && screenshotWidth == renderWidth && screenshotHeight == renderHeight) {
-            return;
-        }
-
-        if (screenshotViewPort != null) {
-            renderManager.removePreView(screenshotViewPort);
-            screenshotFrameBuffer.dispose();
-        }
-
-        screenshotCamera = new Camera(renderWidth, renderHeight);
-        screenshotFrameBuffer = new FrameBuffer(renderWidth, renderHeight, 1);
-        screenshotTexture = new Texture2D(renderWidth, renderHeight, Image.Format.RGBA8);
-        screenshotFrameBuffer.setDepthBuffer(Image.Format.Depth);
-        screenshotFrameBuffer.setColorTexture(screenshotTexture);
-
-        screenshotViewPort = renderManager.createPreView("ScreenshotView", screenshotCamera);
-        screenshotViewPort.setClearFlags(true, true, true);
-        screenshotViewPort.attachScene(rootNode);
-        screenshotViewPort.setOutputFrameBuffer(screenshotFrameBuffer);
-        screenshotViewPort.setEnabled(false);
-
-        screenshotWidth = renderWidth;
-        screenshotHeight = renderHeight;
-    }
-    /**
-     * Captura a cena atual em um arquivo PNG.
-     *
-     * @param outputFile          arquivo de destino (deve terminar em .png)
-     * @param transparentBackground se true, o fundo fica transparente (canal alpha);
-     *                             se false, usa a cor de fundo atual do viewport principal
-     * @param showGrid             se a grade de referência deve aparecer na captura
-     * @param width                largura desejada da imagem (use a largura atual do canvas se null)
-     * @param height               altura desejada da imagem (use a altura atual do canvas se null)
-     */
-    public void captureScreenshot(File outputFile, boolean transparentBackground, boolean showGrid,
-                                  Integer width, Integer height,
-                                  Runnable onSuccess, Consumer<String> onError) {
-        enqueue(() -> {
-            try {
-                int finalW = (width != null) ? width : cam.getWidth();
-                int finalH = (height != null) ? height : cam.getHeight();
-                int renderW = finalW * SUPERSAMPLE_FACTOR;
-                int renderH = finalH * SUPERSAMPLE_FACTOR;
-
-                ensureScreenshotViewPort(renderW, renderH);
-
-                screenshotCamera.setLocation(cam.getLocation());
-                screenshotCamera.setRotation(cam.getRotation());
-                screenshotCamera.setParallelProjection(cam.isParallelProjection());
-                // CORRIGIDO: recalcula o frustum para a proporção de aspecto do framebuffer
-// de destino, preservando o FOV vertical (evita distorção/esticamento)
-                applyAspectCorrectFrustum(screenshotCamera, cam, renderW, renderH);
-
-                ColorRGBA captureBg = transparentBackground
-                        ? new ColorRGBA(0f, 0f, 0f, 0f)
-                        : viewPort.getBackgroundColor();
-                screenshotViewPort.setBackgroundColor(captureBg);
-
-                Spatial.CullHint originalGridCull = gridNode.getCullHint();
-                gridNode.setCullHint(showGrid ? Spatial.CullHint.Never : Spatial.CullHint.Always);
-
-                // NOVO: escala a espessura das linhas proporcionalmente ao supersampling
-                scaleLineWidthsForCapture(rootNode, SUPERSAMPLE_FACTOR);
-
-                screenshotViewPort.setEnabled(true);
-                renderManager.renderViewPort(screenshotViewPort, 0.0f);
-                screenshotViewPort.setEnabled(false);
-
-                // NOVO: restaura a espessura original, para não afetar a tela normal
-                restoreLineWidthsAfterCapture(rootNode);
-
-                gridNode.setCullHint(originalGridCull);
-
-                ByteBuffer pixelBuffer = BufferUtils.createByteBuffer(renderW * renderH * 4);
-                renderer.readFrameBuffer(screenshotFrameBuffer, pixelBuffer);
-
-                BufferedImage rawImage = new BufferedImage(renderW, renderH, BufferedImage.TYPE_4BYTE_ABGR);
-                Screenshots.convertScreenShot(pixelBuffer, rawImage);
-
-                BufferedImage finalImage = downscaleSmooth(rawImage, finalW, finalH);
-                writePngWithDpi(finalImage, outputFile, 300);
-
-                if (onSuccess != null) onSuccess.run();
-            } catch (Exception ex) {
-                ex.printStackTrace();
-                if (onError != null) onError.accept(ex.getClass().getSimpleName() + ": " + ex.getMessage());
-            }
-        });
-    }
-
-    /**
-     * Recalcula o frustum da câmera de captura para a nova proporção de aspecto,
-     * usando a estratégia "contain" (nunca corta): compara a proporção da câmera
-     * original com a da resolução de destino e sempre EXPANDE o eixo necessário
-     * (nunca reduz), garantindo que tudo que era visível na tela ao vivo continue
-     * visível na captura — só pode sobrar mais margem de um dos lados.
-     */
-    private void applyAspectCorrectFrustum(Camera targetCam, Camera sourceCam, int renderW, int renderH) {
-        float targetAspect = (float) renderW / (float) renderH;
-
-        float near = sourceCam.getFrustumNear();
-        float far = sourceCam.getFrustumFar();
-        float top = sourceCam.getFrustumTop();
-        float bottom = sourceCam.getFrustumBottom();
-        float left = sourceCam.getFrustumLeft();
-        float right = sourceCam.getFrustumRight();
-
-        float sourceAspect = (right - left) / (top - bottom);
-
-        float newLeft, newRight, newTop, newBottom;
-
-        if (targetAspect >= sourceAspect) {
-            // Resolução de destino é relativamente mais larga: mantém a altura
-            // (top/bottom) igual à câmera original e EXPANDE a largura para caber
-            newTop = top;
-            newBottom = bottom;
-            float halfWidth = (top - bottom) / 2f * targetAspect;
-            newLeft = -halfWidth;
-            newRight = halfWidth;
-        } else {
-            // Resolução de destino é relativamente mais estreita: mantém a largura
-            // (left/right) igual à câmera original e EXPANDE a altura para caber
-            newLeft = left;
-            newRight = right;
-            float halfHeight = (right - left) / 2f / targetAspect;
-            newBottom = -halfHeight;
-            newTop = halfHeight;
-        }
-
-        targetCam.setFrustum(near, far, newLeft, newRight, newTop, newBottom);
-    }
-
-    /**
-     * Reduz a imagem renderizada em alta resolução para o tamanho final desejado,
-     * usando interpolação bicúbica — o downscale de uma imagem maior é o que
-     * produz o efeito de anti-aliasing (supersampling / SSAA).
-     */
-    private BufferedImage downscaleSmooth(BufferedImage source, int targetW, int targetH) {
-        BufferedImage result = new BufferedImage(targetW, targetH, BufferedImage.TYPE_4BYTE_ABGR);
-        Graphics2D g2 = result.createGraphics();
-        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.drawImage(source, 0, 0, targetW, targetH, null);
-        g2.dispose();
-        return result;
-    }
-
-    /**
-     * Salva o PNG incluindo o metadado de densidade de pixels (chunk pHYs),
-     * para que programas como Windows Explorer/Photoshop mostrem a DPI
-     * correta em vez do valor genérico padrão (geralmente 72 ou 96).
-     */
-    private void writePngWithDpi(BufferedImage image, File outputFile, int dpi) throws IOException {
-        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("png");
-        if (!writers.hasNext()) {
-            ImageIO.write(image, "png", outputFile); // fallback sem DPI, não deveria acontecer
-            return;
-        }
-        ImageWriter writer = writers.next();
-        ImageWriteParam writeParam = writer.getDefaultWriteParam();
-        IIOMetadata metadata = writer.getDefaultImageMetadata(
-                new javax.imageio.ImageTypeSpecifier(image), writeParam);
-
-        double pixelsPerMillimeter = dpi / 25.4;
-        IIOMetadataNode physNode = new IIOMetadataNode("pHYs");
-        physNode.setAttribute("pixelsPerUnitXAxis", Integer.toString((int) pixelsPerMillimeter * 1000));
-        physNode.setAttribute("pixelsPerUnitYAxis", Integer.toString((int) pixelsPerMillimeter * 1000));
-        physNode.setAttribute("unitSpecifier", "meter");
-
-        IIOMetadataNode root = new IIOMetadataNode("javax_imageio_png_1.0");
-        root.appendChild(physNode);
-        metadata.mergeTree("javax_imageio_png_1.0", root);
-
-        try (ImageOutputStream ios = ImageIO.createImageOutputStream(outputFile)) {
-            writer.setOutput(ios);
-            writer.write(metadata, new IIOImage(image, null, metadata), writeParam);
-        } finally {
-            writer.dispose();
-        }
-    }
-
-    /**
-     * Antes de renderizar a captura em alta resolução, multiplica a espessura
-     * de todo material com Mesh.Mode.Lines pelo fator de supersampling —
-     * senão a linha fica proporcionalmente mais fina no framebuffer grande
-     * e "some" no downscale final.
-     */
-    private void scaleLineWidthsForCapture(Spatial spatial, float factor) {
-        if (spatial instanceof Geometry geom) {
-            Mesh mesh = geom.getMesh();
-            if (mesh.getMode() == Mesh.Mode.Lines && geom.getMaterial() != null) {
-                RenderState rs = geom.getMaterial().getAdditionalRenderState();
-                float currentWidth = rs.getLineWidth();
-                originalLineWidths.put(geom, currentWidth);
-                rs.setLineWidth(currentWidth * factor);
-            }
-        } else if (spatial instanceof Node node) {
-            for (Spatial child : node.getChildren()) {
-                scaleLineWidthsForCapture(child, factor);
-            }
-        }
-    }
-
-    private void restoreLineWidthsAfterCapture(Spatial spatial) {
-        if (spatial instanceof Geometry geom) {
-            Float original = originalLineWidths.remove(geom);
-            if (original != null && geom.getMaterial() != null) {
-                geom.getMaterial().getAdditionalRenderState().setLineWidth(original);
-            }
-        } else if (spatial instanceof Node node) {
-            for (Spatial child : node.getChildren()) {
-                restoreLineWidthsAfterCapture(child);
-            }
-        }
-    }
 
 
 
@@ -1456,11 +1119,48 @@ public class Obj3DApp extends SimpleApplication {
         }
     }
 
+    /**
+     * Calcula um raio equivalente a partir do bounding volume do modelo,
+     * suportando tanto BoundingSphere quanto BoundingBox (o padrão do jME3
+     * para malhas .obj carregadas). Sem isso, modelos com BoundingBox caem
+     * incorretamente em um valor fixo de fallback, ignorando o tamanho real.
+     */
+    private float computeBoundingRadius(BoundingVolume bv) {
+        if (bv instanceof BoundingSphere bs) {
+            return bs.getRadius();
+        } else if (bv instanceof BoundingBox bb) {
+            Vector3f extent = new Vector3f();
+            bb.getExtent(extent); // metade do tamanho em cada eixo (half-extents)
+            return extent.length(); // raio da esfera que envolve a caixa inteira
+        }
+        return 5f; // fallback só para volumes desconhecidos/nulos (caso raro)
+    }
+
     public void setToolMode(ToolMode mode) {
         this.toolMode = mode;
     }
 
     public ToolMode getToolMode() {
         return toolMode;
+    }
+
+    public RenderManager getRenderManager() {
+        return renderManager;
+    }
+    public Node getRootNode() {
+        return rootNode;
+    }
+    public Camera getCamera() {
+        return cam;
+    }
+    public ViewPort getViewPort() {
+        return viewPort;
+    }
+
+    public Node getGridNode() {
+        return gridNode;
+    }
+    public Renderer getRenderer() {
+        return renderer;
     }
 }

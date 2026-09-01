@@ -21,22 +21,24 @@ public class LibrariesConfigPanel extends ConfigPanelBase {
             new Lib("FlatLaf",                  "com.formdev",              "flatlaf"),
             new Lib("FlatLaf IntelliJ Themes",  "com.formdev",              "flatlaf-intellij-themes"),
 
-            // Vídeo / imagem
-            new Lib("JavaCV Platform",          "org.bytedeco",             "javacv-platform"),
+            // Vídeo / imagem / 3D
             new Lib("PDFBox",                   "org.apache.pdfbox",        "pdfbox"),
             new Lib("TwelveMonkeys JPEG",       "com.twelvemonkeys.imageio","imageio-jpeg"),
             new Lib("TwelveMonkeys TIFF",       "com.twelvemonkeys.imageio","imageio-tiff"),
             new Lib("TwelveMonkeys WebP",       "com.twelvemonkeys.imageio","imageio-webp"),
             new Lib("TwelveMonkeys BMP",        "com.twelvemonkeys.imageio","imageio-bmp"),
             new Lib("TwelveMonkeys PSD",        "com.twelvemonkeys.imageio","imageio-psd"),
+            new Lib("JMonkeyEngine",            "org.jmonkeyengine",        "jme3-core"),
 
-            // Sistema / JNA
+            // Sistema
             new Lib("JNA",                      "net.java.dev.jna",         "jna"),
             new Lib("JNA Platform",             "net.java.dev.jna",         "jna-platform"),
 
             // Utilitários
-            new Lib("mslinks (atalhos .lnk)",   "com.github.vatbub",        "mslinks"),
+            new Lib("Mslinks (atalhos .lnk)",   "com.github.vatbub",        "mslinks"),
             new Lib("JNAFileChooser",           "com.github.steos",         "jnafilechooser"),
+            new Lib("Zip4j",                    "net.lingala.zip4j",        "zip4j"),
+            new Lib("JunRar",                   "ncom.github.junrar",       "junrar"),
 
             // Logging
             new Lib("SLF4J API",                "org.slf4j",                "slf4j-api"),
@@ -59,15 +61,10 @@ public class LibrariesConfigPanel extends ConfigPanelBase {
         // ── Seção: bibliotecas (agrupadas por categoria) ─────────
         addLibSection("Banco de dados",   LIBS.subList(0,  1));
         addLibSection("Interface (UI)",   LIBS.subList(1,  3));
-        addLibSection("Vídeo / Imagem",   LIBS.subList(3,  10));
-        addLibSection("Sistema / JNA",    LIBS.subList(10, 12));
-        addLibSection("Utilitários",      LIBS.subList(12, 14));
-        addLibSection("Logging",          LIBS.subList(14, 16));
-
-        // ── Botão atualizar ──────────────────────────────────────
-//        JButton btnRefresh = makeBtn("Atualizar versões");
-//        btnRefresh.addActionListener(e -> loadVersions());
-//        addButtons(btnRefresh);
+        addLibSection("Vídeo / Imagem / 3D",   LIBS.subList(3,  10));
+        addLibSection("Sistema",    LIBS.subList(10, 12));
+        addLibSection("Utilitários",      LIBS.subList(12, 16));
+        addLibSection("Logging",          LIBS.subList(16, 18));
 
         // Carrega versões em background ao abrir
         loadVersions();

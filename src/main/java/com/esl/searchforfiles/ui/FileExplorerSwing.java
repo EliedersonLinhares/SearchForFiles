@@ -11,10 +11,10 @@ import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.PaginationInfo;
 import com.esl.searchforfiles.others.ThumbnailSize;
-import com.esl.searchforfiles.preview.ImageViewerFrame;
-import com.esl.searchforfiles.preview.Obj3DViewerFrame;
-import com.esl.searchforfiles.preview.PdfViewerFrame;
-import com.esl.searchforfiles.preview.VideoPlayerFrame;
+import com.esl.searchforfiles.preview.imageViewer.ImageViewerFrame;
+import com.esl.searchforfiles.preview.model3DViewer.Obj3DViewerFrame;
+import com.esl.searchforfiles.preview.pdfViewer.PdfViewerFrame;
+import com.esl.searchforfiles.preview.videoViewer.VideoPlayerFrame;
 import com.esl.searchforfiles.service.FavoritesService;
 import com.esl.searchforfiles.service.IndexFilterService;
 import com.esl.searchforfiles.service.SyncService;
@@ -26,9 +26,7 @@ import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -83,6 +81,8 @@ public class FileExplorerSwing extends JFrame {
         configManager = new ConfigManager();
         this.themeManager = themeManager;
         setSelectedPath(configManager.getSavedDefaultFolder());
+
+        showSubfolderContents = configManager.getSavedSubfolderItems();
 
         bottomIndicatorPanel = new BottomIndicatorPanel(this);
 

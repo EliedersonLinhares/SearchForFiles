@@ -1,4 +1,4 @@
-package com.esl.searchforfiles.preview;
+package com.esl.searchforfiles.preview.videoViewer;
 
 import com.esl.searchforfiles.Video.FFmpegBridge;
 

@@ -289,65 +289,65 @@ public class SearchController {
         }
     }
 
-    /**
-     * Atualiza monitoramento com sincronização
-     * MODIFICADO: Só monitora pastas indexadas
-     */
-    public void updateMonitoredFolder(String newPath, SyncCallback syncCallback) {
-        if (newPath != null && newPath.equals(currentMonitoredPath)) {
-            return;
-        }
-
-        if (newPath == null || newPath.trim().isEmpty()) {
-            stopCurrentMonitoring();
-            return;
-        }
-
-
-        Path folderPath = Paths.get(newPath);
-        if (!Files.exists(folderPath) || !Files.isDirectory(folderPath)) {
-            System.out.println("⚠️ Pasta inválida: " + newPath);
-            stopCurrentMonitoring();
-            return;
-        }
-
-        long estimatedFiles = estimateFileCountFast(folderPath);
-        if (estimatedFiles > MAX_FOLDER_SIZE) {
-            System.out.println(String.format(
-                    "⚠️ Pasta muito grande (%,d arquivos): %s",
-                    estimatedFiles, newPath
-            ));
-            stopCurrentMonitoring();
-            return;
-        }
-
-        stopCurrentMonitoring();
-
-        // NOVO: Sincroniza antes de monitorar (se pasta foi indexada)
-        syncFolderIfNeeded(newPath, new SyncCallback() {
-            @Override
-            public void onSyncCompleted(SyncService.SyncResult result) {
-                // Notifica callback original
-                if (syncCallback != null) {
-                    syncCallback.onSyncCompleted(result);
-                }
-
-                // VALIDAÇÃO: Só monitora se pasta está indexada
-                if (!result.isNotIndexed()) {
-                    startMonitoringAsync(newPath);
-                } else {
-                    System.out.println("⚠️ Monitoramento não iniciado: pasta não indexada");
-                }
-            }
-
-            @Override
-            public void onSyncError(Exception e) {
-                if (syncCallback != null) {
-                    syncCallback.onSyncError(e);
-                }
-            }
-        });
-    }
+//    /**
+//     * Atualiza monitoramento com sincronização
+//     * MODIFICADO: Só monitora pastas indexadas
+//     */
+//    public void updateMonitoredFolder(String newPath, SyncCallback syncCallback) {
+//        if (newPath != null && newPath.equals(currentMonitoredPath)) {
+//            return;
+//        }
+//
+//        if (newPath == null || newPath.trim().isEmpty()) {
+//            stopCurrentMonitoring();
+//            return;
+//        }
+//
+//
+//        Path folderPath = Paths.get(newPath);
+//        if (!Files.exists(folderPath) || !Files.isDirectory(folderPath)) {
+//            System.out.println("⚠️ Pasta inválida: " + newPath);
+//            stopCurrentMonitoring();
+//            return;
+//        }
+//
+//        long estimatedFiles = estimateFileCountFast(folderPath);
+//        if (estimatedFiles > MAX_FOLDER_SIZE) {
+//            System.out.println(String.format(
+//                    "⚠️ Pasta muito grande (%,d arquivos): %s",
+//                    estimatedFiles, newPath
+//            ));
+//            stopCurrentMonitoring();
+//            return;
+//        }
+//
+//        stopCurrentMonitoring();
+//
+//        // NOVO: Sincroniza antes de monitorar (se pasta foi indexada)
+//        syncFolderIfNeeded(newPath, new SyncCallback() {
+//            @Override
+//            public void onSyncCompleted(SyncService.SyncResult result) {
+//                // Notifica callback original
+//                if (syncCallback != null) {
+//                    syncCallback.onSyncCompleted(result);
+//                }
+//
+//                // VALIDAÇÃO: Só monitora se pasta está indexada
+//                if (!result.isNotIndexed()) {
+//                    startMonitoringAsync(newPath);
+//                } else {
+//                    System.out.println("⚠️ Monitoramento não iniciado: pasta não indexada");
+//                }
+//            }
+//
+//            @Override
+//            public void onSyncError(Exception e) {
+//                if (syncCallback != null) {
+//                    syncCallback.onSyncError(e);
+//                }
+//            }
+//        });
+//    }
 
     /**
      * Inicia monitoramento de forma assíncrona
@@ -478,7 +478,7 @@ public class SearchController {
                         .inPath(path, includeSubfolders)
                         .sortBy(sortBy, sortOrder);
 
-                if (!"TODOS".equals(filter))
+                if (!"ALL".equals(filter))
                     criteria.withFileType(FileType.valueOf(filter));
                 if (minRating > 0)
                     criteria.withMinRating(minRating);
@@ -516,94 +516,94 @@ public class SearchController {
         worker.execute();
     }
 
-    public void goToPage(int page, int pageSize, PaginatedSearchCallback callback) {
-        if (lastCriteria == null || lastSelectedPath == null) {
-            System.err.println("Nenhuma busca anterior para paginar");
-            return;
-        }
+//    public void goToPage(int page, int pageSize, PaginatedSearchCallback callback) {
+//        if (lastCriteria == null || lastSelectedPath == null) {
+//            System.err.println("Nenhuma busca anterior para paginar");
+//            return;
+//        }
+//
+//        // MODIFICADO: Atualiza parâmetros para auto-refresh
+//        this.lastPage = page;
+//        this.lastPageSize = pageSize;
+//        this.lastCallback = callback;
+//
+//        SwingWorker<SearchService.SearchResult, Void> worker = new SwingWorker<>() {
+//            @Override
+//            protected SearchService.SearchResult doInBackground() throws Exception {
+//                return searchSystem.getSearchService().advancedSearchWithPagination(
+//                        lastCriteria, page, pageSize
+//                );
+//            }
+//
+//            @Override
+//            protected void done() {
+//                try {
+//                    SearchService.SearchResult result = get();
+//                    callback.onSearchCompleted(result.getResults(), result.getPagination());
+//                } catch (Exception e) {
+//                    callback.onSearchError(e);
+//                    e.printStackTrace();
+//                }
+//            }
+//        };
+//
+//        callback.onSearchStarted();
+//        worker.execute();
+//    }
 
-        // MODIFICADO: Atualiza parâmetros para auto-refresh
-        this.lastPage = page;
-        this.lastPageSize = pageSize;
-        this.lastCallback = callback;
 
-        SwingWorker<SearchService.SearchResult, Void> worker = new SwingWorker<>() {
-            @Override
-            protected SearchService.SearchResult doInBackground() throws Exception {
-                return searchSystem.getSearchService().advancedSearchWithPagination(
-                        lastCriteria, page, pageSize
-                );
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    SearchService.SearchResult result = get();
-                    callback.onSearchCompleted(result.getResults(), result.getPagination());
-                } catch (Exception e) {
-                    callback.onSearchError(e);
-                    e.printStackTrace();
-                }
-            }
-        };
-
-        callback.onSearchStarted();
-        worker.execute();
-    }
-
-
-    public void performSearch(String searchTerm, String filter, String selectedPath,
-                              SearchCallback callback) {
-
-        if (searchTerm.isEmpty()) {
-            JOptionPane.showMessageDialog(parentFrame,
-                    "Digite um termo de busca!",
-                    "Busca vazia", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-
-        String processedTerm = processSearchTerm(searchTerm);
-
-        SwingWorker<List<FileInfo>, Void> worker = new SwingWorker<>() {
-            @Override
-            protected List<FileInfo> doInBackground() throws Exception {
-                SearchCriteria criteria = new SearchCriteria()
-                        .withName(processedTerm)
-                        .inPath(selectedPath, true)
-                        .limit(3000);
-
-                if (!"TODOS".equals(filter)) {
-                    if ("FOLDER".equals(filter)) {
-                        criteria.withFileType(FileType.FOLDER);
-                    } else {
-                        criteria.withFileType(FileType.valueOf(filter));
-                    }
-                }
-
-                System.out.println("🔍 Buscando: " + searchTerm +
-                        " → Padrão: " + processedTerm +
-                        " | Tipo: " + filter +
-                        " | Pasta: " + selectedPath);
-
-                return searchSystem.advancedSearch(criteria);
-            }
-
-            @Override
-            protected void done() {
-                try {
-                    List<FileInfo> results = get();
-                    callback.onSearchCompleted(results);
-                    System.out.println("✅ Encontrados: " + results.size() + " arquivos");
-                } catch (Exception e) {
-                    callback.onSearchError(e);
-                    e.printStackTrace();
-                }
-            }
-        };
-
-        callback.onSearchStarted();
-        worker.execute();
-    }
+//    public void performSearch(String searchTerm, String filter, String selectedPath,
+//                              SearchCallback callback) {
+//
+//        if (searchTerm.isEmpty()) {
+//            JOptionPane.showMessageDialog(parentFrame,
+//                    "Digite um termo de busca!",
+//                    "Busca vazia", JOptionPane.WARNING_MESSAGE);
+//            return;
+//        }
+//
+//        String processedTerm = processSearchTerm(searchTerm);
+//
+//        SwingWorker<List<FileInfo>, Void> worker = new SwingWorker<>() {
+//            @Override
+//            protected List<FileInfo> doInBackground() throws Exception {
+//                SearchCriteria criteria = new SearchCriteria()
+//                        .withName(processedTerm)
+//                        .inPath(selectedPath, true)
+//                        .limit(3000);
+//
+//                if (!"TODOS".equals(filter)) {
+//                    if ("FOLDER".equals(filter)) {
+//                        criteria.withFileType(FileType.FOLDER);
+//                    } else {
+//                        criteria.withFileType(FileType.valueOf(filter));
+//                    }
+//                }
+//
+//                System.out.println("🔍 Buscando: " + searchTerm +
+//                        " → Padrão: " + processedTerm +
+//                        " | Tipo: " + filter +
+//                        " | Pasta: " + selectedPath);
+//
+//                return searchSystem.advancedSearch(criteria);
+//            }
+//
+//            @Override
+//            protected void done() {
+//                try {
+//                    List<FileInfo> results = get();
+//                    callback.onSearchCompleted(results);
+//                    System.out.println("✅ Encontrados: " + results.size() + " arquivos");
+//                } catch (Exception e) {
+//                    callback.onSearchError(e);
+//                    e.printStackTrace();
+//                }
+//            }
+//        };
+//
+//        callback.onSearchStarted();
+//        worker.execute();
+//    }
 
     /**
      * Indexa uma pasta de forma assíncrona
@@ -656,20 +656,20 @@ public class SearchController {
         progressDialog.setVisible(true);
     }
 
-    /**
-     * Processa termo de busca adicionando wildcards
-     */
-    private String processSearchTerm(String term) {
-        if (term == null || term.isEmpty()) {
-            return "*";
-        }
-
-        if (term.contains("*") || term.contains("?")) {
-            return term;
-        }
-
-        return "*" + term + "*";
-    }
+//    /**
+//     * Processa termo de busca adicionando wildcards
+//     */
+//    private String processSearchTerm(String term) {
+//        if (term == null || term.isEmpty()) {
+//            return "*";
+//        }
+//
+//        if (term.contains("*") || term.contains("?")) {
+//            return term;
+//        }
+//
+//        return "*" + term + "*";
+//    }
 
     public void close() throws SQLException {
         // Para monitoramento antes de fechar
@@ -679,13 +679,13 @@ public class SearchController {
         System.out.println("✓ Sistema encerrado");
     }
 
-    public interface SearchCallback {
-        void onSearchStarted();
-
-        void onSearchCompleted(List<FileInfo> results);
-
-        void onSearchError(Exception e);
-    }
+//    public interface SearchCallback {
+//        void onSearchStarted();
+//
+//        void onSearchCompleted(List<FileInfo> results);
+//
+//        void onSearchError(Exception e);
+//    }
 
     public interface IndexCallback {
         void onIndexCompleted();

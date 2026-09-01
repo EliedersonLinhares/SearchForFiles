@@ -54,9 +54,6 @@ public class ImagePreviewPanel extends JPanel implements Scrollable {
     // Construtor
     // ══════════════════════════════════════════════════════════════
     public ImagePreviewPanel() {
-       // setBackground(UIConfig.background());
-
-        // Fallback caso a classe externa dependa de UIConfig.background()
         try {
             setBackground(UIConfig.background());
         } catch (Exception e) {
@@ -79,11 +76,6 @@ public class ImagePreviewPanel extends JPanel implements Scrollable {
     // ══════════════════════════════════════════════════════════════
     // API pública — imagem e zoom
     // ══════════════════════════════════════════════════════════════
-//    public void setImage(BufferedImage img) {
-//        this.sourceImage = img;
-//        updatePanelSize();
-//        repaint();
-//    }
     public void setImage(BufferedImage img) {
         this.sourceImage = img;
         this.gifIcon = null; // Limpa o GIF se uma imagem estática for definida
@@ -217,30 +209,6 @@ public class ImagePreviewPanel extends JPanel implements Scrollable {
     // ══════════════════════════════════════════════════════════════
     // Pintura
     // ══════════════════════════════════════════════════════════════
-//    @Override
-//    protected void paintComponent(Graphics g0) {
-//        super.paintComponent(g0);
-//        if (sourceImage == null) return;
-//
-//        Graphics2D g = (Graphics2D) g0;
-//        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
-//                zoomScale >= 1.0
-//                        ? RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
-//                        : RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-//
-//        // Centraliza quando menor que o painel
-//        int pw = getWidth(), ph = getHeight();
-//        int drawX = Math.max(0, (pw - imgW) / 2);
-//        int drawY = Math.max(0, (ph - imgH) / 2);
-//
-//        g.drawImage(sourceImage, drawX, drawY, imgW, imgH, null);
-//
-//        if (cropMode && cropTool.hasSelection())
-//            drawCropOverlay(g, drawX, drawY);
-//
-//        if (brushMode && lastMouseX >= 0 && brushSizeSupplier != null)
-//            drawBrushCursor(g);
-//    }
     @Override
     protected void paintComponent(Graphics g0) {
         super.paintComponent(g0);
