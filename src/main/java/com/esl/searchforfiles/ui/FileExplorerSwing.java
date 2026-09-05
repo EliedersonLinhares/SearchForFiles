@@ -2,6 +2,7 @@ package com.esl.searchforfiles.ui;
 
 
 import com.esl.searchforfiles.Theme.ThemeManager;
+import com.esl.searchforfiles.actions.compressFile.CompressModeManager;
 import com.esl.searchforfiles.actions.fileTransfer.TransferService;
 import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
 import com.esl.searchforfiles.actions.renameFile.RenameMode;
@@ -42,6 +43,7 @@ public class FileExplorerSwing extends JFrame {
     private final PaginationPanel paginationPanel;
     private final NavigationHistory navigationHistory = new NavigationHistory();
     private final EditModeManager editModeManager = new EditModeManager();
+    private final CompressModeManager compressModeManager = new CompressModeManager();
     private final RenameModeManager renameModeFiles =
             new RenameModeManager(RenameMode.FILES);
     private final RenameModeManager renameModeFolders =
@@ -185,7 +187,8 @@ public class FileExplorerSwing extends JFrame {
                             performCurrentSearch();
                         }, FileExplorerSwing.this, favoritesService
                 );
-                if (!editModeManager.isEditModeActive() && !transferService.isTransferModeActive()) {
+                if (!editModeManager.isEditModeActive() && !transferService.isTransferModeActive()
+                        && !renameModeFiles.isActive()  && !compressModeManager.isCompressModeActive()) {
                     menu.show(source, x, y);
                 }
             }
@@ -410,49 +413,6 @@ public class FileExplorerSwing extends JFrame {
      */
 
 
-
-//    public void navigateTo(String path, boolean pushHistory) {
-//        selectedPath = path;
-//        if (pushHistory) navigationHistory.push(path);
-//
-//        searchPanel.updateNavigationState(navigationHistory);
-//
-//
-//        bottomIndicatorPanel.showSyncIndicator("🔄 Verificando mudanças...");
-//
-//        bottomIndicatorPanel.setWorking(true);
-//
-//
-//        searchPanel.clearSearchTerm();
-//        subFolderPanel.loadSubfolders(selectedPath, controller);
-//        currentPage = 1;
-//
-//        // Mostra loading enquanto sincroniza
-//        resultsPanel.showMessage("🔄 Sincronizando...", ResultsPanel.MessageType.LOADING);
-//
-//        // Sincroniza primeiro, só então busca
-//        controller.syncFolderIfNeeded(path, new SearchController.SyncCallback() {
-//            @Override
-//            public void onSyncCompleted(SyncService.SyncResult result) {
-//                // Sync terminou — agora busca com dados atualizados
-//                SwingUtilities.invokeLater(() -> performCurrentSearch());
-//
-//                // Inicia monitoramento após sync
-//                if (!result.isNotIndexed()) {
-//                    controller.startMonitoringAsync(path);
-//                }
-//
-//                bottomIndicatorPanel.createSyncCallback(path).onSyncCompleted(result);
-//            }
-//
-//            @Override
-//            public void onSyncError(Exception e) {
-//                // Mesmo com erro, tenta mostrar o que tem no índice
-//                SwingUtilities.invokeLater(() -> performCurrentSearch());
-//                bottomIndicatorPanel.createSyncCallback(path).onSyncError(e);
-//            }
-//        });
-//    }
     public void navigateTo(String path, boolean pushHistory) {
         selectedPath = path;
         if (pushHistory) navigationHistory.push(path);
@@ -825,6 +785,22 @@ public class FileExplorerSwing extends JFrame {
         }
     }
 
+    /**
+     * Botão para comprimir Arquivos
+     */
+    public void toggleCompressMode() {
+        deactivateOtherModes(compressModeManager);
+        if (compressModeManager.isCompressModeActive()) {
+            resultsPanel.exitCompressMode();
+        } else {
+            // Garante que o modo de transferência não fique ativo ao mesmo tempo
+            if (transferService.isTransferModeActive()) {
+                resultsPanel.exitTransferMode();
+            }
+            resultsPanel.enterCompressMode(compressModeManager);
+        }
+    }
+
 
     /**
      * Botão "Renomear arquivos"
@@ -860,6 +836,9 @@ public class FileExplorerSwing extends JFrame {
         if (transferService.isTransferModeActive()) {
             resultsPanel.exitTransferMode();
         }
+        if (compressModeManager.isCompressModeActive()) {
+            resultsPanel.exitCompressMode();
+        }
         resultsPanel.openConfiguration();
     }
 
@@ -876,6 +855,8 @@ public class FileExplorerSwing extends JFrame {
             resultsPanel.exitRenameMode();
         if (keepActive != renameModeFolders && renameModeFolders.isActive())
             resultsPanel.exitRenameMode();
+        if (keepActive != compressModeManager && compressModeManager.isCompressModeActive())
+            resultsPanel.exitCompressMode();
     }
 
     public void createNewFolder() {

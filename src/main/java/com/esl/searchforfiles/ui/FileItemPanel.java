@@ -1,6 +1,7 @@
 package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.Video.VideoThumbnail;
+import com.esl.searchforfiles.actions.compressFile.CompressModeManager;
 import com.esl.searchforfiles.actions.fileTransfer.*;
 import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
 import com.esl.searchforfiles.actions.renameFile.RenameMode;
@@ -75,6 +76,7 @@ public class FileItemPanel extends JPanel {
     SelectionCheckbox selectionCheckbox;
     SelectionCheckbox editSelectionCheckbox;   // package-private para acesso da toolbar
     SelectionCheckbox renameSelectionCheckbox; // package-private
+    SelectionCheckbox compressSelectionCheckbox;
     // Cores para estados
     private Color normalColor;
     private Color hoverColor;
@@ -90,6 +92,7 @@ public class FileItemPanel extends JPanel {
     private TransferService transferService;
     private EditModeManager editModeManager;   // renomeie o campo de transferência se necessário
     private RenameModeManager renameModeManager;
+    private CompressModeManager compressModeManager;
 
     public FileItemPanel(File file, FileInfo fileInfo, int width, int height, int thumbSize, ResultsPanel resultsPanel) {
 
@@ -358,7 +361,8 @@ public class FileItemPanel extends JPanel {
     private boolean isAnyCheckboxSelected() {
         return (selectionCheckbox != null && selectionCheckbox.isSelected())
                 || (editSelectionCheckbox != null && editSelectionCheckbox.isSelected())
-                || (renameSelectionCheckbox != null && renameSelectionCheckbox.isSelected());
+                || (renameSelectionCheckbox != null && renameSelectionCheckbox.isSelected()
+                || (compressSelectionCheckbox != null && compressSelectionCheckbox.isSelected()));
     }
 
     private void refreshColors() {
@@ -1439,12 +1443,15 @@ public class FileItemPanel extends JPanel {
         boolean transferChecked = selectionCheckbox != null && selectionCheckbox.isSelected();
         boolean editChecked = editSelectionCheckbox != null && editSelectionCheckbox.isSelected();
         boolean renameChecked = renameSelectionCheckbox != null && renameSelectionCheckbox.isSelected();
+        boolean compressChecked = compressSelectionCheckbox != null && compressSelectionCheckbox.isSelected();
 
         if (transferChecked) {
             setBackground(BG_TRANSFER_SELECTED);
         } else if (editChecked) {
             setBackground(BG_EDIT_SELECTED);
         } else if (renameChecked) {
+            setBackground(UIConfig.accent());
+        } else if (compressChecked) {
             setBackground(UIConfig.accent());
 
         } else {
@@ -1471,4 +1478,62 @@ public class FileItemPanel extends JPanel {
         MEDIO,
         ALTA_QUALIDADE
     }
+
+
+    //Compress Mode
+    public void enableCompressMode(CompressModeManager em) {
+
+        this.compressModeManager = em;  // use um campo separado, ex.: editManager
+
+        if (compressSelectionCheckbox == null) {
+            compressSelectionCheckbox = new SelectionCheckbox();
+            compressSelectionCheckbox.setEnabled(false);
+            // Borda verde para diferenciar do modo de transferência (azul)
+            compressSelectionCheckbox.setBounds(4, 4, 22, 22);
+            compressSelectionCheckbox.setSelected(em.isSelected(displayFile));
+            compressSelectionCheckbox.addActionListener(e -> {
+                em.toggleSelection(displayFile);    // ← adiciona
+                updateModeBackground();
+            });
+
+            if (iconSlot instanceof JLayeredPane lp) {
+                lp.add(compressSelectionCheckbox, JLayeredPane.DRAG_LAYER);
+            } else {
+                int idx = -1;
+                for (int i = 0; i < getComponentCount(); i++) {
+                    if (getComponent(i) == iconSlot) {
+                        idx = i;
+                        break;
+                    }
+                }
+                if (idx >= 0) {
+                    int bs = this.thumbSize;
+                    JLayeredPane lp = new JLayeredPane();
+                    lp.setPreferredSize(new Dimension(bs, bs));
+                    lp.setMaximumSize(new Dimension(bs, bs));
+                    lp.setAlignmentX(Component.CENTER_ALIGNMENT);
+                    iconSlot.setBounds(0, 0, bs, bs);
+                    lp.add(iconSlot, JLayeredPane.DEFAULT_LAYER);
+                    lp.add(compressSelectionCheckbox, JLayeredPane.DRAG_LAYER);
+                    remove(idx);
+                    add(lp, idx);
+                    iconSlot = lp;
+                    revalidate();
+                    repaint();
+                }
+            }
+        }
+    }
+
+    public void disableCompressMode() {
+        if (compressSelectionCheckbox != null) {
+            if (compressSelectionCheckbox.getParent() != null)
+                compressSelectionCheckbox.getParent().remove(compressSelectionCheckbox);
+            compressSelectionCheckbox = null;
+        }  // ← restaura cor
+        updateModeBackground();
+        revalidate();
+        repaint();
+    }
+
 }

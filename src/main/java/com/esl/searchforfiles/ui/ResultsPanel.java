@@ -1,5 +1,7 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.actions.compressFile.CompressModeManager;
+import com.esl.searchforfiles.actions.compressFile.ZipManager;
 import com.esl.searchforfiles.actions.fileTransfer.TransferMode;
 import com.esl.searchforfiles.actions.fileTransfer.TransferService;
 import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
@@ -34,6 +36,7 @@ public class ResultsPanel extends JPanel {
     private final Set<File> savedTransferSelected = new HashSet<>();
     private final Set<File> savedEditSelected = new HashSet<>();
     private final Set<File> savedRenameSelected = new HashSet<>();
+    private final Set<File> savedCompressSelected = new HashSet<>();
     private FileItemClickListener clickListener;
     // Armazena últimos resultados para re-renderizar ao redimensionar
     private List<FileInfo> lastResults;
@@ -46,6 +49,8 @@ public class ResultsPanel extends JPanel {
     private TransferService transferService;
     private JToolBar transferToolBar;
     private EditModeManager editModeManager;
+    private JToolBar compressToolBar;
+    private CompressModeManager compressModeManager;
     private JToolBar editToolBar;
     private FileItemPanel item;
     private RenameModeManager renameModeManager;
@@ -83,10 +88,6 @@ public class ResultsPanel extends JPanel {
         // Listener para redimensionamento
         // CORREÇÃO: Listener otimizado para redimensionamento fluido
         setupResizeListener();
-
-        // NOVO: Configura menu de contexto do cache
-//        setupCacheContextMenu();
-
         setupKeyboardScroll();
 
         KeyboardManager.Action(
@@ -109,6 +110,13 @@ public class ResultsPanel extends JPanel {
                 KeyEvent.VK_E,
                 0,
                 () -> getFileExplorerSwing().toggleEditMode()
+        );
+        KeyboardManager.Action(
+                this,
+                "enterCompressMode",
+                KeyEvent.VK_C,
+                0,
+                () -> getFileExplorerSwing().toggleCompressMode()
         );
         KeyboardManager.Action(
                 this,
@@ -146,6 +154,9 @@ public class ResultsPanel extends JPanel {
         }
         if (transferService != null){
             exitTransferMode();
+        }
+        if (compressModeManager != null){
+            exitCompressMode();
         }
     }
 
@@ -282,7 +293,6 @@ public class ResultsPanel extends JPanel {
         vBar.setValue(vBar.getMinimum());
     }
 
-
     public void dispose() {
         if (keyDispatcher != null) {
             KeyboardFocusManager.getCurrentKeyboardFocusManager()
@@ -333,56 +343,6 @@ public class ResultsPanel extends JPanel {
         });
     }
 
-    /**
-     * NOVO: Configura menu de contexto para gerenciar cache
-     */
-//    private void setupCacheContextMenu() {
-//        // Adiciona listener de mouse ao gridPanel
-//        gridPanel.addMouseListener(new MouseAdapter() {
-//            @Override
-//            public void mousePressed(MouseEvent e) {
-//                if (e.isPopupTrigger()) {
-//                    showCacheMenu(e);
-//                }
-//            }
-//
-//            @Override
-//            public void mouseReleased(MouseEvent e) {
-//                if (e.isPopupTrigger()) {
-//                    showCacheMenu(e);
-//                }
-//            }
-//
-//            private void showCacheMenu(MouseEvent e) {
-//                // Só mostra o menu se não clicar em um FileItemPanel
-//                Component comp = gridPanel.getComponentAt(e.getPoint());
-//                if (comp == gridPanel || comp == null) {
-//                    CacheContextMenu.show(gridPanel, cacheManager, e.getX(), e.getY(), getFileExplorerSwing());
-//                }
-//            }
-//        });
-//
-//        // OPCIONAL: Adiciona atalho de teclado (Ctrl+Shift+C)
-//        InputMap inputMap = getInputMap(WHEN_IN_FOCUSED_WINDOW);
-//        ActionMap actionMap = getActionMap();
-//
-//        KeyStroke cacheKeyStroke = KeyStroke.getKeyStroke(
-//                KeyEvent.VK_C,
-//                InputEvent.CTRL_DOWN_MASK | InputEvent.SHIFT_DOWN_MASK
-//        );
-//
-//        inputMap.put(cacheKeyStroke, "showCacheMenu");
-//        actionMap.put("showCacheMenu", new AbstractAction() {
-//            @Override
-//            public void actionPerformed(ActionEvent e) {
-//                // Mostra menu no centro do painel
-//                int x = gridPanel.getWidth() / 2;
-//                int y = gridPanel.getHeight() / 2;
-//                CacheContextMenu.show(gridPanel, cacheManager, x, y, getFileExplorerSwing());
-//            }
-//        });
-//    }
-
     public void setThumbnailSize(ThumbnailSize size) {
         this.currentThumbSize = size;
         // Limpa cache de ícones para forçar re-render no novo tamanho
@@ -408,6 +368,7 @@ public class ResultsPanel extends JPanel {
         savedTransferSelected.clear();
         savedEditSelected.clear();
         savedRenameSelected.clear();
+        savedCompressSelected.clear();
 
         for (FileItemPanel p : currentItems) {
             if (p.selectionCheckbox != null && p.selectionCheckbox.isSelected())
@@ -416,6 +377,8 @@ public class ResultsPanel extends JPanel {
                 savedEditSelected.add(p.getDisplayFile());
             if (p.renameSelectionCheckbox != null && p.renameSelectionCheckbox.isSelected())
                 savedRenameSelected.add(p.getDisplayFile());
+            if (p.compressSelectionCheckbox != null && p.compressSelectionCheckbox.isSelected())
+                savedCompressSelected.add(p.getDisplayFile());
         }
 
 
@@ -472,7 +435,9 @@ public class ResultsPanel extends JPanel {
 
                     boolean inMode = transferService != null
                             || editModeManager != null
-                            || renameModeManager != null;
+                            || renameModeManager != null
+                            || compressModeManager != null
+                            ;
 
                     if (!inMode) {
                         selectItem(idx);
@@ -524,6 +489,7 @@ public class ResultsPanel extends JPanel {
         reapplyTransferModeIfActive();
         reapplyEditModeIfActive();
         reapplyRenameModeIfActive();
+        reapplyCompressModeIfActive();
 
         // NOVO: requisita foco após renderizar
         // invokeLater garante que o layout já terminou antes de pedir foco
@@ -556,6 +522,13 @@ public class ResultsPanel extends JPanel {
                 item.renameSelectionCheckbox.setSelected(
                         renameModeManager.isSelected(item.getDisplayFile()));
         }
+        else if (compressModeManager != null) {
+            compressModeManager.toggleSelection(item.getDisplayFile());
+            if (item.compressSelectionCheckbox != null)
+                item.compressSelectionCheckbox.setSelected(
+                        compressModeManager.isSelected(item.getDisplayFile()));
+
+        }
 
         item.updateModeBackground();
     }
@@ -585,7 +558,12 @@ public class ResultsPanel extends JPanel {
                 if (item.renameSelectionCheckbox != null)
                     item.renameSelectionCheckbox.setSelected(true);
             }
+            else if (compressModeManager != null) {
+                compressModeManager.selectFile(item.getDisplayFile());
+                if (item.compressSelectionCheckbox != null)
+                    item.compressSelectionCheckbox.setSelected(true);
 
+            }
             item.updateModeBackground();
         }
     }
@@ -613,6 +591,14 @@ public class ResultsPanel extends JPanel {
             currentItems.forEach(p -> {
                 if (p.renameSelectionCheckbox != null)
                     p.renameSelectionCheckbox.setSelected(false);
+                p.updateModeBackground();
+            });
+        }
+        else if (compressModeManager != null) {
+            compressModeManager.clearSelection();
+            currentItems.forEach(p -> {
+                if (p.compressSelectionCheckbox != null)
+                    p.compressSelectionCheckbox.setSelected(false);
                 p.updateModeBackground();
             });
         }
@@ -787,7 +773,6 @@ public class ResultsPanel extends JPanel {
     private JToolBar buildTransferToolBar(TransferService tm) {
         JToolBar bar = new JToolBar();
         bar.setFloatable(false);
-        // bar.setBackground(new Color(33, 33, 60));
 
         JLabel lbl = new JLabel(" ✂️  Modo de Transferência ");
         lbl.setFont(UIConfig.FONT_TITLE);
@@ -829,7 +814,6 @@ public class ResultsPanel extends JPanel {
         JButton copy = new JButton(" Copiar ");
         copy.setFont(UIConfig.FONT_DEFAULT);
         copy.setForeground(UIConfig.SELECTED_BORDER);
-      //  copy.addActionListener(e -> item.requestTransfer(TransferMode.COPY));
         copy.addActionListener(e -> {
             if (item == null) return;
             item.requestTransfer(TransferMode.COPY, this::onTransferOperationCompleted);
@@ -839,7 +823,6 @@ public class ResultsPanel extends JPanel {
         JButton move = new JButton(" Mover ");
         move.setFont(UIConfig.FONT_DEFAULT);
         move.setForeground(UIConfig.SELECTED_BORDER);
-      //  move.addActionListener(e -> item.requestTransfer(TransferMode.MOVE));
         move.addActionListener(e -> {
             if (item == null) return;
             item.requestTransfer(TransferMode.MOVE, this::onTransferOperationCompleted);
@@ -849,7 +832,6 @@ public class ResultsPanel extends JPanel {
         JButton delete = new JButton(" Apagar ");
         delete.setFont(UIConfig.FONT_DEFAULT);
         delete.setForeground(UIConfig.SELECTED_BORDER);
-      //  delete.addActionListener(e -> item.requestDelete());
         delete.addActionListener(e -> {
             if (item == null) return;
             item.requestDelete(this::onTransferOperationCompleted);
@@ -1041,6 +1023,7 @@ public class ResultsPanel extends JPanel {
     private void applyRenameModeToItems(RenameModeManager rm) {
         for (FileItemPanel item : currentItems) item.enableRenameMode(rm);
     }
+
     private void reapplyRenameModeIfActive() {
         if (renameModeManager != null && renameModeManager.isActive()) {
             for (FileItemPanel item : currentItems) {
@@ -1121,8 +1104,12 @@ public class ResultsPanel extends JPanel {
                     .filter(Objects::nonNull)
                     .toList();
 
+            new ZipManager(SwingUtilities.getWindowAncestor(this),
+                    infos, this);
+
             new RenameFrame(SwingUtilities.getWindowAncestor(this),
                     rm.getMode(), infos, this);
+
         });
         bar.add(renameBtn);
         bar.addSeparator();
@@ -1151,8 +1138,148 @@ public class ResultsPanel extends JPanel {
     public void setSubFolderPanel(SubFolderPanel panel) {
         this.subFolderPanel = panel;
     }
+
     private void onTransferOperationCompleted() {
         if (subFolderPanel != null)
             SwingUtilities.invokeLater(subFolderPanel::reload);
+    }
+
+    /**
+     * --------------Compress Mode-------------
+     */
+
+    public void enterCompressMode(CompressModeManager em) {
+        this.compressModeManager = em;
+        em.enterCompressMode();
+
+        if (compressToolBar == null) {
+            compressToolBar = buildCompressToolBar(em);
+            add(compressToolBar, BorderLayout.NORTH);
+            revalidate();
+        }
+        applyCompressModeToItems(em);
+    }
+
+    public void exitCompressMode() {
+        if (compressModeManager != null) compressModeManager.exitCompressMode();
+        compressModeManager = null;
+        anchorIndex = -1;
+
+
+        if (compressToolBar != null) {
+            remove(compressToolBar);
+            compressToolBar = null;
+            revalidate();
+        }
+        for (FileItemPanel item : currentItems) item.disableCompressMode();
+        repaint();
+    }
+
+    private void applyCompressModeToItems(CompressModeManager em) {
+        for (FileItemPanel item : currentItems) item.enableCompressMode(em);
+    }
+
+    /**
+     * Reaplica o modo de edição após re-render do grid.
+     */
+    private void reapplyCompressModeIfActive() {
+        if (compressModeManager != null && compressModeManager.isCompressModeActive()) {
+            for (FileItemPanel item : currentItems) {
+                item.enableCompressMode(compressModeManager);
+                // Só restaura cor se estava selecionado — evita chamadas desnecessárias
+                if (savedCompressSelected.contains(item.getDisplayFile())) {
+                    compressModeManager.selectFile(item.getDisplayFile());
+                    if (item.compressSelectionCheckbox != null)
+                        item.compressSelectionCheckbox.setSelected(true);
+                    item.updateModeBackground();
+                }
+            }
+        }
+    }
+
+
+    private JToolBar buildCompressToolBar(CompressModeManager em) {
+        JToolBar bar = new JToolBar();
+        bar.setFloatable(false);
+
+        JLabel lbl = new JLabel("  🖼  Modo de Compressão ");
+        lbl.setFont(UIConfig.FONT_TITLE);
+        lbl.setFont(lbl.getFont().deriveFont(Font.BOLD));
+        bar.add(lbl);
+
+        bar.addSeparator();
+
+        JButton selectAll = new JButton(" Selecionar todos ");
+        selectAll.setFont(UIConfig.FONT_DEFAULT);
+        selectAll.addActionListener(e -> {
+            List<File> files = currentItems.stream()
+                    .map(FileItemPanel::getDisplayFile)
+                    .toList();
+            em.selectAll(files);
+            currentItems.forEach(item -> {
+                if (item.compressSelectionCheckbox != null) {
+                    item.compressSelectionCheckbox.setSelected(true);
+                    item.updateModeBackground();
+                    clearItemBackground();
+                }
+            });
+        });
+        bar.add(selectAll);
+
+        JButton clearSel = new JButton(" Limpar seleção ");
+        clearSel.setFont(UIConfig.FONT_DEFAULT);
+        clearSel.addActionListener(e -> {
+            em.clearSelection();
+            currentItems.forEach(item -> {
+                if (item.compressSelectionCheckbox != null) {
+                    item.compressSelectionCheckbox.setSelected(false);
+                    item.updateModeBackground();
+                    clearItemBackground();
+                }
+            });
+        });
+        bar.add(clearSel);
+
+        bar.addSeparator();
+
+        JButton openEditor = new JButton(" 🖊 Abrir com o compressor ");
+        openEditor.setFont(UIConfig.FONT_DEFAULT);
+        openEditor.setForeground(UIConfig.SELECTED_BORDER);
+        openEditor.setFocusPainted(false);
+        openEditor.addActionListener(e -> {
+            if (em.getSelectedCount() == 0) {
+                JOptionPane.showMessageDialog(
+                        SwingUtilities.getWindowAncestor(this),
+                        "Selecione ao menos uma arquivo.",
+                        "Aviso", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            // Converte File → FileInfo para o RenameFrame
+            List<FileInfo> infos = em.getSelectedFiles().stream()
+                    .map(f -> {
+                        // Busca o FileInfo correspondente nos items renderizados
+                        return currentItems.stream()
+                                .filter(p -> p.getDisplayFile().equals(f))
+                                .map(FileItemPanel::getFileInfo)
+                                .findFirst().orElse(null);
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            new ZipManager(SwingUtilities.getWindowAncestor(this),
+                    infos, this);
+
+        });
+        bar.add(openEditor);
+
+        bar.addSeparator();
+
+        JButton exitBtn = new JButton(" ✕ Sair ");
+        exitBtn.setFont(UIConfig.FONT_DEFAULT);
+        exitBtn.setForeground(UIConfig.LIGHT_RED);
+        exitBtn.addActionListener(e -> exitCompressMode());
+        bar.add(exitBtn);
+
+        return bar;
     }
 }

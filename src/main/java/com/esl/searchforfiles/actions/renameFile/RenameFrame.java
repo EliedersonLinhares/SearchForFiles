@@ -99,10 +99,7 @@ public class RenameFrame extends JFrame {
         renamedActionPerformed = false;
 
         resultsPanel.getFileExplorerSwing().getThemeManager().addThemeChangeListener(() ->
-                SwingUtilities.invokeLater(() -> {
-                    refreshColors();
-                  //  updateVisual(); // reaplica o estado visual atual com as novas cores
-                })
+                SwingUtilities.invokeLater(this::refreshColors)
         );
     }
     private void refreshColors() {
@@ -532,7 +529,6 @@ public class RenameFrame extends JFrame {
 
             setFont(inUse ? UIConfig.FONT_DEFAULT_BOLD : UIConfig.FONT_DEFAULT);
 
-            //setBorder(BorderFactory.createEmptyBorder(2, 8, 2, 8));
             setBorder(BorderFactory.createLineBorder(isSelected ? UIConfig.SELECTED_COLOR : normalColor));
 
             // Cursor de bloqueio quando a tag já está em uso
