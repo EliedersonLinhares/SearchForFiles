@@ -67,7 +67,7 @@ public class ZipTableModel
         FileInfo info = items.get(row);
 
         return switch (column) {
-            case 0 -> info;
+            case 0 -> info.getFileType();
             case 1 -> info.getName();
             case 2 -> info.getSize();
             case 3 -> info.getPath();
