@@ -85,6 +85,11 @@ public class Obj3DViewerFrame extends JFrame {
     private boolean syncingCameraMenu = false;
     private File currentObjFile;
 
+    private final GroupVisibilityPanel groupVisibilityPanel;
+    private final MaterialsPanel materialsPanel;
+    private final JSplitPane leftSplit;
+    private final JSplitPane mainSplit;
+
     public Obj3DViewerFrame(Window owner, File objFile) {
         this.currentObjFile = objFile;
         setTitle("Visualizador 3D — " + objFile.getName());
@@ -118,7 +123,26 @@ public class Obj3DViewerFrame extends JFrame {
         // Canvas ocupa 100% do espaço central — é o que dá a "responsividade"
         JPanel canvasHolder = new JPanel(new BorderLayout());
         canvasHolder.add(jmeCanvas, BorderLayout.CENTER);
-        add(canvasHolder, BorderLayout.CENTER);
+      //  add(canvasHolder, BorderLayout.CENTER);
+
+        // ── Painel esquerdo: GroupVisibility (topo) + Dummy (baixo), divididos verticalmente ──
+        groupVisibilityPanel = new GroupVisibilityPanel(app);
+        materialsPanel = new MaterialsPanel(app);;
+
+        leftSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, groupVisibilityPanel, materialsPanel);
+        leftSplit.setResizeWeight(0.6); // 60% do espaço vertical para Grupos, 40% para o painel Dummy
+        leftSplit.setContinuousLayout(true); // redesenha durante o arrasto, em vez de só ao soltar — mais responsivo
+        leftSplit.setOneTouchExpandable(true); // pequenas setas para colapsar rapidamente cada metade
+
+// ── Divisão principal: painel esquerdo (grupos+dummy) | canvas 3D à direita ──
+        mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,canvasHolder, leftSplit );
+        mainSplit.setResizeWeight(0.75); // ao redimensionar a janela, o espaço extra vai inteiro para o canvas 3D
+        mainSplit.setContinuousLayout(true);
+        mainSplit.setOneTouchExpandable(true);
+        mainSplit.setDividerLocation(750); // largura inicial do painel esquerdo, em pixels
+
+        add(mainSplit, BorderLayout.CENTER); // ANTES: add(canvasHolder, BorderLayout.CENTER)
+
 
         // ── Toolbar (mouse tools) ──
         btnToolOrbit = new JToggleButton("🧭 Orbitar", true);
@@ -171,7 +195,7 @@ public class Obj3DViewerFrame extends JFrame {
 
         setupListeners();
 
-        setMinimumSize(new Dimension(680, 420));
+        setMinimumSize(new Dimension(900, 500));
         setSize(1000, 750);
         setLocationRelativeTo(null);
 
@@ -501,6 +525,8 @@ public class Obj3DViewerFrame extends JFrame {
                     double fileSizeInMB = (double) objFile.length() / (1024 * 1024);
                     lblModelInfo.setText(String.format("Triângulos: %d | %.2f MB",
                             app.countTriangles(), fileSizeInMB));
+                    groupVisibilityPanel.refresh();
+                    materialsPanel.refresh();
                 }),
                 (errorMsg) -> SwingUtilities.invokeLater(() -> {
                     setTitle("Visualizador 3D — Erro ao carregar " + objFile.getName());

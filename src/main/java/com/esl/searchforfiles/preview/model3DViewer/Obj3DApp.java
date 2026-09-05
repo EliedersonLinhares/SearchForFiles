@@ -3,30 +3,39 @@ package com.esl.searchforfiles.preview.model3DViewer;
 
 import com.jme3.app.SimpleApplication;
 import com.jme3.asset.plugins.FileLocator;
+import com.jme3.bounding.BoundingBox;
+import com.jme3.bounding.BoundingSphere;
+import com.jme3.bounding.BoundingVolume;
 import com.jme3.input.KeyInput;
 import com.jme3.input.MouseInput;
 import com.jme3.input.controls.*;
 import com.jme3.light.AmbientLight;
 import com.jme3.light.DirectionalLight;
+import com.jme3.material.MatParam;
+import com.jme3.material.MatParamTexture;
 import com.jme3.material.Material;
 import com.jme3.material.RenderState;
+import com.jme3.material.RenderState.BlendMode;
 import com.jme3.math.ColorRGBA;
 import com.jme3.math.FastMath;
 import com.jme3.math.Vector3f;
+import com.jme3.renderer.Camera;
 import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.Renderer;
+import com.jme3.renderer.ViewPort;
 import com.jme3.renderer.queue.RenderQueue.Bucket;
 import com.jme3.scene.*;
 import com.jme3.scene.VertexBuffer.Type;
 import com.jme3.scene.debug.WireBox;
+import com.jme3.texture.Image;
+import com.jme3.texture.Texture;
+import com.jme3.texture.Texture2D;
+import com.jme3.texture.image.ImageRaster;
 import com.jme3.util.BufferUtils;
-import com.jme3.renderer.Camera;
-import com.jme3.renderer.ViewPort;
-import com.jme3.bounding.BoundingBox;
-import com.jme3.bounding.BoundingSphere;
-import com.jme3.bounding.BoundingVolume;
-import java.awt.*;
+import com.jme3.scene.VertexBuffer.Type;
+import com.jme3.scene.mesh.IndexBuffer;
 
+import java.awt.image.BufferedImage;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
@@ -34,14 +43,16 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Consumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import java.util.IdentityHashMap;
+import java.util.Set;
+import java.util.Collections;
 
 public class Obj3DApp extends SimpleApplication {
 
@@ -56,8 +67,28 @@ public class Obj3DApp extends SimpleApplication {
     private static final ColorRGBA MONOCHROME_DIFFUSE = new ColorRGBA(0.92f, 0.92f, 0.90f, 1f); // quase branco, leve quente
     private static final ColorRGBA MONOCHROME_AMBIENT = new ColorRGBA(0.55f, 0.55f, 0.55f, 1f);
     private static final ColorRGBA MONOCHROME_EDGE_COLOR = new ColorRGBA(0.35f, 0.35f, 0.35f, 1f); // cinza médio, não preto puro
+    private static final float DRAG_ZOOM_SENSITIVITY = 0.8f; // menor = mais suave/lento
+    private static final String USERDATA_GROUP_ID = "groupId";
+    private static final int MATERIAL_THUMBNAIL_SIZE = 48;
+    private static final Logger logger = Logger.getLogger(Obj3DApp.class.getName());
+    private static final String USERDATA_ORIGINAL_MATERIAL_NAME = "originalMaterialName";
+    private static final float DIMMED_ALPHA = 0.10f;
+    private static final String[] TEXTURE_MAP_TYPES = {
+            "ColorMap", "NormalMap", "DiffuseMap", "SpecularMap", "AmbientMap"
+    };
     private final Vector3f orbitTarget = new Vector3f(0, 0, 0);
     private final Map<Geometry, java.util.List<Geometry>> penArtifacts = new HashMap<>();
+    private final Map<Integer, Spatial> groupRegistry = new HashMap<>();
+    private final Map<String, java.util.List<Geometry>> materialGroups = new LinkedHashMap<>();
+    // Guarda o estado original (alpha, blend mode, bucket) de cada Geometry
+    // dimida, para poder restaurar com exatidão ao desmarcar o destaque
+//    private final Map<Geometry, Float> originalAlphaByGeometry = new HashMap<>();
+//    private final Map<Geometry, BlendMode> originalBlendByGeometry = new HashMap<>();
+    private final Map<Material, Float> originalAlphaByMaterial = new IdentityHashMap<>();
+    private final Map<Material, RenderState.BlendMode> originalBlendByMaterial = new IdentityHashMap<>();
+    private final Map<Geometry, Bucket> originalBucketByGeometry = new HashMap<>();
+    private final Map<String, Material> namedMaterials = new LinkedHashMap<>();
+    private final java.util.Set<String> registeredTextureLocators = new java.util.HashSet<>();
     // ── Estado da câmera orbital ──
     private float camYaw = 0f;
     private float camPitch = FastMath.QUARTER_PI * 0.5f;
@@ -88,18 +119,15 @@ public class Obj3DApp extends SimpleApplication {
     private float currentModelRadius = 5f;
     private float creaseAngleDegrees = 19f;
     private float outlineThicknessRatio = 0.002f;
-
-    public enum ToolMode { ORBIT, ZOOM, PAN }
     private volatile ToolMode toolMode = ToolMode.ORBIT;
-    private static final float DRAG_ZOOM_SENSITIVITY = 0.8f; // menor = mais suave/lento
-
     private float minZoomDistance = 0.5f;
     private float maxZoomDistance = 500f;
     private float dynamicFarPlane = 1000f;
-
-
-    private final java.util.Set<String> registeredTextureLocators = new java.util.HashSet<>();
+    private int nextGroupId = 0;
+    private String highlightedMaterialName = null;
     private File lastLoadedObjFile;
+
+
 
     public Obj3DApp() {
 
@@ -109,7 +137,7 @@ public class Obj3DApp extends SimpleApplication {
 
     @Override
     public void simpleInitApp() {
-        flyCam.setEnabled(false); // substituímos pelo nosso controle orbital
+        flyCam.setEnabled(false);
         setDisplayStatView(false);
         setDisplayFps(false);
 
@@ -324,11 +352,10 @@ public class Obj3DApp extends SimpleApplication {
         updateCameraPosition();
     }
 
-
-private void zoom(float delta) {
-    camDistance = FastMath.clamp(camDistance + delta, minZoomDistance, maxZoomDistance); // ANTES: 0.5f, 500f fixos
-    updateCameraPosition();
-}
+    private void zoom(float delta) {
+        camDistance = FastMath.clamp(camDistance + delta, minZoomDistance, maxZoomDistance); // ANTES: 0.5f, 500f fixos
+        updateCameraPosition();
+    }
 
     private void updateCameraPosition() {
         switch (cameraMode) {
@@ -411,6 +438,15 @@ private void zoom(float delta) {
         enqueue(() -> {
             try {
                 modelRoot.detachAllChildren();
+
+                groupRegistry.clear(); // NOVO: evita IDs "fantasmas" apontando pro modelo anterior
+                nextGroupId = 0;       // NOVO
+                materialGroups.clear();          // NOVO
+                namedMaterials.clear();
+                highlightedMaterialName = null;  // NOVO
+                originalAlphaByMaterial.clear();   // ANTES: originalAlphaByGeometry.clear();
+                originalBlendByMaterial.clear();
+                originalBucketByGeometry.clear();// NOVO
 
                 File workingDir = prepareSanitizedModelFolder(objFile);
                 assetManager.registerLocator(workingDir.getAbsolutePath(), FileLocator.class);
@@ -540,6 +576,7 @@ private void zoom(float delta) {
             }
         }
     }
+
     private void ensureMaterial(Spatial spatial) {
         if (spatial instanceof Geometry geom) {
             applyFlatGrayMaterial(geom);
@@ -550,22 +587,21 @@ private void zoom(float delta) {
         }
     }
 
+    private void frameModelInView(Spatial model) {
+        model.updateModelBound();
+        BoundingVolume bv = model.getWorldBound();
+        Vector3f center = bv.getCenter();
+        float radius = computeBoundingRadius(bv); // CORRIGIDO (antes: só funcionava para BoundingSphere)
+        currentModelRadius = radius;
 
-private void frameModelInView(Spatial model) {
-    model.updateModelBound();
-    BoundingVolume bv = model.getWorldBound();
-    Vector3f center = bv.getCenter();
-    float radius = computeBoundingRadius(bv); // CORRIGIDO (antes: só funcionava para BoundingSphere)
-    currentModelRadius = radius;
+        orbitTarget.set(center);
+        camDistance = Math.max(2f, radius * 2.5f);
+        camYaw = FastMath.QUARTER_PI;
+        camPitch = FastMath.QUARTER_PI * 0.5f;
 
-    orbitTarget.set(center);
-    camDistance = Math.max(2f, radius * 2.5f);
-    camYaw = FastMath.QUARTER_PI;
-    camPitch = FastMath.QUARTER_PI * 0.5f;
-
-    updateCameraLimitsForModelSize(radius);
-    updateCameraPosition();
-}
+        updateCameraLimitsForModelSize(radius);
+        updateCameraPosition();
+    }
 
     /**
      * Recalcula os limites de zoom e o plano de corte distante (far plane)
@@ -611,20 +647,19 @@ private void frameModelInView(Spatial model) {
         enqueue(() -> viewPort.setBackgroundColor(color));
     }
 
-
-public void resetCamera() {
-    enqueue(() -> {
-        if (modelRoot.getChildren().isEmpty()) {
-            orbitTarget.set(0, 0, 0);
-            camDistance = 10f;
-        } else {
-            frameModelInView(modelRoot); // já corrigido internamente, nenhuma mudança adicional aqui
-        }
-        camYaw = FastMath.QUARTER_PI;
-        camPitch = FastMath.QUARTER_PI * 0.5f;
-        setCameraModeInternal(CameraMode.FREE);
-    });
-}
+    public void resetCamera() {
+        enqueue(() -> {
+            if (modelRoot.getChildren().isEmpty()) {
+                orbitTarget.set(0, 0, 0);
+                camDistance = 10f;
+            } else {
+                frameModelInView(modelRoot); // já corrigido internamente, nenhuma mudança adicional aqui
+            }
+            camYaw = FastMath.QUARTER_PI;
+            camPitch = FastMath.QUARTER_PI * 0.5f;
+            setCameraModeInternal(CameraMode.FREE);
+        });
+    }
 
     public int countTriangles() {
         int[] total = {0};
@@ -761,6 +796,12 @@ public void resetCamera() {
                 backgroundColorBeforePen = null;
             }
             applyMaterialMode(modelRoot);
+
+            // NOVO: reaplica o destaque de material, já que os materiais foram recriados
+            originalAlphaByMaterial.clear();   // ANTES: originalAlphaByGeometry.clear();
+            originalBlendByMaterial.clear();
+            originalBucketByGeometry.clear();
+            applyMaterialHighlightRecursive(modelRoot);
         });
     }
 
@@ -780,6 +821,31 @@ public void resetCamera() {
             }
         }
     }
+
+    private void applyMaterialHighlightRecursive(Spatial spatial) {
+        // processedMaterials garante que cada Material único (mesmo que
+        // compartilhado por várias Geometry) seja escurecido/restaurado
+        // apenas UMA vez nesta passada, evitando ler um alpha já mutado
+        // pela Geometry anterior como se fosse o valor "original"
+        Set<Material> processedMaterials = Collections.newSetFromMap(new IdentityHashMap<>());
+        applyMaterialHighlightRecursive(spatial, processedMaterials);
+    }
+
+//    private void applyMaterialHighlightRecursive(Spatial spatial, Set<Material> processedMaterials) {
+//        if (spatial instanceof Geometry geom) {
+//            Object nameData = geom.getUserData(USERDATA_ORIGINAL_MATERIAL_NAME);
+//            String geomMaterialName = (nameData instanceof String s) ? s : null;
+//
+//            boolean shouldDim = highlightedMaterialName != null
+//                    && !highlightedMaterialName.equals(geomMaterialName);
+//
+//            setGeometryDimmed(geom, shouldDim, processedMaterials);
+//        } else if (spatial instanceof Node node) {
+//            for (Spatial child : node.getChildren()) {
+//                applyMaterialHighlightRecursive(child, processedMaterials);
+//            }
+//        }
+//    }
 
     private void applyMonochromeStyle(Geometry geom) {
         Node parent = geom.getParent();
@@ -1018,9 +1084,6 @@ public void resetCamera() {
         // Se por algum motivo não houver material original salvo, mantém o atual
     }
 
-
-
-
     public boolean isFlatGrayMode() {
         return flatGrayMode;
     }
@@ -1096,6 +1159,501 @@ public void resetCamera() {
         }
     }
 
+    /**
+     * Calcula um raio equivalente a partir do bounding volume do modelo,
+     * suportando tanto BoundingSphere quanto BoundingBox (o padrão do jME3
+     * para malhas .obj carregadas). Sem isso, modelos com BoundingBox caem
+     * incorretamente em um valor fixo de fallback, ignorando o tamanho real.
+     */
+    private float computeBoundingRadius(BoundingVolume bv) {
+        if (bv instanceof BoundingSphere bs) {
+            return bs.getRadius();
+        } else if (bv instanceof BoundingBox bb) {
+            Vector3f extent = new Vector3f();
+            bb.getExtent(extent); // metade do tamanho em cada eixo (half-extents)
+            return extent.length(); // raio da esfera que envolve a caixa inteira
+        }
+        return 5f; // fallback só para volumes desconhecidos/nulos (caso raro)
+    }
+
+    /**
+     * Constrói (na thread do jME) uma cópia leve da hierarquia de Spatials
+     * atual, segura para ser exibida em uma JTree do Swing. Cada Spatial
+     * recebe um ID numérico salvo como UserData, usado depois para localizá-lo
+     * rapidamente ao alternar visibilidade a partir da UI.
+     */
+    public void requestGroupHierarchy(Consumer<GroupNode> callback) {
+        enqueue(() -> {
+            groupRegistry.clear();
+            nextGroupId = 0;
+            GroupNode root = buildGroupNode(modelRoot, "Modelo");
+            if (callback != null) callback.accept(root);
+        });
+    }
+
+    private GroupNode buildGroupNode(Spatial spatial, String fallbackName) {
+        int id = nextGroupId++;
+        spatial.setUserData(USERDATA_GROUP_ID, id);
+        groupRegistry.put(id, spatial);
+
+        boolean visible = spatial.getCullHint() != Spatial.CullHint.Always;
+        String name = (spatial.getName() != null && !spatial.getName().isBlank())
+                ? spatial.getName() : fallbackName;
+
+        if (spatial instanceof Node node) {
+            GroupNode groupNode = new GroupNode(id, name, false, visible);
+            int childIndex = 0;
+            for (Spatial child : node.getChildren()) {
+                groupNode.children.add(buildGroupNode(child, "Parte " + (childIndex++)));
+            }
+            return groupNode;
+        } else {
+            return new GroupNode(id, name, true, visible);
+        }
+    }
+
+    /**
+     * Mostra ou esconde um grupo/parte específica pelo ID atribuído em
+     * requestGroupHierarchy. Como o jME propaga CullHint.Inherit a partir do
+     * ancestral mais próximo com valor explícito, esconder um grupo esconde
+     * automaticamente tudo dentro dele — a menos que um descendente também
+     * tenha sido alternado manualmente, caso em que o valor do descendente
+     * prevalece sobre o do grupo pai.
+     */
+    public void setGroupVisible(int groupId, boolean visible) {
+        enqueue(() -> {
+            Spatial spatial = groupRegistry.get(groupId);
+            if (spatial != null) {
+                spatial.setCullHint(visible ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+            }
+        });
+    }
+
+    /**
+     * Mostra ou esconde TODOS os grupos/partes do modelo de uma vez.
+     * O callback onDone roda depois que a mudança já foi aplicada na thread
+     * do jME, para a UI Swing poder atualizar os checkboxes com segurança.
+     */
+    public void setAllGroupsVisible(boolean visible, Runnable onDone) {
+        enqueue(() -> {
+            setCullHintRecursive(modelRoot, visible);
+            if (onDone != null) onDone.run();
+        });
+    }
+
+    private void setCullHintRecursive(Spatial spatial, boolean visible) {
+        spatial.setCullHint(visible ? Spatial.CullHint.Inherit : Spatial.CullHint.Always);
+        if (spatial instanceof Node node) {
+            for (Spatial child : node.getChildren()) {
+                setCullHintRecursive(child, visible);
+            }
+        }
+    }
+
+    /**
+     * Percorre a hierarquia do modelo carregado, coleta os materiais originais
+     * (do .mtl, não os materiais de exibição como Cinza Sólido/Pen) e gera uma
+     * miniatura para cada um — a partir da textura difusa, se houver, ou de um
+     * retângulo com a cor sólida do material.
+     */
+    public void requestMaterialsList(Consumer<java.util.List<MaterialInfo>> callback) {
+        enqueue(() -> {
+            namedMaterials.clear();
+            materialGroups.clear();
+            collectMaterials(modelRoot, namedMaterials); // agora popula direto o campo namedMaterials
+
+            // Reconstrói materialGroups (usado pelo destaque) a partir da hierarquia atual
+            collectMaterialGroups(modelRoot);
+
+            java.util.List<MaterialInfo> result = new java.util.ArrayList<>();
+            for (Map.Entry<String, Material> entry : namedMaterials.entrySet()) {
+                result.add(buildMaterialInfo(entry.getKey(), entry.getValue()));
+            }
+            if (callback != null) callback.accept(result);
+        });
+    }
+
+    private void collectMaterials(Spatial spatial, Map<String, Material> byName) {
+        if (spatial instanceof Geometry geom) {
+            Object original = geom.getUserData(USERDATA_ORIGINAL_MATERIAL);
+            Material mat = (original instanceof Material m) ? m : geom.getMaterial();
+            if (mat != null) {
+                String name = mat.getName();
+                if (name == null || name.isBlank()) {
+                    name = "Material " + (byName.size() + 1);
+                }
+                byName.putIfAbsent(name, mat);
+                geom.setUserData(USERDATA_ORIGINAL_MATERIAL_NAME, name);
+            }
+        } else if (spatial instanceof Node node) {
+            for (Spatial child : node.getChildren()) {
+                collectMaterials(child, byName);
+            }
+        }
+    }
+
+    private void collectMaterialGroups(Spatial spatial) {
+        if (spatial instanceof Geometry geom) {
+            Object nameData = geom.getUserData(USERDATA_ORIGINAL_MATERIAL_NAME);
+            if (nameData instanceof String name) {
+                materialGroups.computeIfAbsent(name, k -> new java.util.ArrayList<>()).add(geom);
+            }
+        } else if (spatial instanceof Node node) {
+            for (Spatial child : node.getChildren()) {
+                collectMaterialGroups(child);
+            }
+        }
+    }
+
+    private MaterialInfo buildMaterialInfo(String name, Material mat) {
+        BufferedImage thumbnail = null;
+
+        MatParamTexture previewParam = mat.getTextureParam("DiffuseMap");
+        if (previewParam == null) previewParam = mat.getTextureParam("ColorMap");
+
+        if (previewParam != null && previewParam.getTextureValue() instanceof Texture2D tex2D) {
+            try {
+                thumbnail = createTextureThumbnail(tex2D, MATERIAL_THUMBNAIL_SIZE);
+            } catch (Exception ex) {
+                logger.log(Level.WARNING, "Falha ao gerar miniatura da textura do material {0}", name);
+            }
+        }
+        if (thumbnail == null) {
+            ColorRGBA swatchColor = ColorRGBA.LightGray;
+            MatParam colorParam = mat.getParam("Diffuse");
+            if (colorParam == null) colorParam = mat.getParam("Color");
+            if (colorParam != null && colorParam.getValue() instanceof ColorRGBA c) {
+                swatchColor = c;
+            }
+            thumbnail = createColorThumbnail(swatchColor, MATERIAL_THUMBNAIL_SIZE);
+        }
+
+        // NOVO: coleta o estado atual de cada slot de textura
+        Map<String, String> textureBySlot = new LinkedHashMap<>();
+        Map<String, Boolean> slotSupported = new LinkedHashMap<>();
+
+        for (String slot : TEXTURE_MAP_TYPES) {
+            boolean supported = mat.getMaterialDef().getMaterialParam(slot) != null;
+            slotSupported.put(slot, supported);
+
+            String textureName = null;
+            if (supported) {
+                MatParamTexture tp = mat.getTextureParam(slot);
+                if (tp != null && tp.getTextureValue() != null && tp.getTextureValue().getKey() != null) {
+                    textureName = tp.getTextureValue().getKey().getName();
+                }
+            }
+            textureBySlot.put(slot, textureName);
+        }
+
+        return new MaterialInfo(name, thumbnail, textureBySlot, slotSupported);
+    }
+
+    /**
+     * Converte a textura (dados de pixel crus do jME) em uma pequena miniatura
+     * BufferedImage, amostrando pixels proporcionalmente ao tamanho de destino.
+     * Usa ImageRaster, que sabe interpretar corretamente os diferentes formatos
+     * de pixel (RGBA8, ABGR8, etc.) sem precisarmos tratar cada um manualmente.
+     */
+    private BufferedImage createTextureThumbnail(Texture2D tex, int size) throws Exception {
+        Image image = tex.getImage();
+        ImageRaster raster = ImageRaster.create(image); // lê a imagem já carregada em memória, sem precisar da GPU
+
+        int srcW = image.getWidth();
+        int srcH = image.getHeight();
+        BufferedImage thumb = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+
+        for (int y = 0; y < size; y++) {
+            int sy = y * srcH / size;
+            int flippedY = srcH - 1 - sy; // imagens do jME ficam verticalmente invertidas em relação ao AWT
+            for (int x = 0; x < size; x++) {
+                int sx = x * srcW / size;
+                ColorRGBA c = raster.getPixel(sx, flippedY);
+                thumb.setRGB(x, y, colorToArgb(c));
+            }
+        }
+        return thumb;
+    }
+
+    /**
+     * Carrega a textura escolhida pelo usuário e aplica ao slot indicado
+     * (ColorMap, NormalMap, DiffuseMap, SpecularMap ou AmbientMap) do material
+     * original (mtl) correspondente. Como todos os Geometry que compartilham
+     * o mesmo material original apontam para a MESMA instância de Material,
+     * a mudança é aplicada automaticamente a todas as partes do modelo que
+     * usam esse material — sem precisar percorrer a hierarquia novamente.
+     */
+    public void setMaterialTexture(String materialName, String slot, File textureFile,
+                                   Runnable onSuccess, Consumer<String> onError) {
+        enqueue(() -> {
+            try {
+                Material mat = namedMaterials.get(materialName);
+                if (mat == null) {
+                    if (onError != null) onError.accept("Material não encontrado: " + materialName);
+                    return;
+                }
+                if (mat.getMaterialDef().getMaterialParam(slot) == null) {
+                    if (onError != null) onError.accept("Este material não suporta o slot " + slot);
+                    return;
+                }
+
+                String folderPath = textureFile.getParentFile().getAbsolutePath();
+                if (registeredTextureLocators.add(folderPath)) {
+                    assetManager.registerLocator(folderPath, FileLocator.class);
+                }
+                assetManager.clearCache(); // garante que uma textura de mesmo nome usada antes não seja reaproveitada do cache
+
+                Texture tex = assetManager.loadTexture(textureFile.getName());
+                tex.setWrap(Texture.WrapMode.Repeat);
+                mat.setTexture(slot, tex);
+
+                if (onSuccess != null) onSuccess.run();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                if (onError != null) onError.accept(ex.getClass().getSimpleName() + ": " + ex.getMessage());
+            }
+        });
+    }
+
+    private BufferedImage createColorThumbnail(ColorRGBA color, int size) {
+        BufferedImage img = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        int argb = colorToArgb(color);
+        for (int y = 0; y < size; y++) {
+            for (int x = 0; x < size; x++) {
+                img.setRGB(x, y, argb);
+            }
+        }
+        return img;
+    }
+
+    private int colorToArgb(ColorRGBA c) {
+        int a = clamp255(c.a);
+        int r = clamp255(c.r);
+        int g = clamp255(c.g);
+        int b = clamp255(c.b);
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
+    private int clamp255(float value) {
+        return Math.max(0, Math.min(255, Math.round(value * 255f)));
+    }
+
+    /**
+     * Isola visualmente um material: tudo que NÃO pertence a ele fica quase
+     * transparente, e o que pertence fica normal. Passar null remove o
+     * destaque, restaurando a opacidade original de tudo.
+     * <p>
+     * Limitação conhecida: no estilo "Caneta (Pen)", o passo de profundidade
+     * do modelo já é invisível por natureza (ColorWrite desativado), então
+     * o destaque de material não produz efeito visual nesse estilo específico.
+     */
+    public void setMaterialHighlight(String materialName, Runnable onDone) {
+        enqueue(() -> {
+            this.highlightedMaterialName = materialName;
+            applyMaterialHighlightRecursive(modelRoot);
+            if (onDone != null) onDone.run();
+        });
+    }
+
+    private void applyMaterialHighlightRecursive(Spatial spatial, Set<Material> processedMaterials) {
+        if (spatial instanceof Geometry geom) {
+            Object nameData = geom.getUserData(USERDATA_ORIGINAL_MATERIAL_NAME);
+            String geomMaterialName = (nameData instanceof String s) ? s : null;
+
+            boolean shouldDim = highlightedMaterialName != null
+                    && !highlightedMaterialName.equals(geomMaterialName);
+
+            setGeometryDimmed(geom, shouldDim, processedMaterials);
+        } else if (spatial instanceof Node node) {
+            for (Spatial child : node.getChildren()) {
+                applyMaterialHighlightRecursive(child, processedMaterials);
+            }
+        }
+    }
+
+    private void setGeometryDimmed(Geometry geom, boolean dim, Set<Material> processedMaterials) {
+        Material mat = geom.getMaterial();
+        if (mat == null) return;
+
+        // Só muta o Material se ele ainda não foi processado nesta passada —
+        // essencial para materiais compartilhados entre várias Geometry
+        if (processedMaterials.add(mat)) {
+            applyDimToMaterial(mat, dim);
+        }
+
+        // QueueBucket é individual por Geometry, então sempre ajustado aqui
+        if (dim) {
+            originalBucketByGeometry.putIfAbsent(geom, geom.getQueueBucket());
+            geom.setQueueBucket(Bucket.Transparent);
+        } else {
+            Bucket originalBucket = originalBucketByGeometry.remove(geom);
+            geom.setQueueBucket(originalBucket != null ? originalBucket : Bucket.Opaque);
+        }
+    }
+
+    private void applyDimToMaterial(Material mat, boolean dim) {
+        String colorParamName = mat.getParam("Diffuse") != null ? "Diffuse"
+                : (mat.getParam("Color") != null ? "Color" : null);
+        if (colorParamName == null) return;
+
+        MatParam colorMatParam = mat.getParam(colorParamName);
+        if (!(colorMatParam.getValue() instanceof ColorRGBA currentColor)) return;
+
+        if (dim) {
+            originalAlphaByMaterial.putIfAbsent(mat, currentColor.a);
+            originalBlendByMaterial.putIfAbsent(mat, mat.getAdditionalRenderState().getBlendMode());
+
+            ColorRGBA dimmedColor = currentColor.clone();
+            dimmedColor.a = DIMMED_ALPHA;
+            mat.setColor(colorParamName, dimmedColor);
+            mat.getAdditionalRenderState().setBlendMode(BlendMode.Alpha);
+        } else {
+            Float originalAlpha = originalAlphaByMaterial.remove(mat);
+            RenderState.BlendMode originalBlend = originalBlendByMaterial.remove(mat);
+
+            if (originalAlpha != null) {
+                ColorRGBA restoredColor = currentColor.clone();
+                restoredColor.a = originalAlpha;
+                mat.setColor(colorParamName, restoredColor);
+                mat.getAdditionalRenderState().setBlendMode(
+                        originalBlend != null ? originalBlend : BlendMode.Off);
+            }
+        }
+    }
+
+    /**
+     * Remove a textura atualmente definida em um slot específico do material,
+     * voltando esse canal ao estado "sem textura" (o material passa a usar
+     * só a cor/parâmetro base daquele canal, se houver).
+     */
+    public void clearMaterialTexture(String materialName, String slot,
+                                     Runnable onSuccess, Consumer<String> onError) {
+        enqueue(() -> {
+            try {
+                Material mat = namedMaterials.get(materialName);
+                if (mat == null) {
+                    if (onError != null) onError.accept("Material não encontrado: " + materialName);
+                    return;
+                }
+                if (mat.getMaterialDef().getMaterialParam(slot) == null) {
+                    if (onError != null) onError.accept("Este material não suporta o slot " + slot);
+                    return;
+                }
+
+                mat.clearParam(slot);
+
+                if (onSuccess != null) onSuccess.run();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                if (onError != null) onError.accept(ex.getClass().getSimpleName() + ": " + ex.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Extrai as coordenadas UV de todas as Geometries que usam o material
+     * indicado, retornando uma lista de arestas (cada uma como {u0,v0,u1,v1})
+     * representando os três lados de cada triângulo em espaço UV (0.0 a 1.0).
+     */
+    public void requestUVLayout(String materialName, Consumer<java.util.List<float[]>> callback) {
+        enqueue(() -> {
+            java.util.List<Geometry> geoms = materialGroups.get(materialName);
+            java.util.List<float[]> edges = new java.util.ArrayList<>();
+            if (geoms != null) {
+                for (Geometry geom : geoms) {
+                    collectUVEdges(geom.getMesh(), edges);
+                }
+            }
+            if (callback != null) callback.accept(edges);
+        });
+    }
+
+    /**
+     * Gera uma prévia da textura difusa do material em resolução maior que a
+     * miniatura da lista (útil como fundo do editor de UV). Retorna null se
+     * o material não tiver textura difusa.
+     */
+    public void requestMaterialTexturePreview(String materialName, int maxSize, Consumer<BufferedImage> callback) {
+        enqueue(() -> {
+            Material mat = namedMaterials.get(materialName);
+            BufferedImage preview = null;
+
+            if (mat != null) {
+                MatParamTexture texParam = mat.getTextureParam("DiffuseMap");
+                if (texParam == null) texParam = mat.getTextureParam("ColorMap");
+
+                if (texParam != null && texParam.getTextureValue() instanceof Texture2D tex2D) {
+                    try {
+                        preview = createTextureThumbnail(tex2D, maxSize);
+                    } catch (Exception ex) {
+                        logger.log(Level.WARNING, "Falha ao gerar prévia da textura de {0}", materialName);
+                    }
+                }
+            }
+            BufferedImage finalPreview = preview;
+            if (callback != null) callback.accept(finalPreview);
+        });
+    }
+
+    private void collectUVEdges(Mesh mesh, java.util.List<float[]> edges) {
+        FloatBuffer tcBuf = mesh.getFloatBuffer(Type.TexCoord);
+        IndexBuffer idxBuf = mesh.getIndexBuffer();
+        if (tcBuf == null || idxBuf == null) return; // malha sem UV (ex: sem textura mapeada)
+
+        int triCount = mesh.getTriangleCount();
+        for (int t = 0; t < triCount; t++) {
+            int i0 = idxBuf.get(t * 3);
+            int i1 = idxBuf.get(t * 3 + 1);
+            int i2 = idxBuf.get(t * 3 + 2);
+
+            float u0 = tcBuf.get(i0 * 2), v0 = tcBuf.get(i0 * 2 + 1);
+            float u1 = tcBuf.get(i1 * 2), v1 = tcBuf.get(i1 * 2 + 1);
+            float u2 = tcBuf.get(i2 * 2), v2 = tcBuf.get(i2 * 2 + 1);
+
+            edges.add(new float[]{u0, v0, u1, v1});
+            edges.add(new float[]{u1, v1, u2, v2});
+            edges.add(new float[]{u2, v2, u0, v0});
+        }
+    }
+
+    public ToolMode getToolMode() {
+        return toolMode;
+    }
+
+    public void setToolMode(ToolMode mode) {
+        this.toolMode = mode;
+    }
+
+    public RenderManager getRenderManager() {
+        return renderManager;
+    }
+
+    public Node getRootNode() {
+        return rootNode;
+    }
+
+    public Camera getCamera() {
+        return cam;
+    }
+
+    public ViewPort getViewPort() {
+        return viewPort;
+    }
+
+    public Node getGridNode() {
+        return gridNode;
+    }
+
+    public Renderer getRenderer() {
+        return renderer;
+    }
+
+    public File getLastLoadedObjFile() {
+        return lastLoadedObjFile;
+    }
+
+    public enum ToolMode {ORBIT, ZOOM, PAN}
+
     public enum RenderStyle {FLAT_GRAY, ORIGINAL_MATERIAL, PEN, MONOCHROME}
 
     //cameras
@@ -1117,50 +1675,5 @@ public void resetCamera() {
             else if (faceCount == 1) normalB = normal;
             faceCount++;
         }
-    }
-
-    /**
-     * Calcula um raio equivalente a partir do bounding volume do modelo,
-     * suportando tanto BoundingSphere quanto BoundingBox (o padrão do jME3
-     * para malhas .obj carregadas). Sem isso, modelos com BoundingBox caem
-     * incorretamente em um valor fixo de fallback, ignorando o tamanho real.
-     */
-    private float computeBoundingRadius(BoundingVolume bv) {
-        if (bv instanceof BoundingSphere bs) {
-            return bs.getRadius();
-        } else if (bv instanceof BoundingBox bb) {
-            Vector3f extent = new Vector3f();
-            bb.getExtent(extent); // metade do tamanho em cada eixo (half-extents)
-            return extent.length(); // raio da esfera que envolve a caixa inteira
-        }
-        return 5f; // fallback só para volumes desconhecidos/nulos (caso raro)
-    }
-
-    public void setToolMode(ToolMode mode) {
-        this.toolMode = mode;
-    }
-
-    public ToolMode getToolMode() {
-        return toolMode;
-    }
-
-    public RenderManager getRenderManager() {
-        return renderManager;
-    }
-    public Node getRootNode() {
-        return rootNode;
-    }
-    public Camera getCamera() {
-        return cam;
-    }
-    public ViewPort getViewPort() {
-        return viewPort;
-    }
-
-    public Node getGridNode() {
-        return gridNode;
-    }
-    public Renderer getRenderer() {
-        return renderer;
     }
 }
