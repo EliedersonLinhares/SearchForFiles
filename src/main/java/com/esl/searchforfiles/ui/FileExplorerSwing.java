@@ -7,6 +7,7 @@ import com.esl.searchforfiles.actions.fileTransfer.TransferService;
 import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
 import com.esl.searchforfiles.actions.renameFile.RenameMode;
 import com.esl.searchforfiles.actions.renameFile.RenameModeManager;
+import com.esl.searchforfiles.actions.videoConverter.VideoConverterModeManager;
 import com.esl.searchforfiles.configuration.ConfigManager;
 import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.model.FileInfo;
@@ -44,6 +45,7 @@ public class FileExplorerSwing extends JFrame {
     private final NavigationHistory navigationHistory = new NavigationHistory();
     private final EditModeManager editModeManager = new EditModeManager();
     private final CompressModeManager compressModeManager = new CompressModeManager();
+    private final VideoConverterModeManager videoConverterModeManager = new VideoConverterModeManager();
     private final RenameModeManager renameModeFiles =
             new RenameModeManager(RenameMode.FILES);
     private final RenameModeManager renameModeFolders =
@@ -188,7 +190,8 @@ public class FileExplorerSwing extends JFrame {
                         }, FileExplorerSwing.this, favoritesService
                 );
                 if (!editModeManager.isEditModeActive() && !transferService.isTransferModeActive()
-                        && !renameModeFiles.isActive()  && !compressModeManager.isCompressModeActive()) {
+                        && !renameModeFiles.isActive()  && !compressModeManager.isCompressModeActive()
+                        && !videoConverterModeManager.isVideoConverterModeActive()) {
                     menu.show(source, x, y);
                 }
             }
@@ -798,9 +801,25 @@ public class FileExplorerSwing extends JFrame {
                 resultsPanel.exitTransferMode();
             }
             resultsPanel.enterCompressMode(compressModeManager);
+
         }
     }
+    /**
+     * Botão para comprimir Arquivos
+     */
+    public void toggleVideoConverterMode() {
+        deactivateOtherModes(videoConverterModeManager);
+        if (videoConverterModeManager.isVideoConverterModeActive()) {
+            resultsPanel.exitVideoConverterMode();
+        } else {
+            // Garante que o modo de transferência não fique ativo ao mesmo tempo
+            if (transferService.isTransferModeActive()) {
+                resultsPanel.exitTransferMode();
+            }
 
+            resultsPanel.enterVideoConverterMode(videoConverterModeManager);
+        }
+    }
 
     /**
      * Botão "Renomear arquivos"
@@ -839,6 +858,9 @@ public class FileExplorerSwing extends JFrame {
         if (compressModeManager.isCompressModeActive()) {
             resultsPanel.exitCompressMode();
         }
+        if (videoConverterModeManager.isVideoConverterModeActive()) {
+            resultsPanel.exitVideoConverterMode();
+        }
         resultsPanel.openConfiguration();
     }
 
@@ -857,6 +879,8 @@ public class FileExplorerSwing extends JFrame {
             resultsPanel.exitRenameMode();
         if (keepActive != compressModeManager && compressModeManager.isCompressModeActive())
             resultsPanel.exitCompressMode();
+        if (keepActive != videoConverterModeManager && videoConverterModeManager.isVideoConverterModeActive())
+            resultsPanel.exitVideoConverterMode();
     }
 
     public void createNewFolder() {

@@ -6,6 +6,7 @@ import com.esl.searchforfiles.actions.fileTransfer.*;
 import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
 import com.esl.searchforfiles.actions.renameFile.RenameMode;
 import com.esl.searchforfiles.actions.renameFile.RenameModeManager;
+import com.esl.searchforfiles.actions.videoConverter.VideoConverterModeManager;
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.model.FileInfo;
@@ -77,6 +78,7 @@ public class FileItemPanel extends JPanel {
     SelectionCheckbox editSelectionCheckbox;   // package-private para acesso da toolbar
     SelectionCheckbox renameSelectionCheckbox; // package-private
     SelectionCheckbox compressSelectionCheckbox;
+    SelectionCheckbox videoConverterSelectionCheckbox;
     // Cores para estados
     private Color normalColor;
     private Color hoverColor;
@@ -93,6 +95,7 @@ public class FileItemPanel extends JPanel {
     private EditModeManager editModeManager;   // renomeie o campo de transferência se necessário
     private RenameModeManager renameModeManager;
     private CompressModeManager compressModeManager;
+    private VideoConverterModeManager videoConverterModeManager;
 
     public FileItemPanel(File file, FileInfo fileInfo, int width, int height, int thumbSize, ResultsPanel resultsPanel) {
 
@@ -361,8 +364,9 @@ public class FileItemPanel extends JPanel {
     private boolean isAnyCheckboxSelected() {
         return (selectionCheckbox != null && selectionCheckbox.isSelected())
                 || (editSelectionCheckbox != null && editSelectionCheckbox.isSelected())
-                || (renameSelectionCheckbox != null && renameSelectionCheckbox.isSelected()
-                || (compressSelectionCheckbox != null && compressSelectionCheckbox.isSelected()));
+                || (renameSelectionCheckbox != null && renameSelectionCheckbox.isSelected())
+                || (compressSelectionCheckbox != null && compressSelectionCheckbox.isSelected())
+                || (videoConverterSelectionCheckbox != null && videoConverterSelectionCheckbox.isSelected());
     }
 
     private void refreshColors() {
@@ -1444,6 +1448,8 @@ public class FileItemPanel extends JPanel {
         boolean editChecked = editSelectionCheckbox != null && editSelectionCheckbox.isSelected();
         boolean renameChecked = renameSelectionCheckbox != null && renameSelectionCheckbox.isSelected();
         boolean compressChecked = compressSelectionCheckbox != null && compressSelectionCheckbox.isSelected();
+        boolean videoConverterChecked = videoConverterSelectionCheckbox != null && videoConverterSelectionCheckbox.isSelected();
+
 
         if (transferChecked) {
             setBackground(BG_TRANSFER_SELECTED);
@@ -1453,6 +1459,9 @@ public class FileItemPanel extends JPanel {
             setBackground(UIConfig.accent());
         } else if (compressChecked) {
             setBackground(UIConfig.accent());
+        } else if (videoConverterChecked) {
+            setBackground(UIConfig.accent());
+
 
         } else {
             setBackground(selected ? UIConfig.SELECTED_COLOR : normalColor);
@@ -1536,4 +1545,60 @@ public class FileItemPanel extends JPanel {
         repaint();
     }
 
+    //video converter
+    public void enableVideoConverterMode(VideoConverterModeManager em) {
+        // Só mostra checkbox em arquivos aceitos pelo modo de edição
+        if (!VideoConverterModeManager.isAccepted(displayFile)) return;
+
+        this.videoConverterModeManager = em;  // use um campo separado, ex.: editManager
+
+        if (videoConverterSelectionCheckbox == null) {
+            videoConverterSelectionCheckbox = new SelectionCheckbox();
+            videoConverterSelectionCheckbox.setEnabled(false);
+            // Borda verde para diferenciar do modo de transferência (azul)
+            videoConverterSelectionCheckbox.setBounds(4, 4, 22, 22);
+            videoConverterSelectionCheckbox.setSelected(em.isSelected(displayFile));
+            videoConverterSelectionCheckbox.addActionListener(e -> {
+                em.toggleSelection(displayFile);    // ← adiciona
+                updateModeBackground();
+            });
+
+            if (iconSlot instanceof JLayeredPane lp) {
+                lp.add(videoConverterSelectionCheckbox, JLayeredPane.DRAG_LAYER);
+            } else {
+                int idx = -1;
+                for (int i = 0; i < getComponentCount(); i++) {
+                    if (getComponent(i) == iconSlot) {
+                        idx = i;
+                        break;
+                    }
+                }
+                if (idx >= 0) {
+                    int bs = this.thumbSize;
+                    JLayeredPane lp = new JLayeredPane();
+                    lp.setPreferredSize(new Dimension(bs, bs));
+                    lp.setMaximumSize(new Dimension(bs, bs));
+                    lp.setAlignmentX(Component.CENTER_ALIGNMENT);
+                    iconSlot.setBounds(0, 0, bs, bs);
+                    lp.add(iconSlot, JLayeredPane.DEFAULT_LAYER);
+                    lp.add(videoConverterSelectionCheckbox, JLayeredPane.DRAG_LAYER);
+                    remove(idx);
+                    add(lp, idx);
+                    iconSlot = lp;
+                    revalidate();
+                    repaint();
+                }
+            }
+        }
+    }
+    public void disableVideoConverterMode() {
+        if (videoConverterSelectionCheckbox != null) {
+            if (videoConverterSelectionCheckbox.getParent() != null)
+                videoConverterSelectionCheckbox.getParent().remove(videoConverterSelectionCheckbox);
+            videoConverterSelectionCheckbox = null;
+        }  // ← restaura cor
+        updateModeBackground();
+        revalidate();
+        repaint();
+    }
 }

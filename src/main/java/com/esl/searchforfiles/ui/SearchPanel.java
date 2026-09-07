@@ -29,6 +29,7 @@ public class SearchPanel extends JPanel {
     private final JButton transferButton;
     private final JButton editModeBtn;
     private final JButton compressModeBtn;
+    private final JButton videoConverterModeBtn;
     private final JButton renameFilesBtn;
     private final JButton renameFoldersBtn;
     private final JButton configurationBtn;
@@ -225,6 +226,13 @@ public class SearchPanel extends JPanel {
                 "Component.accentColor");
         compressModeBtn.addActionListener(e -> fileExplorerSwing.toggleCompressMode());
 
+        videoConverterModeBtn = makeTextBtn("🖼 Conversão de Videos(V)",
+                "Ativar modo de conversão de videos",
+                "Slider.trackColor",
+                "Component.accentColor");
+        videoConverterModeBtn.addActionListener(e -> fileExplorerSwing.toggleVideoConverterMode());
+
+
 
         renameFilesBtn = makeTextBtn("🗒 Renomear arquivos(R)",
                 "Ativar modo para renomear arquivos",
@@ -307,6 +315,7 @@ public class SearchPanel extends JPanel {
         wrapPanel.add(renameFilesBtn);
         wrapPanel.add(renameFoldersBtn);
         wrapPanel.add(compressModeBtn);
+        wrapPanel.add(videoConverterModeBtn);
         wrapPanel.add(searchButton);
         wrapPanel.add(indexButton);
         wrapPanel.add(configurationBtn);

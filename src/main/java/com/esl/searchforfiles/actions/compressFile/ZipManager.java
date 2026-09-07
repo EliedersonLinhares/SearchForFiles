@@ -383,10 +383,7 @@ public class ZipManager extends JFrame {
         button.setPreferredSize(new Dimension(w, button.getPreferredSize().height));
         button.setFont(font);
     }
-    public static void labelConfiguration(JLabel label, Font font, String title) {
-        label.setText(title);
-        label.setFont(font);
-    }
+
 
     private void startCompression() {
         if (operationRunning) {

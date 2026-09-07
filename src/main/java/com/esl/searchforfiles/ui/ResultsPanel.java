@@ -8,6 +8,8 @@ import com.esl.searchforfiles.actions.imageEditor.EditModeManager;
 import com.esl.searchforfiles.actions.imageEditor.ImageEditorFrame;
 import com.esl.searchforfiles.actions.renameFile.RenameFrame;
 import com.esl.searchforfiles.actions.renameFile.RenameModeManager;
+import com.esl.searchforfiles.actions.videoConverter.VideoConverterManager;
+import com.esl.searchforfiles.actions.videoConverter.VideoConverterModeManager;
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.configuration.KeyboardManager;
 import com.esl.searchforfiles.configuration.UIConfig;
@@ -37,6 +39,7 @@ public class ResultsPanel extends JPanel {
     private final Set<File> savedEditSelected = new HashSet<>();
     private final Set<File> savedRenameSelected = new HashSet<>();
     private final Set<File> savedCompressSelected = new HashSet<>();
+    private final Set<File> savedVideoConverterSelected = new HashSet<>();
     private FileItemClickListener clickListener;
     // Armazena últimos resultados para re-renderizar ao redimensionar
     private List<FileInfo> lastResults;
@@ -52,6 +55,8 @@ public class ResultsPanel extends JPanel {
     private JToolBar compressToolBar;
     private CompressModeManager compressModeManager;
     private JToolBar editToolBar;
+    private VideoConverterModeManager videoConverterModeManager;
+    private JToolBar videoConverterToolBar;
     private FileItemPanel item;
     private RenameModeManager renameModeManager;
     private JToolBar renameToolBar;
@@ -120,6 +125,13 @@ public class ResultsPanel extends JPanel {
         );
         KeyboardManager.Action(
                 this,
+                "enterVideoConverterMode",
+                KeyEvent.VK_V,
+                0,
+                () -> getFileExplorerSwing().toggleVideoConverterMode()
+        );
+        KeyboardManager.Action(
+                this,
                 "enterRenameFile",
                 KeyEvent.VK_R,
                 0,
@@ -157,6 +169,9 @@ public class ResultsPanel extends JPanel {
         }
         if (compressModeManager != null){
             exitCompressMode();
+        }
+        if (videoConverterModeManager != null){
+            exitVideoConverterMode();
         }
     }
 
@@ -369,6 +384,7 @@ public class ResultsPanel extends JPanel {
         savedEditSelected.clear();
         savedRenameSelected.clear();
         savedCompressSelected.clear();
+        savedVideoConverterSelected.clear();
 
         for (FileItemPanel p : currentItems) {
             if (p.selectionCheckbox != null && p.selectionCheckbox.isSelected())
@@ -379,6 +395,8 @@ public class ResultsPanel extends JPanel {
                 savedRenameSelected.add(p.getDisplayFile());
             if (p.compressSelectionCheckbox != null && p.compressSelectionCheckbox.isSelected())
                 savedCompressSelected.add(p.getDisplayFile());
+            if (p.videoConverterSelectionCheckbox != null && p.videoConverterSelectionCheckbox.isSelected())
+                savedVideoConverterSelected.add(p.getDisplayFile());
         }
 
 
@@ -437,6 +455,7 @@ public class ResultsPanel extends JPanel {
                             || editModeManager != null
                             || renameModeManager != null
                             || compressModeManager != null
+                            || videoConverterModeManager != null
                             ;
 
                     if (!inMode) {
@@ -490,6 +509,7 @@ public class ResultsPanel extends JPanel {
         reapplyEditModeIfActive();
         reapplyRenameModeIfActive();
         reapplyCompressModeIfActive();
+        reapplyVideoConverterModeIfActive();
 
         // NOVO: requisita foco após renderizar
         // invokeLater garante que o layout já terminou antes de pedir foco
@@ -527,6 +547,12 @@ public class ResultsPanel extends JPanel {
             if (item.compressSelectionCheckbox != null)
                 item.compressSelectionCheckbox.setSelected(
                         compressModeManager.isSelected(item.getDisplayFile()));
+        }
+        else if (videoConverterModeManager != null) {
+            videoConverterModeManager.toggleSelection(item.getDisplayFile());
+            if (item.videoConverterSelectionCheckbox != null)
+                item.videoConverterSelectionCheckbox.setSelected(
+                        videoConverterModeManager.isSelected(item.getDisplayFile()));
 
         }
 
@@ -564,6 +590,12 @@ public class ResultsPanel extends JPanel {
                     item.compressSelectionCheckbox.setSelected(true);
 
             }
+            else if (videoConverterModeManager != null) {
+                videoConverterModeManager.selectFile(item.getDisplayFile());
+                if (item.videoConverterSelectionCheckbox != null)
+                    item.videoConverterSelectionCheckbox.setSelected(true);
+
+            }
             item.updateModeBackground();
         }
     }
@@ -599,6 +631,14 @@ public class ResultsPanel extends JPanel {
             currentItems.forEach(p -> {
                 if (p.compressSelectionCheckbox != null)
                     p.compressSelectionCheckbox.setSelected(false);
+                p.updateModeBackground();
+            });
+        }
+        else if (videoConverterModeManager != null) {
+            videoConverterModeManager.clearSelection();
+            currentItems.forEach(p -> {
+                if (p.videoConverterSelectionCheckbox != null)
+                    p.videoConverterSelectionCheckbox.setSelected(false);
                 p.updateModeBackground();
             });
         }
@@ -1104,8 +1144,8 @@ public class ResultsPanel extends JPanel {
                     .filter(Objects::nonNull)
                     .toList();
 
-            new ZipManager(SwingUtilities.getWindowAncestor(this),
-                    infos, this);
+//            new VideoConverterManager(SwingUtilities.getWindowAncestor(this),
+//                   infos, this);
 
             new RenameFrame(SwingUtilities.getWindowAncestor(this),
                     rm.getMode(), infos, this);
@@ -1278,6 +1318,146 @@ public class ResultsPanel extends JPanel {
         exitBtn.setFont(UIConfig.FONT_DEFAULT);
         exitBtn.setForeground(UIConfig.LIGHT_RED);
         exitBtn.addActionListener(e -> exitCompressMode());
+        bar.add(exitBtn);
+
+        return bar;
+    }
+
+    /**
+     * --------------Video Converter Mode-------------
+     */
+
+    public void enterVideoConverterMode(VideoConverterModeManager em) {
+        this.videoConverterModeManager = em;
+        em.enterVideoConverterMode();
+
+        if (videoConverterToolBar == null) {
+            videoConverterToolBar = buildVideoConverterToolBar(em);
+            add(videoConverterToolBar, BorderLayout.NORTH);
+            revalidate();
+        }
+        applyVideoConverterModeToItems(em);
+    }
+
+    public void exitVideoConverterMode() {
+        if (videoConverterModeManager != null) videoConverterModeManager.exitVideoConverterMode();
+        videoConverterModeManager = null;
+        anchorIndex = -1;
+
+
+        if (videoConverterToolBar != null) {
+            remove(videoConverterToolBar);
+            videoConverterToolBar = null;
+            revalidate();
+        }
+        for (FileItemPanel item : currentItems) item.disableVideoConverterMode();
+        repaint();
+    }
+
+    private void applyVideoConverterModeToItems(VideoConverterModeManager em) {
+        for (FileItemPanel item : currentItems) item.enableVideoConverterMode(em);
+    }
+
+    /**
+     * Reaplica o modo de edição após re-render do grid.
+     */
+    private void reapplyVideoConverterModeIfActive() {
+        if (videoConverterModeManager != null && videoConverterModeManager.isVideoConverterModeActive()) {
+            for (FileItemPanel item : currentItems) {
+                item.enableVideoConverterMode(videoConverterModeManager);
+                // Só restaura cor se estava selecionado — evita chamadas desnecessárias
+                if (savedVideoConverterSelected.contains(item.getDisplayFile())) {
+                    videoConverterModeManager.selectFile(item.getDisplayFile());
+                    if (item.videoConverterSelectionCheckbox != null)
+                        item.videoConverterSelectionCheckbox.setSelected(true);
+                    item.updateModeBackground();
+                }
+            }
+        }
+    }
+
+
+    private JToolBar buildVideoConverterToolBar(VideoConverterModeManager em) {
+        JToolBar bar = new JToolBar();
+        bar.setFloatable(false);
+
+        JLabel lbl = new JLabel("  🖼  Modo de Conversão de Video ");
+        lbl.setFont(UIConfig.FONT_TITLE);
+        lbl.setFont(lbl.getFont().deriveFont(Font.BOLD));
+        bar.add(lbl);
+
+        bar.addSeparator();
+
+        JButton selectAll = new JButton(" Selecionar todos ");
+        selectAll.setFont(UIConfig.FONT_DEFAULT);
+        selectAll.addActionListener(e -> {
+            List<File> files = currentItems.stream()
+                    .map(FileItemPanel::getDisplayFile)
+                    .toList();
+            em.selectAll(files);
+            currentItems.forEach(item -> {
+                if (EditModeManager.isAccepted(item.getDisplayFile())
+                        && item.videoConverterSelectionCheckbox != null) {
+                    item.videoConverterSelectionCheckbox.setSelected(true);
+                    item.updateModeBackground();
+                    clearItemBackground();
+                }
+            });
+        });
+        bar.add(selectAll);
+
+        JButton clearSel = new JButton(" Limpar seleção ");
+        clearSel.setFont(UIConfig.FONT_DEFAULT);
+        clearSel.addActionListener(e -> {
+            em.clearSelection();
+            currentItems.forEach(item -> {
+                if (item.videoConverterSelectionCheckbox != null) {
+                    item.videoConverterSelectionCheckbox.setSelected(false);
+                    item.updateModeBackground();
+                    clearItemBackground();
+                }
+            });
+        });
+        bar.add(clearSel);
+
+        bar.addSeparator();
+
+        JButton openEditor = new JButton(" 🖊 Abrir com o conversor de video ");
+        openEditor.setFont(UIConfig.FONT_DEFAULT);
+        openEditor.setForeground(UIConfig.SELECTED_BORDER);
+        openEditor.setFocusPainted(false);
+        openEditor.addActionListener(e -> {
+            if (em.getSelectedCount() == 0) {
+                JOptionPane.showMessageDialog(
+                        SwingUtilities.getWindowAncestor(this),
+                        "Selecione ao menos uma imagem.",
+                        "Aviso", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            // Converte File → FileInfo para o RenameFrame
+            List<FileInfo> infos = em.getSelectedFiles().stream()
+                    .map(f -> {
+                        // Busca o FileInfo correspondente nos items renderizados
+                        return currentItems.stream()
+                                .filter(p -> p.getDisplayFile().equals(f))
+                                .map(FileItemPanel::getFileInfo)
+                                .findFirst().orElse(null);
+                    })
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            new VideoConverterManager(SwingUtilities.getWindowAncestor(this),
+                   infos, this);
+
+        });
+        bar.add(openEditor);
+
+        bar.addSeparator();
+
+        JButton exitBtn = new JButton(" ✕ Sair ");
+        exitBtn.setFont(UIConfig.FONT_DEFAULT);
+        exitBtn.setForeground(UIConfig.LIGHT_RED);
+        exitBtn.addActionListener(e -> exitVideoConverterMode());
         bar.add(exitBtn);
 
         return bar;

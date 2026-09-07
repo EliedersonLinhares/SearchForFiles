@@ -41,6 +41,8 @@ focus on media(image, audio and video)
   movies like video, with own bridge C class to access FFmpeg dll`s
 - ✅ Add native .obj 3d model viewer using JMonkey game engine 
 - ✅ Add possibility to decompress ZIP an RAR individual files 
+- ✅ Add compress multiple files in zip format with many options like password or multipart files
+- ✅ Add basic video convert for multiple files in MP4,MKV,WEBM and AVI video formats 
 
 
 ## 🚀 Features to be implemented
