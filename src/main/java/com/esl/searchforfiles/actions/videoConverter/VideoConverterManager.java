@@ -53,6 +53,7 @@ public class VideoConverterManager extends JFrame {
         this.conversionService = new VideoConversionService();
 
         if (owner != null) owner.setEnabled(false);
+        setIconImages(UIConfig.IconsConfig(this));
         configureWindow(owner);
         buildUI();
         setVisible(true);
@@ -265,7 +266,8 @@ public class VideoConverterManager extends JFrame {
 
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         convertButton = new JButton();
-        buttonConfiguration(convertButton,120,UIConfig.FONT_DEFAULT_BOLD, "🎬 Converter");
+       // buttonConfiguration(convertButton,120,UIConfig.FONT_DEFAULT_BOLD, "🎬 Converter");
+        convertButton  = UIConfig.makeHighlightedMediumBtn("🎬 Converter", "Converter Video",135,35);
         convertButton.addActionListener(e -> startConversion());
 
         cancelButton = new JButton("Cancelar");

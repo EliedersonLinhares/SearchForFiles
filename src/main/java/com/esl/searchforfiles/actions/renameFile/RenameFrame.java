@@ -42,7 +42,7 @@ public class RenameFrame extends JFrame {
     private final ResultsPanel resultsPanel;
     private boolean renamedActionPerformed = false;
 
-    private Color normalColor;
+    private Color normalColor = UIConfig.background();
     private Color hoverColor;
     private Color borderColor;
 
@@ -63,7 +63,7 @@ public class RenameFrame extends JFrame {
         setLayout(new BorderLayout());
         setResizable(false);
         setIconImages(UIConfig.IconsConfig(this));
-        refreshColors();
+        //refreshColors();
 
         // No construtor, após as inicializações:
         resultsPanel.getFileExplorerSwing()
@@ -89,7 +89,7 @@ public class RenameFrame extends JFrame {
 
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                 buildLeftPanel(), buildRightPanel());
-        split.setDividerLocation(260);
+        split.setDividerLocation(280);
         split.setDividerSize(5);
         split.setResizeWeight(0.0);     // painel esquerdo fixo; direito expande
         split.setContinuousLayout(true);
@@ -98,9 +98,9 @@ public class RenameFrame extends JFrame {
         setVisible(true);
         renamedActionPerformed = false;
 
-        resultsPanel.getFileExplorerSwing().getThemeManager().addThemeChangeListener(() ->
-                SwingUtilities.invokeLater(this::refreshColors)
-        );
+//        resultsPanel.getFileExplorerSwing().getThemeManager().addThemeChangeListener(() ->
+//                SwingUtilities.invokeLater(this::refreshColors)
+//        );
     }
     private void refreshColors() {
 
@@ -197,7 +197,8 @@ public class RenameFrame extends JFrame {
         btnRow.setOpaque(false);
         btnRow.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
 
-        JButton renameBtn = makeBtn("Renomear");
+       // JButton renameBtn = makeBtn("Renomear");
+        JButton renameBtn  = UIConfig.makeHighlightedMediumBtn("✅ Renomear", "Renomear Arquivos/Pastas",135,35);
         renameBtn.addActionListener(e -> onRename());
 
         JButton closeBtn = makeBtn("Fechar");

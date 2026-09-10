@@ -107,4 +107,12 @@ public class DatabaseSchema {
         ALTER TABLE file_tags ADD COLUMN identity_id INTEGER
             REFERENCES file_identity(id)
     """;
+
+    public static final String CREATE_INDEXED_FOLDERS_TABLE = """
+    CREATE TABLE IF NOT EXISTS indexed_folders (
+        path TEXT PRIMARY KEY,
+        include_subfolders BOOLEAN NOT NULL,
+        indexed_at BIGINT NOT NULL
+    )
+""";
 }

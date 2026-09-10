@@ -244,15 +244,20 @@ public class ImageEditorFrame extends JFrame {
         JPanel closeRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 4));
         closeRow.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UIConfig.foreground()));
 
-        JButton saveBtn = makeTextBtn("\uD83D\uDCBE Salvar",
-                "Salvar a imagem no mesmo formato e caminho",
-                "Slider.trackColor",
-                "Component.success.borderColor");
+//        JButton saveBtn = makeTextBtn("\uD83D\uDCBE Salvar",
+//                "Salvar a imagem no mesmo formato e caminho",
+//                "Slider.trackColor",
+//                "Component.success.borderColor");
 
-        JButton saveAsBtn = makeTextBtn("\uD83D\uDCBE Salvar como",
-                "Salvar a imagem em novo formato e caminho",
-                "Slider.trackColor",
-                "Component.warning.borderColor");
+       // JButton saveBtn = makeHighlightedMediumBtn("\uD83D\uDCBE Salvar", "Salvar a imagem no mesmo formato e caminho",125,35);
+        JButton saveBtn  = UIConfig.makeHighlightedMediumBtn("✅ Converter", "Salvar a imagem no mesmo formato e caminho",135,35);
+//        JButton saveAsBtn = makeTextBtn("\uD83D\uDCBE Salvar como",
+//                "Salvar a imagem em novo formato e caminho",
+//                "Slider.trackColor",
+//                "Component.warning.borderColor");
+      //  JButton saveAsBtn = makeHighlightedMediumBtn("✅ Salvar como", "Salvar a imagem em novo formato e caminho",135,35);
+        JButton saveAsBtn  = UIConfig.makeHighlightedMediumBtn("✅ Salvar Como", "Salvar a imagem em formato diferente",135,35);
+
 
         JButton closeBtn = makeTextBtn("❌ Fechar",
                 "Fechar a pagina",
@@ -798,7 +803,21 @@ public class ImageEditorFrame extends JFrame {
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         return btn;
     }
-
+    private JButton makeHighlightedMediumBtn(String text, String toolTipText, int width,int height) {
+        Map<String, Object> styleButton = Map.of(
+                "borderWidth", 3,
+                "borderColor", UIManager.getColor("Component.accentColor"),
+                "hoverBorderColor", UIManager.getColor("Component.accentColor").brighter(),
+                "focusedBorderColor", UIManager.getColor("Component.accentColor")
+        );
+        JButton btn = new JButton(text);
+        btn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+        btn.putClientProperty(FlatClientProperties.STYLE, styleButton);
+        btn.setToolTipText(toolTipText);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setPreferredSize(new Dimension(width, height));
+        return btn;
+    }
 
     /**
      * Carrega um preset do disco e reconstrói os cards na interface,

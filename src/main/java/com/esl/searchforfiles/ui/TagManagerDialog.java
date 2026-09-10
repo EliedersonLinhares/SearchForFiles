@@ -30,6 +30,7 @@ public class TagManagerDialog extends JDialog {
         this.dbManager = dbManager;
 
         setSize(400, 360);
+        setResizable(false);
         setLocationRelativeTo(owner);
         setLayout(new BorderLayout(8, 8));
         getRootPane().setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -65,13 +66,13 @@ public class TagManagerDialog extends JDialog {
         // Quando usuário seleciona/confirma uma sugestão → adiciona direto
         autocompleteField.setTagSelectedListener(this::addTag);
 
-        JButton addBtn = new JButton("＋ Adicionar");
-        addBtn.addActionListener(e -> addTag(autocompleteField.getText()));
+//        JButton addBtn = new JButton("＋ Adicionar");
+//        addBtn.addActionListener(e -> addTag(autocompleteField.getText()));
 
         JPanel inputRow = new JPanel(new BorderLayout(5, 0));
         inputRow.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
         inputRow.add(autocompleteField, BorderLayout.CENTER);
-        inputRow.add(addBtn,            BorderLayout.EAST);
+      //  inputRow.add(addBtn,            BorderLayout.EAST);
 
         JPanel panel = new JPanel(new BorderLayout(0, 4));
         panel.add(scroll,    BorderLayout.CENTER);
@@ -209,8 +210,8 @@ public class TagManagerDialog extends JDialog {
             JLabel lbl = (JLabel) super.getListCellRendererComponent(
                     list, "  🏷️  " + value + "  ", index, isSelected, cellHasFocus);
 
-            if (!isSelected)
-                lbl.setBackground(index % 2 == 0 ? new Color(245, 245, 245) : Color.WHITE);
+//            if (!isSelected)
+//                lbl.setBackground(index % 2 == 0 ? new Color(245, 245, 245) : Color.WHITE);
 
             lbl.setBorder(BorderFactory.createEmptyBorder(3, 6, 3, 6));
             return lbl;

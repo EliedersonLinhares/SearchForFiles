@@ -63,10 +63,34 @@ public class ResultsPanel extends JPanel {
     private int anchorIndex = -1; // último item clicado sem Shift
     private SubFolderPanel subFolderPanel; // adicione junto aos outros campos
 
+    private JPanel topHeaderPanel;
+    private JPanel containerLinks;
+
+    private JLabel labelLinkCaminho;
+
     public ResultsPanel(FileExplorerSwing fileExplorerSwing) {
         this.fileExplorerSwing = fileExplorerSwing;
         setLayout(new BorderLayout());
-        setBorder(BorderFactory.createTitledBorder("\uD83D\uDDBC Resultados"));
+        setBorder(BorderFactory.createTitledBorder("\uD83D\uDDBC Resultados" ));
+
+
+        // 1. Cria o painel organizador do topo empilhado verticalmente (Y_AXIS)
+        topHeaderPanel = new JPanel();
+        topHeaderPanel.setLayout(new BoxLayout(topHeaderPanel, BoxLayout.Y_AXIS));
+        topHeaderPanel.setBackground(UIConfig.buttonBackgroundColor());
+
+        // 2. Cria o container de links (FlowLayout à esquerda)
+        containerLinks = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 5));
+
+        // 3. Coloca os links dentro do organizador do topo
+        topHeaderPanel.add(containerLinks);
+
+        // 4. Adiciona o organizador do topo na região NORTH do painel principal
+        add(topHeaderPanel, BorderLayout.NORTH);
+
+        // Inicializa os links do caminho
+        atualizarBordaCaminho(fileExplorerSwing.getSelectedPath());
+
 
         gridPanel = new JPanel(null) {
             @Override
@@ -81,6 +105,7 @@ public class ResultsPanel extends JPanel {
         gridPanel.setBackground(getBackgroundColor());
         gridPanel.setFocusable(true);
 
+
         // NOVO: Inicializa o gerenciador de cache
         this.cacheManager = FileItemPanel.getThumbnailCacheManager();
 
@@ -88,6 +113,8 @@ public class ResultsPanel extends JPanel {
         scrollPane.getVerticalScrollBar().setUnitIncrement(20);
         vBar = scrollPane.getVerticalScrollBar();
         add(scrollPane, BorderLayout.CENTER);
+
+
 
 
         // Listener para redimensionamento
@@ -157,6 +184,92 @@ public class ResultsPanel extends JPanel {
 
     }
 
+    /**
+     * Reconstrói os links do caminho dinamicamente em tempo real.
+     * O último elemento é exibido apenas como texto estático (sem link).
+     */
+    public void atualizarBordaCaminho(String novoCaminho) {
+        if (novoCaminho == null || novoCaminho.isEmpty()) return;
+
+        SwingUtilities.invokeLater(() -> {
+            // 1. Limpa todos os links anteriores para reconstruir o painel
+            containerLinks.removeAll();
+
+            // 2. Divide o caminho usando a barra invertida como separador
+            String[] partes = novoCaminho.split("\\\\");
+
+            StringBuilder caminhoAcumulado = new StringBuilder();
+
+            for (int i = 0; i < partes.length; i++) {
+                String parte = partes[i];
+                if (parte.isEmpty()) continue;
+
+                // Atualiza o caminho acumulado para esta parte específica
+                if (i == 0) {
+                    if (!parte.endsWith("\\")) {
+                        parte += "\\";
+                    }
+                    caminhoAcumulado.append(parte);
+                } else {
+                    if (caminhoAcumulado.length() > 0 && !caminhoAcumulado.toString().endsWith("\\")) {
+                        caminhoAcumulado.append("\\");
+                    }
+                    caminhoAcumulado.append(parte);
+                }
+
+                // Verifica se é o ÚLTIMO elemento do caminho
+                boolean ehOUltimo = (i == partes.length - 1);
+
+                JLabel labelItem;
+
+
+                if (ehOUltimo) {
+                    // 3a. Se for a pasta atual, cria apenas um texto estático comum (sem HTML de link)
+                    labelItem = new JLabel(parte);
+                    labelItem.setFont(UIConfig.FONT_DEFAULT_BOLD);
+                    labelItem.setForeground(UIConfig.foreground());
+                    // Não adicionamos MouseListener nem alteramos o cursor aqui
+                } else {
+                    // 3b. Se NÃO for o último, cria o link azul e clicável normalmente
+                    final String caminhoDoLink = caminhoAcumulado.toString();
+
+                    labelItem = new JLabel("<html><a href=''>" + parte + "</a></html>");
+                    labelItem.setFont(UIConfig.FONT_DEFAULT);
+                    labelItem.setForeground(UIConfig.foreground());
+                    labelItem.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+                    // Adiciona a ação de clique para as pastas anteriores
+                    labelItem.addMouseListener(new MouseAdapter() {
+                        @Override
+                        public void mouseClicked(MouseEvent e) {
+                            System.out.println("Voltando para: " + caminhoDoLink);
+                            fileExplorerSwing.setSelectedPath(caminhoDoLink);
+
+                            // Chame aqui a função que dispara a sua busca para atualizar a tela
+                            fileExplorerSwing.navigateTo(caminhoDoLink,true);
+                        }
+
+                    });
+                }
+
+                // Adiciona o item (seja link ou texto plano) ao container
+                containerLinks.add(labelItem);
+
+                // 4. Adiciona a seta separadora ">" apenas se não for o último elemento
+                if (!ehOUltimo) {
+                    JLabel labelSeparador = new JLabel(" 〉 ");
+                    labelSeparador.setForeground(Color.GRAY);
+                    containerLinks.add(labelSeparador);
+                }
+            }
+
+            // 5. Atualiza o layout do Swing na tela
+            containerLinks.revalidate();
+            containerLinks.repaint();
+        });
+    }
+
+
     public void exitModes(){
         if(editModeManager != null){
             exitEditMode();
@@ -174,6 +287,7 @@ public class ResultsPanel extends JPanel {
             exitVideoConverterMode();
         }
     }
+
 
     public FileExplorerSwing getFileExplorerSwing() {
         return fileExplorerSwing;
@@ -759,7 +873,8 @@ public class ResultsPanel extends JPanel {
         // Mostra barra de ferramentas de transferência
         if (transferToolBar == null) {
             transferToolBar = buildTransferToolBar(tm);
-            add(transferToolBar, BorderLayout.NORTH);
+            topHeaderPanel.add(transferToolBar);
+            topHeaderPanel.revalidate();
             revalidate();
         }
 
@@ -774,9 +889,9 @@ public class ResultsPanel extends JPanel {
 
         // Remove a toolbar
         if (transferToolBar != null) {
-            remove(transferToolBar);
+            topHeaderPanel.remove(transferToolBar);
             transferToolBar = null;
-            revalidate();
+            topHeaderPanel.revalidate();
         }
 
         // Remove checkboxes de todos os cards
@@ -813,6 +928,8 @@ public class ResultsPanel extends JPanel {
     private JToolBar buildTransferToolBar(TransferService tm) {
         JToolBar bar = new JToolBar();
         bar.setFloatable(false);
+        bar.setBackground(UIConfig.buttonBackgroundColor());
+        bar.setLayout(new FlowLayout(FlowLayout.LEFT, 2, 5));
 
         JLabel lbl = new JLabel(" ✂️  Modo de Transferência ");
         lbl.setFont(UIConfig.FONT_TITLE);
@@ -852,7 +969,7 @@ public class ResultsPanel extends JPanel {
         bar.add(clearSel);
         bar.addSeparator();
         JButton copy = new JButton(" Copiar ");
-        copy.setFont(UIConfig.FONT_DEFAULT);
+        copy.setFont(UIConfig.FONT_DEFAULT_BOLD);
         copy.setForeground(UIConfig.SELECTED_BORDER);
         copy.addActionListener(e -> {
             if (item == null) return;
@@ -861,7 +978,7 @@ public class ResultsPanel extends JPanel {
         bar.add(copy);
 
         JButton move = new JButton(" Mover ");
-        move.setFont(UIConfig.FONT_DEFAULT);
+        move.setFont(UIConfig.FONT_DEFAULT_BOLD);
         move.setForeground(UIConfig.SELECTED_BORDER);
         move.addActionListener(e -> {
             if (item == null) return;
@@ -870,7 +987,7 @@ public class ResultsPanel extends JPanel {
         bar.add(move);
 
         JButton delete = new JButton(" Apagar ");
-        delete.setFont(UIConfig.FONT_DEFAULT);
+        delete.setFont(UIConfig.FONT_DEFAULT_BOLD);
         delete.setForeground(UIConfig.SELECTED_BORDER);
         delete.addActionListener(e -> {
             if (item == null) return;
@@ -895,7 +1012,9 @@ public class ResultsPanel extends JPanel {
 
         if (editToolBar == null) {
             editToolBar = buildEditToolBar(em);
-            add(editToolBar, BorderLayout.NORTH);
+
+            topHeaderPanel.add(editToolBar);
+            topHeaderPanel.revalidate();
             revalidate();
         }
         applyEditModeToItems(em);
@@ -908,9 +1027,9 @@ public class ResultsPanel extends JPanel {
 
 
         if (editToolBar != null) {
-            remove(editToolBar);
+            topHeaderPanel.remove(editToolBar);
             editToolBar = null;
-            revalidate();
+            topHeaderPanel.revalidate();
         }
         for (FileItemPanel item : currentItems) item.disableEditMode();
         repaint();
@@ -946,7 +1065,8 @@ public class ResultsPanel extends JPanel {
     private JToolBar buildEditToolBar(EditModeManager em) {
         JToolBar bar = new JToolBar();
         bar.setFloatable(false);
-        //   bar.setBackground(new Color(20, 80, 60));
+        bar.setBackground(UIConfig.buttonBackgroundColor());
+        bar.setLayout(new FlowLayout(FlowLayout.LEFT, 2, 5));
 
         JLabel lbl = new JLabel("  🖼  Modo de Edição ");
         lbl.setFont(UIConfig.FONT_TITLE);
@@ -990,7 +1110,7 @@ public class ResultsPanel extends JPanel {
         bar.addSeparator();
 
         JButton openEditor = new JButton(" 🖊 Abrir com o editor ");
-        openEditor.setFont(UIConfig.FONT_DEFAULT);
+        openEditor.setFont(UIConfig.FONT_DEFAULT_BOLD);
         openEditor.setForeground(UIConfig.SELECTED_BORDER);
         openEditor.setFocusPainted(false);
         openEditor.addActionListener(e -> {
@@ -1039,7 +1159,8 @@ public class ResultsPanel extends JPanel {
 
         if (renameToolBar == null) {
             renameToolBar = buildRenameToolBar(rm);
-            add(renameToolBar, BorderLayout.NORTH);
+            topHeaderPanel.add(renameToolBar);
+            topHeaderPanel.revalidate();
             revalidate();
         }
         applyRenameModeToItems(rm);
@@ -1052,9 +1173,9 @@ public class ResultsPanel extends JPanel {
 
 
         if (renameToolBar != null) {
-            remove(renameToolBar);
+            topHeaderPanel.remove(renameToolBar);
             renameToolBar = null;
-            revalidate();
+            topHeaderPanel.revalidate();
         }
         for (FileItemPanel item : currentItems) item.disableRenameMode();
         repaint();
@@ -1081,6 +1202,8 @@ public class ResultsPanel extends JPanel {
     private JToolBar buildRenameToolBar(RenameModeManager rm) {
         JToolBar bar = new JToolBar();
         bar.setFloatable(false);
+        bar.setBackground(UIConfig.buttonBackgroundColor());
+        bar.setLayout(new FlowLayout(FlowLayout.LEFT, 2, 5));
 
         JLabel lbl = new JLabel("  " + rm.getMode().toolbarLabel + "  ");
         lbl.setFont(UIConfig.FONT_TITLE);
@@ -1194,7 +1317,10 @@ public class ResultsPanel extends JPanel {
 
         if (compressToolBar == null) {
             compressToolBar = buildCompressToolBar(em);
-            add(compressToolBar, BorderLayout.NORTH);
+
+            topHeaderPanel.add(compressToolBar);
+            topHeaderPanel.revalidate();
+
             revalidate();
         }
         applyCompressModeToItems(em);
@@ -1207,9 +1333,9 @@ public class ResultsPanel extends JPanel {
 
 
         if (compressToolBar != null) {
-            remove(compressToolBar);
+            topHeaderPanel.remove(compressToolBar);
             compressToolBar = null;
-            revalidate();
+            topHeaderPanel.revalidate();
         }
         for (FileItemPanel item : currentItems) item.disableCompressMode();
         repaint();
@@ -1241,6 +1367,8 @@ public class ResultsPanel extends JPanel {
     private JToolBar buildCompressToolBar(CompressModeManager em) {
         JToolBar bar = new JToolBar();
         bar.setFloatable(false);
+        bar.setBackground(UIConfig.buttonBackgroundColor());
+        bar.setLayout(new FlowLayout(FlowLayout.LEFT, 2, 5));
 
         JLabel lbl = new JLabel("  🖼  Modo de Compressão ");
         lbl.setFont(UIConfig.FONT_TITLE);
@@ -1283,7 +1411,7 @@ public class ResultsPanel extends JPanel {
         bar.addSeparator();
 
         JButton openEditor = new JButton(" 🖊 Abrir com o compressor ");
-        openEditor.setFont(UIConfig.FONT_DEFAULT);
+        openEditor.setFont(UIConfig.FONT_DEFAULT_BOLD);
         openEditor.setForeground(UIConfig.SELECTED_BORDER);
         openEditor.setFocusPainted(false);
         openEditor.addActionListener(e -> {
@@ -1333,7 +1461,9 @@ public class ResultsPanel extends JPanel {
 
         if (videoConverterToolBar == null) {
             videoConverterToolBar = buildVideoConverterToolBar(em);
-            add(videoConverterToolBar, BorderLayout.NORTH);
+
+            topHeaderPanel.add(videoConverterToolBar);
+            topHeaderPanel.revalidate();
             revalidate();
         }
         applyVideoConverterModeToItems(em);
@@ -1346,8 +1476,11 @@ public class ResultsPanel extends JPanel {
 
 
         if (videoConverterToolBar != null) {
-            remove(videoConverterToolBar);
+
+            topHeaderPanel.remove(videoConverterToolBar);
             videoConverterToolBar = null;
+            topHeaderPanel.revalidate();
+
             revalidate();
         }
         for (FileItemPanel item : currentItems) item.disableVideoConverterMode();
@@ -1380,6 +1513,8 @@ public class ResultsPanel extends JPanel {
     private JToolBar buildVideoConverterToolBar(VideoConverterModeManager em) {
         JToolBar bar = new JToolBar();
         bar.setFloatable(false);
+        bar.setBackground(UIConfig.buttonBackgroundColor());
+        bar.setLayout(new FlowLayout(FlowLayout.LEFT, 2, 5));
 
         JLabel lbl = new JLabel("  🖼  Modo de Conversão de Video ");
         lbl.setFont(UIConfig.FONT_TITLE);
@@ -1396,7 +1531,7 @@ public class ResultsPanel extends JPanel {
                     .toList();
             em.selectAll(files);
             currentItems.forEach(item -> {
-                if (EditModeManager.isAccepted(item.getDisplayFile())
+                if (VideoConverterModeManager.isAccepted(item.getDisplayFile())
                         && item.videoConverterSelectionCheckbox != null) {
                     item.videoConverterSelectionCheckbox.setSelected(true);
                     item.updateModeBackground();
@@ -1423,7 +1558,7 @@ public class ResultsPanel extends JPanel {
         bar.addSeparator();
 
         JButton openEditor = new JButton(" 🖊 Abrir com o conversor de video ");
-        openEditor.setFont(UIConfig.FONT_DEFAULT);
+        openEditor.setFont(UIConfig.FONT_DEFAULT_BOLD);
         openEditor.setForeground(UIConfig.SELECTED_BORDER);
         openEditor.setFocusPainted(false);
         openEditor.addActionListener(e -> {

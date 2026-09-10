@@ -7,6 +7,7 @@ import com.esl.searchforfiles.service.IndexService;
 import com.esl.searchforfiles.service.MonitoringService;
 import com.esl.searchforfiles.service.SearchService;
 import com.esl.searchforfiles.ui.FileExplorerSwing;
+import com.esl.searchforfiles.ui.SearchController;
 import com.esl.searchforfiles.util.PathUtils;
 
 import java.io.File;
@@ -93,10 +94,10 @@ public class AdvancedFileSearch {
      * search.indexDirectory("C:\\Users\\Documents");
      * </pre>
      */
-    public void indexDirectory(String rootPath) throws Exception {
-        indexService.indexDirectory(rootPath);
-        searchService.clearCache();
-    }
+//    public void indexDirectory(String rootPath) throws Exception {
+//        indexService.indexDirectory(rootPath);
+//        searchService.clearCache();
+//    }
 
     /**
      * Indexa apenas um drive específico completo
@@ -110,17 +111,17 @@ public class AdvancedFileSearch {
      * search.indexDrive("D");  // Indexa D:\
      * </pre>
      */
-    public void indexDrive(String driveLetter) throws Exception {
-        String drivePath = PathUtils.normalizeDriveLetter(driveLetter);
-
-        File driveRoot = new File(drivePath);
-        if (!driveRoot.exists()) {
-            throw new IllegalArgumentException("Drive não encontrado: " + drivePath);
-        }
-
-        System.out.println("Indexando drive: " + drivePath);
-        indexDirectory(drivePath);
-    }
+//    public void indexDrive(String driveLetter) throws Exception {
+//        String drivePath = PathUtils.normalizeDriveLetter(driveLetter);
+//
+//        File driveRoot = new File(drivePath);
+//        if (!driveRoot.exists()) {
+//            throw new IllegalArgumentException("Drive não encontrado: " + drivePath);
+//        }
+//
+//        System.out.println("Indexando drive: " + drivePath);
+//        indexDirectory(drivePath);
+//    }
 
     /**
      * Indexa uma pasta específica com opção de incluir ou não subpastas
@@ -138,8 +139,10 @@ public class AdvancedFileSearch {
      * search.indexFolder("C:\\Projects", true);
      * </pre>
      */
-    public void indexFolder(String folderPath, boolean includeSubfolders) throws Exception {
-        indexService.indexFolder(folderPath, includeSubfolders);
+    public void indexFolder(String folderPath, boolean includeSubfolders,
+                            IndexService.IndexLogListener logListener,
+                            SearchController.IndexCancellationToken cancelToken) throws Exception {
+        indexService.indexFolder(folderPath, includeSubfolders, logListener, cancelToken);
         searchService.clearCache();
     }
 

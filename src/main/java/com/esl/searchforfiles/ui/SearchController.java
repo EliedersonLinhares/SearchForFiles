@@ -1,14 +1,12 @@
 package com.esl.searchforfiles.ui;
 
+import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.database.DatabaseManager;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.model.PaginationInfo;
 import com.esl.searchforfiles.model.SearchCriteria;
-import com.esl.searchforfiles.service.IndexFilterService;
-import com.esl.searchforfiles.service.MonitoringService;
-import com.esl.searchforfiles.service.SearchService;
-import com.esl.searchforfiles.service.SyncService;
+import com.esl.searchforfiles.service.*;
 import com.esl.searchforfiles.test.AdvancedFileSearch;
 
 import javax.swing.*;
@@ -102,6 +100,8 @@ public class SearchController {
     public List<FileInfo> searchDirect(SearchCriteria criteria) throws Exception {
         return searchSystem.getSearchService().advancedSearch(criteria);
     }
+
+
 
 
     // ========================================================================
@@ -289,70 +289,12 @@ public class SearchController {
         }
     }
 
-//    /**
-//     * Atualiza monitoramento com sincronização
-//     * MODIFICADO: Só monitora pastas indexadas
-//     */
-//    public void updateMonitoredFolder(String newPath, SyncCallback syncCallback) {
-//        if (newPath != null && newPath.equals(currentMonitoredPath)) {
-//            return;
-//        }
-//
-//        if (newPath == null || newPath.trim().isEmpty()) {
-//            stopCurrentMonitoring();
-//            return;
-//        }
-//
-//
-//        Path folderPath = Paths.get(newPath);
-//        if (!Files.exists(folderPath) || !Files.isDirectory(folderPath)) {
-//            System.out.println("⚠️ Pasta inválida: " + newPath);
-//            stopCurrentMonitoring();
-//            return;
-//        }
-//
-//        long estimatedFiles = estimateFileCountFast(folderPath);
-//        if (estimatedFiles > MAX_FOLDER_SIZE) {
-//            System.out.println(String.format(
-//                    "⚠️ Pasta muito grande (%,d arquivos): %s",
-//                    estimatedFiles, newPath
-//            ));
-//            stopCurrentMonitoring();
-//            return;
-//        }
-//
-//        stopCurrentMonitoring();
-//
-//        // NOVO: Sincroniza antes de monitorar (se pasta foi indexada)
-//        syncFolderIfNeeded(newPath, new SyncCallback() {
-//            @Override
-//            public void onSyncCompleted(SyncService.SyncResult result) {
-//                // Notifica callback original
-//                if (syncCallback != null) {
-//                    syncCallback.onSyncCompleted(result);
-//                }
-//
-//                // VALIDAÇÃO: Só monitora se pasta está indexada
-//                if (!result.isNotIndexed()) {
-//                    startMonitoringAsync(newPath);
-//                } else {
-//                    System.out.println("⚠️ Monitoramento não iniciado: pasta não indexada");
-//                }
-//            }
-//
-//            @Override
-//            public void onSyncError(Exception e) {
-//                if (syncCallback != null) {
-//                    syncCallback.onSyncError(e);
-//                }
-//            }
-//        });
-//    }
-
     /**
      * Inicia monitoramento de forma assíncrona
      */
     public void startMonitoringAsync(String path) {
+
+
         SwingWorker<Boolean, Void> worker = new SwingWorker<>() {
             @Override
             protected Boolean doInBackground() throws Exception {
@@ -400,7 +342,7 @@ public class SearchController {
     /**
      * Verifica se o caminho é uma raiz de drive
      */
-    private boolean isDriveRoot(String path) {
+    public boolean isDriveRoot(String path) {
         if (path == null || path.isEmpty()) {
             return false;
         }
@@ -460,11 +402,67 @@ public class SearchController {
      * Busca com paginação
      * MODIFICADO: Busca vazia mostra TODOS os arquivos da pasta
      */
+//    public void performSearchWithPagination(
+//            String searchTerm, String filter, String path,
+//            String sortBy, String sortOrder,
+//            int minRating, String tag,
+//            boolean includeSubfolders,
+//            int page, int pageSize,
+//            PaginatedSearchCallback callback) {
+//
+//        SwingWorker<SearchService.SearchResult, Void> worker = new SwingWorker<>() {
+//            @Override
+//            protected SearchService.SearchResult doInBackground() throws Exception {
+//
+//                SearchCriteria criteria = new SearchCriteria()
+//                        .withName(searchTerm == null || searchTerm.isEmpty()
+//                                ? null : "*" + searchTerm + "*")
+//                        .inPath(path, includeSubfolders)
+//                        .sortBy(sortBy, sortOrder);
+//
+//                if (!"ALL".equals(filter))
+//                    criteria.withFileType(FileType.valueOf(filter));
+//                if (minRating > 0)
+//                    criteria.withMinRating(minRating);
+//                if (tag != null && !tag.isEmpty())
+//                    criteria.withTag(tag);
+//
+//                // ── CORREÇÃO: salva estado para o refreshCurrentSearch() ──
+//                lastCriteria = criteria;
+//                lastSelectedPath = path;
+//                lastSearchTerm = searchTerm != null ? searchTerm : "";
+//                lastFilter = filter;
+//                lastSortBy = sortBy;
+//                lastSortOrder = sortOrder;
+//                lastPage = page;
+//                lastPageSize = pageSize;
+//                lastCallback = callback;
+//                // ─────────────────────────────────────────────────────────
+//
+//                return searchSystem.getSearchService()
+//                        .advancedSearchWithPagination(criteria, page, pageSize);
+//            }
+//
+//            @Override
+//            protected void done() {
+//                try {
+//                    SearchService.SearchResult result = get();
+//                    SwingUtilities.invokeLater(() ->
+//                            callback.onSearchCompleted(
+//                                    result.getResults(), result.getPagination()));
+//                } catch (Exception e) {
+//                    SwingUtilities.invokeLater(() -> callback.onSearchError(e));
+//                }
+//            }
+//        };
+//        worker.execute();
+//    }
     public void performSearchWithPagination(
             String searchTerm, String filter, String path,
             String sortBy, String sortOrder,
             int minRating, String tag,
             boolean includeSubfolders,
+            boolean globalSearch, // NOVO
             int page, int pageSize,
             PaginatedSearchCallback callback) {
 
@@ -475,8 +473,12 @@ public class SearchController {
                 SearchCriteria criteria = new SearchCriteria()
                         .withName(searchTerm == null || searchTerm.isEmpty()
                                 ? null : "*" + searchTerm + "*")
-                        .inPath(path, includeSubfolders)
                         .sortBy(sortBy, sortOrder);
+
+                // NOVO: só restringe por pasta se NÃO for busca global
+                if (!globalSearch) {
+                    criteria.inPath(path, includeSubfolders);
+                }
 
                 if (!"ALL".equals(filter))
                     criteria.withFileType(FileType.valueOf(filter));
@@ -485,9 +487,8 @@ public class SearchController {
                 if (tag != null && !tag.isEmpty())
                     criteria.withTag(tag);
 
-                // ── CORREÇÃO: salva estado para o refreshCurrentSearch() ──
                 lastCriteria = criteria;
-                lastSelectedPath = path;
+                lastSelectedPath = globalSearch ? null : path; // NOVO: evita reusar path errado no refresh
                 lastSearchTerm = searchTerm != null ? searchTerm : "";
                 lastFilter = filter;
                 lastSortBy = sortBy;
@@ -495,7 +496,6 @@ public class SearchController {
                 lastPage = page;
                 lastPageSize = pageSize;
                 lastCallback = callback;
-                // ─────────────────────────────────────────────────────────
 
                 return searchSystem.getSearchService()
                         .advancedSearchWithPagination(criteria, page, pageSize);
@@ -516,120 +516,47 @@ public class SearchController {
         worker.execute();
     }
 
-//    public void goToPage(int page, int pageSize, PaginatedSearchCallback callback) {
-//        if (lastCriteria == null || lastSelectedPath == null) {
-//            System.err.println("Nenhuma busca anterior para paginar");
-//            return;
-//        }
-//
-//        // MODIFICADO: Atualiza parâmetros para auto-refresh
-//        this.lastPage = page;
-//        this.lastPageSize = pageSize;
-//        this.lastCallback = callback;
-//
-//        SwingWorker<SearchService.SearchResult, Void> worker = new SwingWorker<>() {
-//            @Override
-//            protected SearchService.SearchResult doInBackground() throws Exception {
-//                return searchSystem.getSearchService().advancedSearchWithPagination(
-//                        lastCriteria, page, pageSize
-//                );
-//            }
-//
-//            @Override
-//            protected void done() {
-//                try {
-//                    SearchService.SearchResult result = get();
-//                    callback.onSearchCompleted(result.getResults(), result.getPagination());
-//                } catch (Exception e) {
-//                    callback.onSearchError(e);
-//                    e.printStackTrace();
-//                }
-//            }
-//        };
-//
-//        callback.onSearchStarted();
-//        worker.execute();
-//    }
-
-
-//    public void performSearch(String searchTerm, String filter, String selectedPath,
-//                              SearchCallback callback) {
-//
-//        if (searchTerm.isEmpty()) {
-//            JOptionPane.showMessageDialog(parentFrame,
-//                    "Digite um termo de busca!",
-//                    "Busca vazia", JOptionPane.WARNING_MESSAGE);
-//            return;
-//        }
-//
-//        String processedTerm = processSearchTerm(searchTerm);
-//
-//        SwingWorker<List<FileInfo>, Void> worker = new SwingWorker<>() {
-//            @Override
-//            protected List<FileInfo> doInBackground() throws Exception {
-//                SearchCriteria criteria = new SearchCriteria()
-//                        .withName(processedTerm)
-//                        .inPath(selectedPath, true)
-//                        .limit(3000);
-//
-//                if (!"TODOS".equals(filter)) {
-//                    if ("FOLDER".equals(filter)) {
-//                        criteria.withFileType(FileType.FOLDER);
-//                    } else {
-//                        criteria.withFileType(FileType.valueOf(filter));
-//                    }
-//                }
-//
-//                System.out.println("🔍 Buscando: " + searchTerm +
-//                        " → Padrão: " + processedTerm +
-//                        " | Tipo: " + filter +
-//                        " | Pasta: " + selectedPath);
-//
-//                return searchSystem.advancedSearch(criteria);
-//            }
-//
-//            @Override
-//            protected void done() {
-//                try {
-//                    List<FileInfo> results = get();
-//                    callback.onSearchCompleted(results);
-//                    System.out.println("✅ Encontrados: " + results.size() + " arquivos");
-//                } catch (Exception e) {
-//                    callback.onSearchError(e);
-//                    e.printStackTrace();
-//                }
-//            }
-//        };
-//
-//        callback.onSearchStarted();
-//        worker.execute();
-//    }
-
-    /**
-     * Indexa uma pasta de forma assíncrona
-     */
     public void indexFolder(String path, boolean includeSubfolders, IndexCallback callback) {
-        JProgressBar progressBar = new JProgressBar();
-        progressBar.setIndeterminate(true);
-        progressBar.setString("Indexando...");
-        progressBar.setStringPainted(true);
+        IndexCancellationToken cancelToken = new IndexCancellationToken();
+
+        JTextArea logArea = new JTextArea(18, 60);
+        logArea.setEditable(false);
+        logArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+
+        JScrollPane scrollPane = new JScrollPane(logArea);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+
+        JButton cancelButton = new JButton("Cancelar");
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.add(cancelButton);
 
         JPanel progressPanel = new JPanel(new BorderLayout(10, 10));
         progressPanel.add(new JLabel("📊 Indexando: " + path), BorderLayout.NORTH);
-        progressPanel.add(progressBar, BorderLayout.CENTER);
+        progressPanel.add(scrollPane, BorderLayout.CENTER);
+        progressPanel.add(buttonPanel, BorderLayout.SOUTH);
 
         JDialog progressDialog = new JDialog(parentFrame, "Indexação em progresso", true);
         progressDialog.add(progressPanel);
-        progressDialog.setSize(400, 100);
+        progressDialog.setSize(700, 480);
         progressDialog.setLocationRelativeTo(parentFrame);
 
-        SwingWorker<Void, Void> worker = new SwingWorker<>() {
+        // Impede fechar via X sem confirmar (evita perder o progresso sem querer)
+        progressDialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+
+        SwingWorker<Void, String> worker = new SwingWorker<>() {
             @Override
             protected Void doInBackground() throws Exception {
-                System.out.println("📊 Indexando: " + path +
-                        " (subpastas: " + includeSubfolders + ")");
-                searchSystem.indexFolder(path, includeSubfolders);
+                searchSystem.indexFolder(path, includeSubfolders, this::publish, cancelToken);
                 return null;
+            }
+
+            @Override
+            protected void process(List<String> chunks) {
+                for (String line : chunks) {
+                    logArea.append(line + "\n");
+                }
+                logArea.setCaretPosition(logArea.getDocument().getLength());
             }
 
             @Override
@@ -637,11 +564,20 @@ public class SearchController {
                 progressDialog.dispose();
                 try {
                     get();
-                    callback.onIndexCompleted();
-                    JOptionPane.showMessageDialog(parentFrame,
-                            "Indexação concluída com sucesso!",
-                            "Sucesso", JOptionPane.INFORMATION_MESSAGE);
-                    fileExplorerSwing.navigateTo(path, false);
+                    if (cancelToken.isCancelled()) {
+                        // Cancelado pelo usuário — trata como um resultado neutro, não erro
+                        callback.onIndexCompleted();
+                        JOptionPane.showMessageDialog(parentFrame,
+                                "Indexação cancelada pelo usuário.",
+                                "Cancelado", JOptionPane.WARNING_MESSAGE);
+                    } else {
+                        callback.onIndexCompleted();
+                        JOptionPane.showMessageDialog(parentFrame,
+                                "Indexação concluída com sucesso!",
+                                "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+                       // fileExplorerSwing.navigateTo(path, false);
+                    }
+                    fileExplorerSwing.navigateTo(path, false); // NOVO: sempre re-sincroniza, cancelado ou não
                 } catch (Exception e) {
                     callback.onIndexError(e);
                     JOptionPane.showMessageDialog(parentFrame,
@@ -652,24 +588,27 @@ public class SearchController {
             }
         };
 
+        // NOVO: botão de cancelar
+        cancelButton.addActionListener(e -> {
+            int confirm = JOptionPane.showConfirmDialog(progressDialog,
+                    "Deseja realmente cancelar a indexação?\nOs arquivos já indexados serão mantidos.",
+                    "Confirmar cancelamento", JOptionPane.YES_NO_OPTION);
+
+            if (confirm == JOptionPane.YES_OPTION) {
+                cancelToken.cancel();
+                cancelButton.setEnabled(false);
+                cancelButton.setText("Cancelando...");
+
+                // NOVO: feedback imediato no log — já estamos na EDT aqui,
+                // então appendamos direto em vez de usar publish()
+                logArea.append("\n🛑 Cancelamento solicitado — aguardando finalização das threads em andamento...\n");
+                logArea.setCaretPosition(logArea.getDocument().getLength());
+            }
+        });
+
         worker.execute();
         progressDialog.setVisible(true);
     }
-
-//    /**
-//     * Processa termo de busca adicionando wildcards
-//     */
-//    private String processSearchTerm(String term) {
-//        if (term == null || term.isEmpty()) {
-//            return "*";
-//        }
-//
-//        if (term.contains("*") || term.contains("?")) {
-//            return term;
-//        }
-//
-//        return "*" + term + "*";
-//    }
 
     public void close() throws SQLException {
         // Para monitoramento antes de fechar
@@ -678,14 +617,6 @@ public class SearchController {
         searchSystem.close();
         System.out.println("✓ Sistema encerrado");
     }
-
-//    public interface SearchCallback {
-//        void onSearchStarted();
-//
-//        void onSearchCompleted(List<FileInfo> results);
-//
-//        void onSearchError(Exception e);
-//    }
 
     public interface IndexCallback {
         void onIndexCompleted();
@@ -721,6 +652,27 @@ public class SearchController {
         void onSyncCompleted(SyncService.SyncResult result);
 
         void onSyncError(Exception e);
+    }
+
+    /**
+     * Token de cancelamento cooperativo para operações de indexação.
+     * Desacoplado de Swing/SwingWorker — qualquer camada pode marcar
+     * cancel() e o IndexService verifica periodicamente.
+     * <p>
+     * "Cooperativo" porque Virtual Threads já em execução não são
+     * interrompidas à força; elas terminam a operação atual (ex: indexar
+     * um arquivo específico) e então param de submeter novo trabalho.
+     */
+    public class IndexCancellationToken {
+        private volatile boolean cancelled = false;
+
+        public void cancel() {
+            cancelled = true;
+        }
+
+        public boolean isCancelled() {
+            return cancelled;
+        }
     }
 
 }

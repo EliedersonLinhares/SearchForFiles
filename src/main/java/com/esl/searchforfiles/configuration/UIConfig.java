@@ -1,9 +1,12 @@
 package com.esl.searchforfiles.configuration;
 
+import com.formdev.flatlaf.FlatClientProperties;
+
 import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public class UIConfig {
@@ -65,6 +68,22 @@ public class UIConfig {
             JOptionPane.showMessageDialog(frame, "Icones não encontrados" + " " + e.getMessage());
         }
         return icons;
+    }
+
+    public static JButton makeHighlightedMediumBtn(String text, String toolTipText, int width,int height) {
+        Map<String, Object> styleButton = Map.of(
+                "borderWidth", 3,
+                "borderColor", UIManager.getColor("Component.accentColor"),
+                "hoverBorderColor", UIManager.getColor("Component.accentColor").brighter(),
+                "focusedBorderColor", UIManager.getColor("Component.accentColor")
+        );
+        JButton btn = new JButton(text);
+        btn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+        btn.putClientProperty(FlatClientProperties.STYLE, styleButton);
+        btn.setToolTipText(toolTipText);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setPreferredSize(new Dimension(width, height));
+        return btn;
     }
 
 }

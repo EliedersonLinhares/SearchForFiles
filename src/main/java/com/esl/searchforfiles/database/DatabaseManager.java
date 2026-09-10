@@ -96,6 +96,7 @@ public class DatabaseManager {
     }
 
     private void initDatabase() throws SQLException {
+
         try (Statement stmt = conn.createStatement()) {
             // Otimizações
             for (String pragma : DatabaseSchema.PRAGMAS) {
@@ -105,6 +106,7 @@ public class DatabaseManager {
             // Tabelas
             stmt.execute(DatabaseSchema.CREATE_FILE_INDEX_TABLE);
             stmt.execute(DatabaseSchema.CREATE_SEARCH_STATS_TABLE);
+            stmt.execute(DatabaseSchema.CREATE_INDEXED_FOLDERS_TABLE); // NOVO
 
             migrateDatabase();
 
@@ -911,6 +913,274 @@ public class DatabaseManager {
             throw new SQLException("Não foi possível calcular identidade: " + e.getMessage());
         }
     }
+
+    /**
+     * Registra (ou atualiza) a política de indexação de uma pasta.
+     * Chamado sempre que uma pasta é indexada manualmente pelo usuário.
+     */
+    public void registerIndexedFolder(String folderPath, boolean includeSubfolders) throws SQLException {
+        String normalized = Paths.get(folderPath).toAbsolutePath().normalize().toString();
+        String sql = """
+        INSERT INTO indexed_folders (path, include_subfolders, indexed_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(path) DO UPDATE SET
+            include_subfolders = excluded.include_subfolders,
+            indexed_at = excluded.indexed_at
+    """;
+        try (PreparedStatement p = conn.prepareStatement(sql)) {
+            p.setString(1, normalized);
+            p.setBoolean(2, includeSubfolders);
+            p.setLong(3, System.currentTimeMillis());
+            p.executeUpdate();
+        }
+    }
+
+    /**
+     * Retorna a política registrada para a pasta, ou null se nunca foi indexada.
+     */
+    /**
+     * Retorna a política de indexação da pasta.
+     * Se a pasta nunca foi registrada explicitamente (dado legado, indexada
+     * antes da introdução dessa tabela), infere a partir da estrutura real
+     * do índice e grava o resultado para as próximas consultas.
+     */
+    public boolean getIncludeSubfoldersPolicy(String folderPath) throws SQLException {
+        String normalized = Paths.get(folderPath).toAbsolutePath().normalize().toString();
+
+        String sql = "SELECT include_subfolders FROM indexed_folders WHERE path = ?";
+        try (PreparedStatement p = conn.prepareStatement(sql)) {
+            p.setString(1, normalized);
+            try (ResultSet rs = p.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getBoolean(1); // política já conhecida
+                }
+            }
+        }
+
+        // NOVO: pasta legada, sem registro explícito — infere pela estrutura real
+        boolean inferred = inferIncludeSubfoldersFromIndex(normalized);
+        registerIndexedFolder(normalized, inferred); // cacheia pra não inferir de novo
+        System.out.println("ℹ️ Política inferida para pasta legada '" + normalized
+                + "' → subpastas=" + inferred);
+        return inferred;
+    }
+
+
+    /**
+     * Remove completamente uma pasta indexada: arquivos do índice,
+     * registro de política, tags órfãs e identidades órfãs.
+     *
+     * @param folderPath        pasta a remover
+     * @param includeSubfolders deve bater com a política com que foi indexada
+     *                          (use getIncludeSubfoldersPolicy() se não tiver certeza)
+     * @return número de arquivos removidos de file_index
+     */
+    public synchronized int removeIndexedFolder(String folderPath, boolean includeSubfolders) throws SQLException {
+        String normalized = Paths.get(folderPath).toAbsolutePath().normalize().toString();
+
+        conn.setAutoCommit(false);
+        try {
+            // 1. Coleta os paths que serão removidos (precisamos deles para limpar tags/identity depois)
+            List<String> pathsToRemove = new ArrayList<>();
+            String selectSql = includeSubfolders
+                    ? "SELECT path FROM file_index WHERE path LIKE ?"
+                    : "SELECT path FROM file_index WHERE parent_path = ? OR path = ?";
+
+            try (PreparedStatement p = conn.prepareStatement(selectSql)) {
+                if (includeSubfolders) {
+                    p.setString(1, normalized + "%");
+                } else {
+                    p.setString(1, normalized);
+                    p.setString(2, normalized);
+                }
+                try (ResultSet rs = p.executeQuery()) {
+                    while (rs.next()) pathsToRemove.add(rs.getString("path"));
+                }
+            }
+
+            // 2. Remove de file_index
+            String deleteSql = includeSubfolders
+                    ? "DELETE FROM file_index WHERE path LIKE ?"
+                    : "DELETE FROM file_index WHERE parent_path = ? OR path = ?";
+            int removed;
+            try (PreparedStatement p = conn.prepareStatement(deleteSql)) {
+                if (includeSubfolders) {
+                    p.setString(1, normalized + "%");
+                } else {
+                    p.setString(1, normalized);
+                    p.setString(2, normalized);
+                }
+                removed = p.executeUpdate();
+            }
+
+            // 3. Remove tags associadas por path (dados legados sem identity_id)
+            if (!pathsToRemove.isEmpty()) {
+                String deleteTagsSql = "DELETE FROM file_tags WHERE file_path = ?";
+                try (PreparedStatement p = conn.prepareStatement(deleteTagsSql)) {
+                    for (String path : pathsToRemove) {
+                        p.setString(1, path);
+                        p.addBatch();
+                    }
+                    p.executeBatch();
+                }
+            }
+
+            // 4. Remove o registro da política em indexed_folders
+            try (PreparedStatement p = conn.prepareStatement(
+                    "DELETE FROM indexed_folders WHERE path = ?")) {
+                p.setString(1, normalized);
+                p.executeUpdate();
+            }
+
+            // 5. Limpa identidades órfãs (que não têm mais nenhum arquivo em file_index
+            //    nem tags associadas apontando pra elas)
+            cleanupOrphanIdentities();
+
+            conn.commit();
+            System.out.println("🗑️ Pasta removida do índice: " + normalized
+                    + " (" + removed + " registros)");
+            return removed;
+
+        } catch (SQLException e) {
+            conn.rollback();
+            throw e;
+        } finally {
+            conn.setAutoCommit(true);
+        }
+    }
+
+    /**
+     * Remove entradas de file_identity que não são mais referenciadas
+     * por nenhum arquivo em file_index nem por nenhuma tag em file_tags.
+     * Evita acumular identidades "fantasma" após remoções.
+     */
+    private void cleanupOrphanIdentities() throws SQLException {
+        String sql = """
+        DELETE FROM file_identity
+        WHERE fingerprint NOT IN (
+            SELECT fingerprint FROM file_index WHERE fingerprint IS NOT NULL
+        )
+        AND id NOT IN (
+            SELECT DISTINCT identity_id FROM file_tags WHERE identity_id IS NOT NULL
+        )
+    """;
+        try (Statement stmt = conn.createStatement()) {
+            int deleted = stmt.executeUpdate(sql);
+            if (deleted > 0) {
+                System.out.println("🧹 " + deleted + " identidade(s) órfã(s) removida(s).");
+            }
+        }
+    }
+    /**
+     * Infere se uma pasta foi indexada com subpastas, olhando a estrutura
+     * já existente em file_index. Usado para pastas indexadas ANTES da
+     * introdução da tabela indexed_folders (dados legados).
+     */
+    private boolean inferIncludeSubfoldersFromIndex(String normalizedFolderPath) throws SQLException {
+        // Existe algum registro cujo parent_path é diferente da própria pasta?
+        // Isso só acontece se algo abaixo do nível raiz foi indexado.
+        String sql = """
+        SELECT COUNT(*) FROM file_index
+        WHERE path LIKE ?
+          AND parent_path != ?
+        LIMIT 1
+    """;
+        try (PreparedStatement p = conn.prepareStatement(sql)) {
+            p.setString(1, normalizedFolderPath + "%");
+            p.setString(2, normalizedFolderPath);
+            try (ResultSet rs = p.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        }
+    }
+
+    /**
+     * Retorna a política efetiva para uma pasta: se ela mesma é uma raiz
+     * indexada, usa sua própria política (persistida ou inferida). Se não é
+     * raiz própria mas está coberta por um ancestral indexado com subpastas,
+     * herda a política do ancestral SEM criar uma linha nova em indexed_folders
+     * — porque essa pasta não é, ela mesma, uma raiz de indexação.
+     */
+    public boolean getEffectiveIncludeSubfoldersPolicy(String folderPath) throws SQLException {
+        String normalized = Paths.get(folderPath).toAbsolutePath().normalize().toString();
+
+        // 1. Registro exato — esta é uma raiz de verdade
+        String exactSql = "SELECT include_subfolders FROM indexed_folders WHERE path = ?";
+        try (PreparedStatement p = conn.prepareStatement(exactSql)) {
+            p.setString(1, normalized);
+            try (ResultSet rs = p.executeQuery()) {
+                if (rs.next()) return rs.getBoolean(1);
+            }
+        }
+
+        // 2. Não é raiz própria — busca ancestral recursivo que a cubra
+        String ancestorSql = "SELECT path FROM indexed_folders WHERE include_subfolders = 1";
+        Path target = Paths.get(normalized);
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(ancestorSql)) {
+            while (rs.next()) {
+                Path ancestor = Paths.get(rs.getString("path"));
+                if (target.startsWith(ancestor)) {
+                    return true; // herda, SEM gravar linha nova para 'target'
+                }
+            }
+        }
+
+        // 3. Pasta legada sem cobertura por ancestral: só agora vale a pena
+        //    inferir e persistir, porque de fato é uma raiz "solta" no índice
+        boolean inferred = inferIncludeSubfoldersFromIndex(normalized);
+        registerIndexedFolder(normalized, inferred);
+        System.out.println("ℹ️ Política inferida para pasta legada '" + normalized
+                + "' → subpastas=" + inferred);
+        return inferred;
+    }
+
+    /**
+     * Verifica se uma pasta está coberta pelo índice — seja porque ela
+     * mesma foi indexada explicitamente (com ou sem subpastas), seja
+     * porque um ancestral dela foi indexado COM subpastas e portanto
+     * a cobre transitivamente.
+     * <p>
+     * Método puro: não grava nada no banco, não infere política,
+     * não imprime logs. Seguro para chamar em loop (ex: renderização
+     * de árvore de pastas na UI) sem efeitos colaterais.
+     *
+     * @param folderPath caminho da pasta a verificar
+     * @return true se a pasta está coberta pelo índice, false caso contrário
+     */
+    public boolean isFolderIndexed(String folderPath) {
+        try {
+            Path normalized = Paths.get(folderPath).toAbsolutePath().normalize();
+
+            // 1. Match exato — a pasta foi registrada diretamente
+            String exactSql = "SELECT 1 FROM indexed_folders WHERE path = ? LIMIT 1";
+            try (PreparedStatement p = conn.prepareStatement(exactSql)) {
+                p.setString(1, normalized.toString());
+                try (ResultSet rs = p.executeQuery()) {
+                    if (rs.next()) return true;
+                }
+            }
+
+            // 2. Match por ancestral recursivo
+            String ancestorSql = "SELECT path FROM indexed_folders WHERE include_subfolders = 1";
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(ancestorSql)) {
+                while (rs.next()) {
+                    Path ancestor = Paths.get(rs.getString("path"));
+                    if (normalized.startsWith(ancestor)) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+
+        } catch (SQLException e) {
+            System.err.println("⚠️ Erro ao verificar se pasta está indexada: " + e.getMessage());
+            return false; // conservador: em caso de erro, assume não indexada
+        }
+    }
+
 
 
     public Connection getConn() {

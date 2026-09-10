@@ -23,6 +23,8 @@ import com.esl.searchforfiles.service.SyncService;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.AWTEventListener;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
@@ -30,6 +32,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.function.Consumer;
 
 /**
  * Interface gráfica para o sistema de busca avançada
@@ -63,6 +66,7 @@ public class FileExplorerSwing extends JFrame {
     private String currentSortOrder = "DESC"; // NOVO
     private SubFolderPanel subFolderPanel;           // NOVO
     private boolean showSubfolderContents = false; // NOVO — controlado pelo menu
+    private boolean showGlobalSearch = false; // NOVO
 
     private boolean useDefaultWindowsProgramImage = false;
     private boolean useDefaultWindowsProgramVideo = false;
@@ -73,9 +77,11 @@ public class FileExplorerSwing extends JFrame {
     public FileExplorerSwing(ThemeManager themeManager) {
         super("Jupiter - Gerenciador de Arquivos");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setSize(1480, 800);
+        setExtendedState(Frame.MAXIMIZED_BOTH);
+        setMinimumSize(new Dimension(1600, 800));
         setLocationRelativeTo(null);
         setIconImages(UIConfig.IconsConfig(this));
+
 
 
 
@@ -85,7 +91,7 @@ public class FileExplorerSwing extends JFrame {
         configManager = new ConfigManager();
         this.themeManager = themeManager;
         setSelectedPath(configManager.getSavedDefaultFolder());
-
+        showGlobalSearch = configManager.getSavedShowGlobalItens();
         showSubfolderContents = configManager.getSavedSubfolderItems();
 
         bottomIndicatorPanel = new BottomIndicatorPanel(this);
@@ -119,6 +125,8 @@ public class FileExplorerSwing extends JFrame {
         FileItemPanel.ICON_CACHE.clear(); // força recarregamento sem distorção
         searchPanel.setSearchListener(this::onSearch);
         searchPanel.setIndexListener(this::onIndexRequest);
+        searchPanel.setGlobalSearchListener(this::onGlobalSearchChanged); // NOVO
+        searchPanel.setShowSubfolderContentListener(this::onSubFolderItensChanged);
         searchPanel.setNavigationListener(new SearchPanel.NavigationListener() {
             @Override
             public void onBack() {
@@ -181,13 +189,8 @@ public class FileExplorerSwing extends JFrame {
 
                 FileContextMenu menu = new FileContextMenu(
                         file, fileInfo, source, controller.getDbManager(), itemPanel,
-                        path -> navigateTo(path, true),
-                        showSubfolderContents,
-                        include -> {
-                            showSubfolderContents = include;
-                            currentPage = 1;
-                            performCurrentSearch();
-                        }, FileExplorerSwing.this, favoritesService
+                        path -> navigateTo(path, true)
+                         , FileExplorerSwing.this, favoritesService
                 );
                 if (!editModeManager.isEditModeActive() && !transferService.isTransferModeActive()
                         && !renameModeFiles.isActive()  && !compressModeManager.isCompressModeActive()
@@ -317,12 +320,112 @@ public class FileExplorerSwing extends JFrame {
             }
         });
 
+        // Registra o listener global de mouse
+        Toolkit.getDefaultToolkit().addAWTEventListener(new AWTEventListener() {
+            @Override
+            public void eventDispatched(AWTEvent event) {
+                if (event.getID() == MouseEvent.MOUSE_CLICKED) {
+                    Object origem = event.getSource();
+                    if (!(origem instanceof Component)) return;
+
+                    Component clicado = (Component) origem;
+
+                    // Se o clique não veio de dentro da JList, limpa a seleção dela
+                    if (!estaDentroDe(clicado, favoritesPanel.getFavoritesList())) {
+                        favoritesPanel.getFavoritesList().clearSelection();
+                    }
+
+                    // Se o clique não veio de dentro da JTree, limpa a seleção dela
+                    if (!estaDentroDe(clicado, treePanel.getFolderTree())) {
+                        treePanel.getFolderTree().clearSelection();
+                    }
+                }
+            }
+        }, AWTEvent.MOUSE_EVENT_MASK);
 
     }
+
+    // Verifica se "clicado" é o próprio componente-alvo ou está dentro dele
+    static boolean estaDentroDe(Component clicado, Component alvo) {
+        Component c = clicado;
+        while (c != null) {
+            if (c == alvo) return true;
+            c = c.getParent();
+        }
+        return false;
+    }
+
+
+
+    /**
+     * Chamado quando o usuário alterna a busca global.
+     * NOVO MÉTODO
+     */
+    private void onGlobalSearchChanged(boolean globalSearch) {
+        showGlobalSearch = globalSearch;
+        currentPage = 1; // volta para primeira página, já que o conjunto de resultados muda
+        performCurrentSearch();
+    }
+
+    private void onSubFolderItensChanged(boolean subFolderContents) {
+        showSubfolderContents = subFolderContents;
+        currentPage = 1; // volta para primeira página, já que o conjunto de resultados muda
+        performCurrentSearch();
+    }
+
+    /**
+     * Ativa/desativa o overlay de avaliação (estrelas) em todas as miniaturas.
+     * Centraliza o que antes estava duplicado em FileContextMenu.
+     */
+    public void setShowRatingOverlay(boolean visible) {
+        FileItemPanel.setShowRatingOverlay(visible);
+        configManager.saveShowStarRating(visible);
+        propagateToFileItemPanels(FileItemPanel::applyOverlayVisibility);
+    }
+
+    /**
+     * Ativa/desativa o selo de tipo de arquivo em todas as miniaturas.
+     */
+    public void setShowExtensionTypeOverlay(boolean visible) {
+        FileItemPanel.setShowExtensionFileOverlay(visible);
+        configManager.saveShowTypeFile(visible);
+        propagateToFileItemPanels(FileItemPanel::applyExtensionTypeVisibility);
+    }
+
+    /**
+     * Ativa/desativa a reprodução de GIFs animados nas miniaturas.
+     */
+    public void setShowAnimatedGif(boolean visible) {
+        AnimatedGifThumb.setShowAnimatedGif(visible);
+        configManager.saveShowAnimatedGif(visible);
+        propagateToFileItemPanels(FileItemPanel::applyAnimatedGifVisibility);
+    }
+
+    /**
+     * Percorre toda a árvore de componentes a partir deste JFrame e aplica
+     * a ação informada a cada FileItemPanel encontrado. Generaliza os três
+     * métodos propagateXxx/applyToAllXxx que antes existiam separadamente
+     * em FileContextMenu.
+     */
+    private void propagateToFileItemPanels(Consumer<FileItemPanel> action) {
+        applyToAllFileItemPanels(this, action);
+    }
+
+    private void applyToAllFileItemPanels(Container container, Consumer<FileItemPanel> action) {
+        for (Component c : container.getComponents()) {
+            if (c instanceof FileItemPanel fip) {
+                action.accept(fip);
+            } else if (c instanceof Container inner) {
+                applyToAllFileItemPanels(inner, action);
+            }
+        }
+    }
+
     private boolean isObject3dFile(File file) {
         String name = file.getName().toLowerCase();
-        return name.endsWith(".obj");
+        return name.endsWith(".obj") ;
     }
+
     private boolean isPdfFile(File file) {
         String name = file.getName().toLowerCase();
         return name.endsWith(".pdf");
@@ -382,7 +485,16 @@ public class FileExplorerSwing extends JFrame {
     }
 
     public void setSelectedPath(String selectedPath) {
+
         this.selectedPath = selectedPath;
+    }
+
+    public FavoritesPanel getFavoritesPanel() {
+        return favoritesPanel;
+    }
+
+    public FolderTreePanel getTreePanel() {
+        return treePanel;
     }
 
     public ConfigManager getConfigManager() {
@@ -434,6 +546,9 @@ public class FileExplorerSwing extends JFrame {
                 "Aguarde, verificando mudanças...",
                 path);
 
+        // NOVO: guarda o status descoberto durante a sincronização
+        final boolean[] folderIndexed = {false};
+
         BlockingTaskRunner.run(dlg,
                 // ── Tarefa em background (Runnable, não Consumer) ─────
                 () -> {
@@ -444,6 +559,7 @@ public class FileExplorerSwing extends JFrame {
                                 new SearchController.SyncCallback() {
                                     @Override
                                     public void onSyncCompleted(SyncService.SyncResult result) {
+                                        folderIndexed[0] = !result.isNotIndexed(); // NOVO
                                         if (!result.isNotIndexed()) {
                                             // dlg é acessado diretamente — sem parâmetro
                                             dlg.setSubMessage(
@@ -478,7 +594,9 @@ public class FileExplorerSwing extends JFrame {
                 // ── Callback na EDT após a tarefa ─────────────────────
                 () -> {
                     bottomIndicatorPanel.hideSyncIndicator(false);
+                    searchPanel.setIndexButtonEnabled(!folderIndexed[0]); // NOVO
                     bottomIndicatorPanel.setWorking(false);
+                    searchPanel.setIndexButtonEnabled(!folderIndexed[0] && !getController().isDriveRoot(selectedPath)); // NOVO: bloqueia raiz de drive também
                     performCurrentSearch();
                 }
         );
@@ -540,6 +658,7 @@ public class FileExplorerSwing extends JFrame {
                 searchPanel.getMinRating(),
                 searchPanel.getTagFilter(),
                 showSubfolderContents,   // NOVO — passa flag de subpastas
+                showGlobalSearch,
                 currentPage,
                 paginationPanel.getPageSize()
         );
@@ -558,14 +677,17 @@ public class FileExplorerSwing extends JFrame {
                 configManager.getSavedStarRating(),
                 searchPanel.getTagFilter(),
                 showSubfolderContents,
+                showGlobalSearch,
                 currentPage,
                 paginationPanel.getPageSize()
         );
     }
 
+
+
     private void onSearchWithPagination(String searchTerm, String filter,
                                         String sortBy, String sortOrder,
-                                        int minRating, String tag, boolean includeSubfolders,
+                                        int minRating, String tag, boolean includeSubfolders, boolean globalSearch,
                                         int page, int pageSize) {
 
         String loadingMessage;
@@ -583,11 +705,13 @@ public class FileExplorerSwing extends JFrame {
                 sortBy, sortOrder,
                 minRating, tag,
                 includeSubfolders,   // NOVO
+                globalSearch,
                 page, pageSize,
                 new SearchController.PaginatedSearchCallback() {
 
                     @Override
                     public void onSearchStarted() {
+
                     }
 
                     @Override
@@ -599,7 +723,7 @@ public class FileExplorerSwing extends JFrame {
                                 .filter(f -> !f.getExtension().equalsIgnoreCase("ini"))
                                 .filter(f -> !f.getExtension().equalsIgnoreCase("db"))
                                 .toList();
-
+                        resultsPanel.atualizarBordaCaminho(selectedPath);
                         if (filtered.isEmpty()) {
                             String emptyMessage;
                             if (searchTerm == null || searchTerm.trim().isEmpty()) {
@@ -619,6 +743,8 @@ public class FileExplorerSwing extends JFrame {
                         } else {
                             resultsPanel.showResults(filtered);
                             paginationPanel.updatePagination(pagination);
+
+
 
                             // NOVO: garante foco no painel de resultados
                             // para que as teclas funcionem imediatamente
@@ -678,9 +804,13 @@ public class FileExplorerSwing extends JFrame {
 
     private void onIndexRequest() {
         String message = String.format(
-                "Deseja indexar a pasta selecionada?\n\n" +
+                "Deseja indexar a pasta selecionada?\n" +
                         "Pasta: %s\n\n" +
-                        "Incluir subpastas?",
+                        "===================Atenção=============================\n" +
+                 "A velocidade da indexação vai depender da velocide do disco onde\n" +
+                    "os arquivos estão armazenados (Nvme > SSD > HD). Mutos arquivos (< 1000)\n" +
+                    "podem resultar em uma demora no processo\n\n" +
+                        "Incluir subpastas?" ,
                 selectedPath
         );
 
@@ -937,5 +1067,6 @@ public class FileExplorerSwing extends JFrame {
     public void setUseDefaultWindowsProgram3dModel(boolean useDefaultWindowsProgram3dModel) {
         this.useDefaultWindowsProgram3dModel = useDefaultWindowsProgram3dModel;
     }
+
 
 }

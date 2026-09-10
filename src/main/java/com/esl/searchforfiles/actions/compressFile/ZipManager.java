@@ -64,6 +64,7 @@ public class ZipManager extends JFrame {
         this.tableModel = new ZipTableModel(this.items);
 
         this.zipService = new ZipCompressionService();
+        setIconImages(UIConfig.IconsConfig(this));
         if (owner != null) owner.setEnabled(false);
         configureWindow(owner);
 
@@ -339,7 +340,8 @@ public class ZipManager extends JFrame {
 
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         zipButton = new JButton();
-        buttonConfiguration(zipButton,150,UIConfig.FONT_DEFAULT_BOLD, "✅ Compactar");
+      //  buttonConfiguration(zipButton,150,UIConfig.FONT_DEFAULT_BOLD, "✅ Compactar");
+        zipButton =UIConfig.makeHighlightedMediumBtn("✅ Compactar", "Compacter Arquivos",135,35);
 
         zipButton.addActionListener(e -> startCompression());
         cancelButton = new JButton();
@@ -359,6 +361,8 @@ public class ZipManager extends JFrame {
 
         return panel;
     }
+
+
 
     private void chooseDestination() {
 

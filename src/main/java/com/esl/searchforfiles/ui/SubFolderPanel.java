@@ -31,11 +31,6 @@ import java.util.function.Supplier;
 
 public class SubFolderPanel extends JPanel {
 
-//    private static final Color BG_COLOR     = new Color(45, 45, 45);
-//    private static final Color HOVER_COLOR  = new Color(60, 60, 60);
- //   private static final Color HEADER_COLOR = new Color(33, 150, 243);
-//    private static final Color BTN_COLOR    = new Color(55, 55, 55);
-//    private static final Color BTN_DISABLED = new Color(70, 70, 70);
     private static final int   PAGE_SIZE    = 100;
 
     // ── Ordenação ──────────────────────────────────────────────────
@@ -53,11 +48,13 @@ public class SubFolderPanel extends JPanel {
     // ── UI ─────────────────────────────────────────────────────────
     private final JPanel      listPanel;
     private final JScrollPane scrollPane;
-    private final JLabel      titleLabel;
+   // private final JLabel      titleLabel;
     private final JTextField  searchField;
     private final JLabel      pageLabel;
     private final JLabel      emptyLabel;
     private final JButton     btnFirst, btnPrev, btnNext, btnLast;
+    private JButton titleButton;
+
 
     private FolderClickListener clickListener;
     private TransferService     transferService;
@@ -80,14 +77,21 @@ public class SubFolderPanel extends JPanel {
         setLayout(new BorderLayout(0, 0));
         setBorder(BorderFactory.createTitledBorder("📁 Subpastas"));
         // ── Cabeçalho ──────────────────────────────────────────────
-        titleLabel = new JLabel(buildTitle());
-        titleLabel.setFont(UIConfig.FONT_SMALL);
-        titleLabel.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 8));
-        titleLabel.setOpaque(true);
-        titleLabel.setToolTipText("Clique com botão direito para ordenar");
-        titleLabel.addMouseListener(new MouseAdapter() {
+//        titleLabel = new JLabel(buildTitle());
+//        titleLabel.setFont(UIConfig.FONT_DEFAULT);
+//        titleLabel.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 8));
+//        titleLabel.setOpaque(true);
+//        titleLabel.setToolTipText("Clique com botão direito para ordenar");
+//        titleLabel.addMouseListener(new MouseAdapter() {
+//            @Override public void mousePressed(MouseEvent e) {
+//                if (SwingUtilities.isLeftMouseButton(e)) showSortMenu(e);
+//            }
+//        });
+        titleButton = new JButton();
+        titleButton =UIConfig.makeHighlightedMediumBtn(buildTitle(), "Clique para ordenar",120,35);
+        titleButton.addMouseListener(new MouseAdapter() {
             @Override public void mousePressed(MouseEvent e) {
-                if (SwingUtilities.isRightMouseButton(e)) showSortMenu(e);
+                if (SwingUtilities.isLeftMouseButton(e)) showSortMenu(e);
             }
         });
 
@@ -134,8 +138,9 @@ public class SubFolderPanel extends JPanel {
 
         // ── Painel norte ────────────────────────────────────────────
         JPanel northPanel = new JPanel(new BorderLayout());
-        northPanel.setBackground(new Color(38, 38, 38));
-        northPanel.add(titleLabel,  BorderLayout.NORTH);
+        northPanel.setBackground(UIConfig.background());
+       // northPanel.add(titleLabel,  BorderLayout.NORTH);
+        northPanel.add(titleButton,  BorderLayout.NORTH);
         northPanel.add(searchField, BorderLayout.CENTER);
         northPanel.add(pagBar,      BorderLayout.SOUTH);
         add(northPanel, BorderLayout.NORTH);
@@ -311,6 +316,7 @@ public class SubFolderPanel extends JPanel {
 
     private void showSortMenu(MouseEvent e) {
         JPopupMenu menu = new JPopupMenu();
+        menu.setFont(UIConfig.FONT_DEFAULT);
 
         String[][] fields = {{"Nome", "name"}, {"Data", "last_modified"}, {"Tamanho", "size"}};
         for (String[] f : fields) {
@@ -332,7 +338,7 @@ public class SubFolderPanel extends JPanel {
         menu.add(asc);
         menu.add(desc);
 
-        menu.show(titleLabel, e.getX(), e.getY());
+        menu.show(titleButton, 115, titleButton.getHeight());
     }
 
     private void styleMenuItem(JMenuItem item, boolean active) {
@@ -349,7 +355,7 @@ public class SubFolderPanel extends JPanel {
 
     private void updateTitle(int total) {
         String suffix = filteredList.isEmpty() ? "" : " (" + total + ")";
-        titleLabel.setText(buildTitle() + suffix);
+        titleButton.setText(buildTitle() + suffix);
     }
 
     private String buildTitle() {
@@ -359,7 +365,7 @@ public class SubFolderPanel extends JPanel {
             case "size"          -> "Tamanho";
             default              -> "Nome";
         };
-        return  field + " " + arrow;
+        return  "Ordernar por: " + field + " " + arrow;
     }
 
     private JButton makePageBtn(String text) {

@@ -1,6 +1,6 @@
 package com.esl.searchforfiles.ui;
 
-import com.esl.searchforfiles.Theme.ThemeConfigPanel;
+
 import com.esl.searchforfiles.Theme.ThemeManager;
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.configuration.*;
@@ -42,10 +42,9 @@ public class ConfigurationFrame extends JFrame {
 
         ThumbnailCacheManager cacheManager = new ThumbnailCacheManager();
         tabbedPane.addTab("Banco de dados",
-                new DatabaseConfigPanel(resultsPanel.getFileExplorerSwing().getController().getDbManager()));
+                new DatabaseConfigPanel(resultsPanel.getFileExplorerSwing().getController().getDbManager(),mainFrame));
         tabbedPane.addTab("Cache",     new CacheConfigPanel((Frame) owner, cacheManager));
-        tabbedPane.addTab("Opções",     new OptionConfigPanel(mainFrame));
-        tabbedPane.addTab("Aparência", new ThemeConfigPanel(themeManager, mainFrame));
+        tabbedPane.addTab("Opções",     new OptionConfigPanel(themeManager,mainFrame));
         tabbedPane.addTab("Bibliotecas", new LibrariesConfigPanel());
         tabbedPane.addTab("Sobre", new AboutConfigPanel());
 

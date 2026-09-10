@@ -433,4 +433,8 @@ public class FavoritesPanel extends JPanel {
             return this;
         }
     }
+
+    public JList<String> getFavoritesList() {
+        return favoritesList;
+    }
 }

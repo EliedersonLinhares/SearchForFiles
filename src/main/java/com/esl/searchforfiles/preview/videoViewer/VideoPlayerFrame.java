@@ -63,7 +63,8 @@ public class VideoPlayerFrame extends JFrame {
         // Painel dos Botões operacionais
         JPanel buttonPanel = new JPanel(new BorderLayout());
         JPanel leftButtonsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
-        btnPlayPause = new JButton("Pause");
+//        btnPlayPause = new JButton();
+        btnPlayPause  = UIConfig.makeHighlightedMediumBtn("Pause", "",135,35);
         btnRewind = new JButton("<");
         btnFastForward = new JButton(">");
         btnStop = new JButton("Stop");

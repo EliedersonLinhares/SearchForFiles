@@ -58,11 +58,8 @@ public class IconService {
         //EXTENSION_ICONS.put("folder", "/icons/types/folder/folder.png"); // pasta via extensão fake
         TYPE_ICONS.put(FileType.FOLDER, "/icons/types/folder/folder.png");
         TYPE_ICONS.put(FileType.AUDIO, "/icons/types/audio.png");
-//        TYPE_ICONS.put(FileType.DOCUMENT, "/icons/types/document.png");
         TYPE_ICONS.put(FileType.COMPRESSED, "/icons/types/compressed.png");
         TYPE_ICONS.put(FileType.EXECUTABLE, "/icons/types/executable.png");
-
-
     }
 
     static {

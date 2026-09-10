@@ -10,11 +10,16 @@ import com.esl.searchforfiles.service.FavoritesService;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.StringSelection;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.Date;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Menu de contexto (botão direito) para arquivos
@@ -28,15 +33,13 @@ public class FileContextMenu extends JPopupMenu {
     private final DatabaseManager dbManager;          // NOVO
     private final FileItemPanel itemPanel; // NOVO
     private final FolderNavigationListener folderNavListener;
-    private final SubfolderToggleListener subfolderToggleListener;
     private boolean currentIncludeSubfolders;
     private final FileExplorerSwing fileExplorerSwing;
     private final FavoritesService favoritesService;
 
     public FileContextMenu(File file, FileInfo fileInfo, Component parent, DatabaseManager dbManager,
-                           FileItemPanel itemPanel, FolderNavigationListener folderNavListener,
-                           boolean currentIncludeSubfolders,          // NOVO
-                           SubfolderToggleListener subfolderToggleListener, FileExplorerSwing fileExplorerSwing, FavoritesService favoritesService
+                           FileItemPanel itemPanel, FolderNavigationListener folderNavListener
+                          , FileExplorerSwing fileExplorerSwing, FavoritesService favoritesService
     ) {
         this.file = file;
         this.fileInfo = fileInfo;
@@ -47,17 +50,15 @@ public class FileContextMenu extends JPopupMenu {
         this.fileExplorerSwing = fileExplorerSwing;
         this.favoritesService = favoritesService;
         this.cacheManager = FileItemPanel.getThumbnailCacheManager();
-        this.subfolderToggleListener  = subfolderToggleListener;
-        this.currentIncludeSubfolders = currentIncludeSubfolders;
 
+        setFont(UIConfig.FONT_DEFAULT);
         createMenuItems();
     }
 
     private void createMenuItems() {
 
         if(fileInfo.getExtension().contains("zip") || fileInfo.getExtension().contains("rar") ) {
-            JMenuItem rarItem = new JMenuItem("Descompactar arquivo");
-            rarItem.setFont(rarItem.getFont().deriveFont(Font.BOLD)); // destaque
+            JMenuItem rarItem = new JMenuItem("\uD83D\uDCE6\u200B Descompactar arquivo");
             rarItem.addActionListener(e -> {
 
                 // 4. Dispara o Worker passando a nova pasta de destino configurada
@@ -68,10 +69,11 @@ public class FileContextMenu extends JPopupMenu {
         }
 
 
+
+
         if (fileInfo.isDirectory()) {
             // Para PASTAS: "Entrar" como ação principal
             JMenuItem enterItem = new JMenuItem("📂 Entrar na pasta");
-            enterItem.setFont(enterItem.getFont().deriveFont(Font.BOLD)); // destaque
             enterItem.addActionListener(e -> {
                 if (folderNavListener != null)
                     folderNavListener.onNavigateTo(file.getAbsolutePath());
@@ -79,19 +81,16 @@ public class FileContextMenu extends JPopupMenu {
             add(enterItem);
         } else {
             // Para ARQUIVOS: "Abrir" como ação principal (comportamento original)
-            JMenuItem openItem = new JMenuItem("Abrir");
-            openItem.setIcon(UIManager.getIcon("FileView.fileIcon"));
+            JMenuItem openItem = new JMenuItem("\uD83D\uDCC3\u200B Abrir");
             openItem.addActionListener(e -> openFile());
             add(openItem);
         }
 
         // "Abrir no Explorer" sempre disponível
         JMenuItem openExplorerItem = new JMenuItem("🗂️  Abrir no Explorer");
-        openExplorerItem.setIcon(UIManager.getIcon("FileView.directoryIcon"));
         openExplorerItem.addActionListener(e -> openFolder());
         add(openExplorerItem);
 
-        addSeparator();
 
         // Avaliação e Tags (apenas para arquivos, não faz sentido em pastas)
         if (!fileInfo.isDirectory()) {
@@ -101,73 +100,14 @@ public class FileContextMenu extends JPopupMenu {
             add(tagsItem);
             addSeparator();
 
-            if (isVideoFile(file)) {
-                add(createCacheSubmenu());
-                addSeparator();
-            }
         }
-
-        if(fileInfo.isDirectory()) {
-            JMenuItem favoriteItem = new JMenuItem("⭐ Adicionar aos Favoritos");
-            favoriteItem.addActionListener( e -> {
-            if (favoritesService.isFavorite(file.getAbsolutePath())) {
-                JOptionPane.showMessageDialog(this,
-                        "Esta pasta já está nos favoritos!",
-                        "Aviso", JOptionPane.INFORMATION_MESSAGE);
-                return;
-            }
-
-            if (favoritesService.addFavorite(file.getAbsolutePath())) {
-                JOptionPane.showMessageDialog(this,
-                        "Pasta adicionada aos favoritos!\n\n" + file.getAbsolutePath(),
-                        "Sucesso", JOptionPane.INFORMATION_MESSAGE);
-            }
-            });
-            add(favoriteItem);
-        }
-
-        add(makeItem("Propriedades", null, e -> showProperties()));
-
-
-        //opçao para mostrar contudo de subpastas
-        JCheckBoxMenuItem subfolderItem = new JCheckBoxMenuItem(
-                "📂 Mostrar conteúdo de subpastas");
-        subfolderItem.setSelected(currentIncludeSubfolders);
-        subfolderItem.setSelected(fileExplorerSwing.getConfigManager().getSavedSubfolderItems());
-        subfolderItem.addActionListener(e -> {
-            if (subfolderToggleListener != null){
-                subfolderToggleListener.onToggle(subfolderItem.isSelected());
-            }
-            fileExplorerSwing.getConfigManager().saveSubfolderItems(subfolderItem.isSelected());
-        });
-        add(subfolderItem);
 
         addSeparator();
 
-        JCheckBoxMenuItem toggleAnimatedGif = new JCheckBoxMenuItem(" Mostrar gifs animados");
-        toggleAnimatedGif.setSelected(fileExplorerSwing.getConfigManager().getSavedShowAnimatedGif());
-        toggleAnimatedGif.addActionListener(e -> {
-            toggleAnimatedGif(toggleAnimatedGif.isSelected());
-            fileExplorerSwing.getConfigManager().saveShowAnimatedGif(toggleAnimatedGif.isSelected());
-        });
-        add(toggleAnimatedGif);
+        add(makeItem("\uD83C\uDF9A\uFE0F\u200B Propriedades", null, e -> showProperties()));
+        add(makeItem("\u200B\uD83D\uDCCB Copiar Nome", null, e -> copyFileName()));
+        add(makeItem("\u200B\uD83D\uDCCB Copiar Caminho Completo", null, e -> copyFullPath()));
 
-        JCheckBoxMenuItem toggleOverlay = new JCheckBoxMenuItem("⭐ Mostrar avaliação nos ícones");
-        toggleOverlay.setSelected(fileExplorerSwing.getConfigManager().getSavedShowStarRating());
-        toggleOverlay.addActionListener(e -> {
-            toggleRatingOverlay(toggleOverlay.isSelected());
-            fileExplorerSwing.getConfigManager().saveShowStarRating(toggleOverlay.isSelected());
-        });
-        add(toggleOverlay);
-
-        JCheckBoxMenuItem toggleExtensionType = new JCheckBoxMenuItem("Mostrar tipo de arquivo nos ícones");
-        toggleExtensionType.setSelected(fileExplorerSwing.getConfigManager().getSavedShowTypeFile());
-        toggleExtensionType.addActionListener(e -> {
-
-            toggleExtensionTypeOverlay(toggleExtensionType.isSelected());
-            fileExplorerSwing.getConfigManager().saveShowTypeFile(toggleExtensionType.isSelected());
-        });
-        add(toggleExtensionType);
     }
 
     // ── Rating submenu ──────────────────────────────────────────────
@@ -198,7 +138,7 @@ public class FileContextMenu extends JPopupMenu {
 
             // NOVO: atualiza o overlay visualmente sem reload
 
-                itemPanel.updateRatingOverlay(stars);
+            itemPanel.updateRatingOverlay(stars);
 
         } catch (SQLException ex) {
             JOptionPane.showMessageDialog(parent,
@@ -215,211 +155,38 @@ public class FileContextMenu extends JPopupMenu {
         dialog.setVisible(true);
     }
 
+
+    private void copyFileName() {
+        // 1. Transforma a String em um objeto transferível
+        StringSelection stringSelection = new StringSelection(fileInfo.getName());
+
+        transferAction(stringSelection);
+    }
+    private void copyFullPath() {
+        // 1. Transforma a String em um objeto transferível
+        StringSelection stringSelection = new StringSelection(fileInfo.getPath());
+
+        transferAction(stringSelection);
+    }
+
+    private void transferAction(StringSelection stringSelection) {
+        // 2. Pega a área de transferência do sistema
+        Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+
+        // 3. Define o conteúdo da área de transferência
+        clipboard.setContents(stringSelection, null);
+
+        // Feedback visual para o usuário
+        JOptionPane.showMessageDialog(this, "Texto copiado com sucesso!");
+    }
+
+
     // ── helpers ─────────────────────────────────────────────────────
     private JMenuItem makeItem(String text, Icon icon, ActionListener al) {
         JMenuItem item = new JMenuItem(text);
         if (icon != null) item.setIcon(icon);
         item.addActionListener(al);
         return item;
-    }
-
-    private void toggleRatingOverlay(boolean visible) {
-        FileItemPanel.setShowRatingOverlay(visible);
-
-        // Propaga para todos os FileItemPanels visíveis na tela
-        propagateOverlayVisibility(parent);
-    }
-    private void toggleExtensionTypeOverlay(boolean visible){
-        FileItemPanel.setShowExtensionFileOverlay(visible);
-
-        propagateExtensionTypeVisibility(parent);
-    }
-
-    private void toggleAnimatedGif(boolean visible) {
-        AnimatedGifThumb.setShowAnimatedGif(visible); // ← flag atualizada AQUI
-        propagateAnimatedGifVisibility(parent);        // ← painéis recriam usando a flag já correta
-        // NÃO chame FileItemPanel.showAnimatedGif = visible — remova se existir
-    }
-
-
-    /**
-     * Percorre a hierarquia de componentes a partir do ResultsPanel
-     * e atualiza todos os FileItemPanels encontrados.
-     */
-    private void propagateOverlayVisibility(Component origin) {
-        // Sobe até o JFrame para depois descer até o gridPanel
-        Container root = SwingUtilities.getAncestorOfClass(JFrame.class, origin);
-        if (root == null) return;
-        applyToAll(root);
-    }
-
-    private void applyToAll(Container container) {
-        for (Component c : container.getComponents()) {
-            if (c instanceof FileItemPanel fip) {
-                fip.applyOverlayVisibility();
-            } else if (c instanceof Container inner) {
-                applyToAll(inner);
-            }
-        }
-    }
-
-    private void propagateExtensionTypeVisibility(Component origin) {
-        // Sobe até o JFrame para depois descer até o gridPanel
-        Container root = SwingUtilities.getAncestorOfClass(JFrame.class, origin);
-        if (root == null) return;
-        applyToAllExtensionType(root);
-    }
-
-    private void applyToAllExtensionType(Container container) {
-        for (Component c : container.getComponents()) {
-            if (c instanceof FileItemPanel fip) {
-                fip.applyExtensionTypeVisibility();
-            } else if (c instanceof Container inner) {
-                applyToAllExtensionType(inner);
-            }
-        }
-    }
-
-    /**
-     * Percorre a hierarquia de componentes a partir do ResultsPanel
-     * e atualiza todos os FileItemPanels encontrados.
-     */
-    private void propagateAnimatedGifVisibility(Component origin) {
-        // Sobe até o JFrame para depois descer até o gridPanel
-        Container root = SwingUtilities.getAncestorOfClass(JFrame.class, origin);
-        if (root == null) return;
-        applyToAllAnimatedGif(root);
-    }
-
-    private void applyToAllAnimatedGif(Container container) {
-        for (Component c : container.getComponents()) {
-            if (c instanceof FileItemPanel fip) {
-                fip.applyAnimatedGifVisibility();
-            } else if (c instanceof Container inner) {
-                applyToAllAnimatedGif(inner);
-            }
-        }
-    }
-
-
-
-    /**
-     * NOVO: Cria submenu para opções de cache (apenas para vídeos)
-     */
-    private JMenu createCacheSubmenu() {
-        JMenu cacheMenu = new JMenu("🎬 Cache do Thumbnail");
-
-        // Verifica se tem thumbnail em cache
-        boolean hasCached = cacheManager.hasCachedThumbnail(file, 100);
-
-        if (hasCached) {
-            JMenuItem cachedInfoItem = new JMenuItem("✓ Thumbnail em cache");
-            cachedInfoItem.setEnabled(false);
-            cachedInfoItem.setFont(UIConfig.FONT_SMALL);
-            cacheMenu.add(cachedInfoItem);
-            cacheMenu.addSeparator();
-
-            // Opção para remover do cache
-            JMenuItem removeCacheItem = new JMenuItem("🗑️ Remover do Cache");
-            removeCacheItem.addActionListener(e -> removeThumbnailCache());
-            cacheMenu.add(removeCacheItem);
-
-            // Opção para regenerar
-            JMenuItem regenerateItem = new JMenuItem("🔄 Regenerar Thumbnail");
-            regenerateItem.addActionListener(e -> regenerateThumbnail());
-            cacheMenu.add(regenerateItem);
-        } else {
-            JMenuItem noCacheItem = new JMenuItem("Sem thumbnail em cache");
-            noCacheItem.setEnabled(false);
-            noCacheItem.setFont(UIConfig.FONT_SMALL);
-            cacheMenu.add(noCacheItem);
-            cacheMenu.addSeparator();
-
-            // Opção para gerar thumbnail
-            JMenuItem generateItem = new JMenuItem("📸 Gerar Thumbnail Agora");
-            generateItem.addActionListener(e -> generateThumbnail());
-            cacheMenu.add(generateItem);
-        }
-
-        return cacheMenu;
-    }
-    /**
-     * NOVO: Remove thumbnail do cache
-     */
-    private void removeThumbnailCache() {
-        int result = JOptionPane.showConfirmDialog(
-                parent,
-                "Remover thumbnail deste vídeo do cache?\n\n" +
-                        "O thumbnail será gerado novamente quando necessário.",
-                "Confirmar Remoção",
-                JOptionPane.YES_NO_OPTION
-        );
-
-        if (result == JOptionPane.YES_OPTION) {
-            boolean removed = cacheManager.removeCachedThumbnail(file, 100);
-
-            // Remove também do cache em memória
-            String memKey = "vid_" + file.getAbsolutePath() + "_100";
-            FileItemPanel.ICON_CACHE.remove(memKey);
-
-            if (removed) {
-                JOptionPane.showMessageDialog(
-                        parent,
-                        "Thumbnail removido do cache com sucesso!",
-                        "Sucesso",
-                        JOptionPane.INFORMATION_MESSAGE
-                );
-            } else {
-                JOptionPane.showMessageDialog(
-                        parent,
-                        "Não foi possível remover o thumbnail.",
-                        "Erro",
-                        JOptionPane.ERROR_MESSAGE
-                );
-            }
-        }
-    }
-
-    /**
-     * NOVO: Regenera thumbnail
-     */
-    private void regenerateThumbnail() {
-        int result = JOptionPane.showConfirmDialog(
-                parent,
-                "Regenerar thumbnail deste vídeo?\n\n" +
-                        "O thumbnail atual será substituído por um novo.",
-                "Confirmar Regeneração",
-                JOptionPane.YES_NO_OPTION
-        );
-
-        if (result == JOptionPane.YES_OPTION) {
-            // Remove do cache
-            cacheManager.removeCachedThumbnail(file, 100);
-            String memKey = "vid_" + file.getAbsolutePath() + "_100";
-            FileItemPanel.ICON_CACHE.remove(memKey);
-
-            // Força regeneração (isso será feito automaticamente
-            // quando o FileItemPanel for recriado)
-            JOptionPane.showMessageDialog(
-                    parent,
-                    "Thumbnail será regenerado na próxima visualização.",
-                    "Informação",
-                    JOptionPane.INFORMATION_MESSAGE
-            );
-        }
-    }
-
-    /**
-     * NOVO: Gera thumbnail imediatamente
-     */
-    private void generateThumbnail() {
-        JOptionPane.showMessageDialog(
-                parent,
-                "O thumbnail será gerado automaticamente\n" +
-                        "quando você visualizar este vídeo nos resultados.",
-                "Informação",
-                JOptionPane.INFORMATION_MESSAGE
-        );
     }
 
 
@@ -471,23 +238,32 @@ public class FileContextMenu extends JPopupMenu {
     }
 
     private void showProperties() {
-        String message = String.format(
-                "Nome: %s\n" +
-                        "Caminho: %s\n" +
-                        "Tipo: %s\n" +
-                        "Extensão: %s\n" +
-                        "Tamanho: %.2f MB (%.2f KB)\n" +
-                        "Última modificação: %s\n" +
-                        "É diretório: %s",
-                fileInfo.getName(),
-                fileInfo.getPath(),
-                fileInfo.getFileType(),
-                fileInfo.getExtension(),
-                fileInfo.getSize() / (1024.0 * 1024.0),
-                fileInfo.getSize() / 1024.0,
-                new Date(fileInfo.getLastModified()),
-                fileInfo.isDirectory() ? "Sim" : "Não"
-        );
+
+        LocalDateTime ldt = Instant.ofEpochMilli(fileInfo.getLastModified())
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime();
+
+        // Criando um formatador para a data ficar no padrão brasileiro (opcional, mas recomendado)
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+
+        String message = """
+        Nome: %s
+        Caminho: %s
+        Tipo: %s
+        Extensão: %s
+        Tamanho: %.2f MB (%.2f KB)
+        Última modificação: %s
+        É diretório: %s"""
+                .formatted(
+                        fileInfo.getName(),
+                        fileInfo.getPath(),
+                        fileInfo.getFileType(),
+                        fileInfo.getExtension(),
+                        fileInfo.getSize() / (1024.0 * 1024.0),
+                        fileInfo.getSize() / 1024.0,
+                        ldt.format(formatter), // Se preferir o formato padrão do Java (ISO), use apenas 'ldt'
+                        fileInfo.isDirectory() ? "Sim" : "Não"
+                );
 
         JOptionPane.showMessageDialog(parent, message,
                 "Propriedades - " + fileInfo.getName(),
@@ -497,8 +273,6 @@ public class FileContextMenu extends JPopupMenu {
     public interface FolderNavigationListener {
         void onNavigateTo(String path);
     }
-    public interface SubfolderToggleListener {
-        void onToggle(boolean includeSubfolders);
-    }
+
 
 }

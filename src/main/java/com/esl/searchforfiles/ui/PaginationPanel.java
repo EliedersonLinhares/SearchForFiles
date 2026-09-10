@@ -12,11 +12,11 @@ import java.awt.*;
  */
 
 public class PaginationPanel extends JPanel {
-    private final JButton firstButton;
-    private final JButton previousButton;
+    private  JButton firstButton;
+    private  JButton previousButton;
     private final JLabel pageLabel;
-    private final JButton nextButton;
-    private final JButton lastButton;
+    private  JButton nextButton;
+    private  JButton lastButton;
     private final JComboBox<Integer> pageSizeCombo;
     private final JComboBox<Integer> pageSelectCombo; // ← NOVO
     private final JLabel totalLabel;
@@ -35,13 +35,24 @@ public class PaginationPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
 
         // ── Botões de navegação ───────────────────────────────────
-        firstButton = navButton("⏮", "Primeira página");
+       // firstButton = navButton("⏮", "Primeira página");
+
+
+        firstButton = new JButton();
+        firstButton = UIConfig.makeHighlightedMediumBtn("⏮", "Primeira página",50,26);
         firstButton.addActionListener(e -> {
             goToPage(1);
             fileExplorerSwing.getResultsPanel().topScroll();
         });
 
-        previousButton = navButton("◀", "Página anterior");
+
+//        previousButton = navButton("◀", "Página anterior");
+//        previousButton.addActionListener(e -> {
+//            goToPreviousPage();
+//            fileExplorerSwing.getResultsPanel().topScroll();
+//        });
+        previousButton = new JButton();
+        previousButton = UIConfig.makeHighlightedMediumBtn("◀", "Página anterior",50,26);
         previousButton.addActionListener(e -> {
             goToPreviousPage();
             fileExplorerSwing.getResultsPanel().topScroll();
@@ -50,13 +61,22 @@ public class PaginationPanel extends JPanel {
         pageLabel = new JLabel("Página 1 de 1");
         pageLabel.setFont(UIConfig.FONT_DEFAULT);
 
-        nextButton = navButton("▶", "Próxima página");
+//        nextButton = navButton("▶", "Próxima página");
+//        nextButton.addActionListener(e -> {
+//            goToNextPage();
+//            fileExplorerSwing.getResultsPanel().topScroll();
+//        });
+        nextButton = new JButton();
+        nextButton = UIConfig.makeHighlightedMediumBtn("▶", "Próxima página",50,26);
         nextButton.addActionListener(e -> {
             goToNextPage();
             fileExplorerSwing.getResultsPanel().topScroll();
         });
 
-        lastButton = navButton("⏭", "Última página");
+       // lastButton = navButton("⏭", "Última página");
+
+        lastButton = new JButton();
+        lastButton = UIConfig.makeHighlightedMediumBtn("⏭", "Última página",50,26);
         lastButton.addActionListener(e -> {
             goToLastPage();
             fileExplorerSwing.getResultsPanel().topScroll();

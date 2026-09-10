@@ -2,9 +2,7 @@ package com.esl.searchforfiles.Theme;
 
 
 import com.formdev.flatlaf.FlatLaf;
-import com.formdev.flatlaf.intellijthemes.FlatArcDarkOrangeIJTheme;
-import com.formdev.flatlaf.intellijthemes.FlatArcOrangeIJTheme;
-import com.formdev.flatlaf.intellijthemes.FlatDraculaIJTheme;
+import com.formdev.flatlaf.intellijthemes.*;
 
 import javax.swing.*;
 import java.awt.*;
@@ -24,7 +22,7 @@ import java.util.Map;
 public class ThemeManager {
 
     private static final String THEME_FILE = "theme_config.txt";
-    private static final String DEFAULT_THEME = "FlatArcOrangeIJTheme";
+    private static final String DEFAULT_THEME = "FlatArcIJTheme";
 
     private final File themeConfigFile;
     private String currentTheme;
@@ -43,10 +41,6 @@ public class ThemeManager {
             this.className = className;
             this.displayName = displayName;
             this.themeClass = themeClass;
-        }
-
-        public String getClassName() {
-            return className;
         }
 
         public String getDisplayName() {
@@ -81,7 +75,6 @@ public class ThemeManager {
         if (!themeConfigFile.exists()) {
             try {
                 themeConfigFile.createNewFile();
-                System.out.println("Arquivo de tema criado");
             } catch (IOException e) {
                 System.err.println("Erro ao criar arquivo de tema: " + e.getMessage());
             }
@@ -101,18 +94,10 @@ public class ThemeManager {
     private void registerThemes() {
         // Adicionar temas existentes
         availableThemes.put(DEFAULT_THEME,
-                new ThemeInfo(DEFAULT_THEME, "🔶 Arc Orange (Claro)", FlatArcOrangeIJTheme.class));
+                new ThemeInfo(DEFAULT_THEME, "Tema Claro", FlatArcIJTheme.class));
 
-        availableThemes.put("FlatArcDarkOrangeIJTheme",
-                new ThemeInfo("FlatArcDarkOrangeIJTheme", "🔸 Arc Dark Orange (Escuro)", FlatArcDarkOrangeIJTheme.class));
-
-        availableThemes.put("FlatDraculaIJTheme",
-                new ThemeInfo("FlatDraculaIJTheme", "🔸 Dracula (Escuro)", FlatDraculaIJTheme.class));
-
-        // Adicionar mais temas aqui no futuro
-        // availableThemes.put("NovoTema", new ThemeInfo("NovoTema", "📱 Novo Tema", NovoTema.class));
-
-        System.out.println("Temas registrados: " + availableThemes.size());
+        availableThemes.put("FlatArcDarkIJTheme",
+                new ThemeInfo("FlatArcDarkIJTheme", "Tema Escuro", FlatArcDarkIJTheme.class));
     }
 
 
@@ -121,7 +106,6 @@ public class ThemeManager {
      */
     private void loadTheme() {
         if (!themeConfigFile.exists() || themeConfigFile.length() == 0) {
-            System.out.println("Nenhum tema salvo. Usando tema padrão: " + DEFAULT_THEME);
             currentTheme = DEFAULT_THEME;
             saveTheme(); // Salvar o tema padrão
             return;
@@ -135,9 +119,7 @@ public class ThemeManager {
                 // Verificar se o tema existe
                 if (availableThemes.containsKey(loadedTheme)) {
                     currentTheme = loadedTheme;
-                    System.out.println("✓ Tema carregado: " + currentTheme);
                 } else {
-                    System.out.println("⚠ Tema '" + loadedTheme + "' não encontrado. Usando padrão.");
                     currentTheme = DEFAULT_THEME;
                     saveTheme(); // Corrigir arquivo
                 }
@@ -183,20 +165,16 @@ public class ThemeManager {
      */
     public void setTheme(String themeName) {
         if (!availableThemes.containsKey(themeName)) {
-            System.err.println("Tema não existe: " + themeName);
             return;
         }
-
         this.currentTheme = themeName;
         saveTheme();
-        System.out.println("Tema alterado para: " + themeName);
     }
 
     /**
      * Aplica o tema atual ao aplicativo
      */
     public boolean applyCurrentTheme() {
-        System.out.println("Aplicando tema atual: " + currentTheme);
         return applyTheme(currentTheme);
     }
 
@@ -206,27 +184,15 @@ public class ThemeManager {
     public boolean applyTheme(String themeName) {
         ThemeInfo themeInfo = availableThemes.get(themeName);
         if (themeInfo == null) {
-            System.err.println("Tema não encontrado: " + themeName);
             return false;
         }
 
         try {
-            System.out.println("Tentando aplicar tema: " + themeInfo.getDisplayName());
-            System.out.println("Classe do tema: " + themeInfo.getThemeClass().getName());
-
             FlatLaf theme = themeInfo.getThemeClass().getDeclaredConstructor().newInstance();
-
-            System.out.println("Instância do tema criada: " + theme);
-            System.out.println("Aplicando com UIManager.setLookAndFeel...");
-
             UIManager.setLookAndFeel(theme);
-
-            System.out.println("✓ Tema aplicado com sucesso!");
-            System.out.println("Look and Feel atual: " + UIManager.getLookAndFeel().getName());
 
             return true;
         } catch (Exception e) {
-            System.err.println("✗ Erro ao aplicar tema: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
@@ -237,14 +203,8 @@ public class ThemeManager {
      */
     public void changeThemeSilent(String themeName, JFrame frame) {
         if (!availableThemes.containsKey(themeName)) {
-            System.err.println("Tema não existe: " + themeName);
             return;
         }
-
-        System.out.println("\n=== INICIANDO TROCA DE TEMA ===");
-        System.out.println("Tema anterior: " + currentTheme);
-        System.out.println("Novo tema: " + themeName);
-
         // Salvar novo tema
         setTheme(themeName);
 
@@ -253,7 +213,6 @@ public class ThemeManager {
         Point currentLocation = frame.getLocation();
         boolean wasMaximized = (frame.getExtendedState() & JFrame.MAXIMIZED_BOTH) == JFrame.MAXIMIZED_BOTH;
 
-        System.out.println("Estado da janela salvo - Tamanho: " + currentSize + ", Posição: " + currentLocation);
 
 
         if (applyTheme(themeName)) {
@@ -273,10 +232,10 @@ public class ThemeManager {
             frame.revalidate();
             frame.repaint();
 
-            // ✅ Notifica listeners ANTES de restaurar foco
+            //  Notifica listeners ANTES de restaurar foco
             themeChangeListeners.forEach(Runnable::run);
 
-            // ✅ Restaura foco após tudo estar atualizado
+            //  Restaura foco após tudo estar atualizado
             SwingUtilities.invokeLater(() ->
                     SwingUtilities.invokeLater(() ->
                             frame.requestFocusInWindow()
@@ -311,25 +270,6 @@ public class ThemeManager {
      */
     public void registerNewTheme(String className, String displayName, Class<? extends FlatLaf> themeClass) {
         availableThemes.put(className, new ThemeInfo(className, displayName, themeClass));
-        System.out.println("Novo tema registrado: " + displayName);
-    }
-
-    /**
-     * Método de debug
-     */
-    public void printDebugInfo() {
-        System.out.println("========== DEBUG THEME MANAGER ==========");
-        System.out.println("Arquivo: " + themeConfigFile.getAbsolutePath());
-        System.out.println("Existe: " + themeConfigFile.exists());
-        System.out.println("Tema atual: " + currentTheme);
-        System.out.println("Temas disponíveis: " + availableThemes.size());
-
-        System.out.println("\nLista de temas:");
-        for (Map.Entry<String, ThemeInfo> entry : availableThemes.entrySet()) {
-            String marker = entry.getKey().equals(currentTheme) ? "→ " : "  ";
-            System.out.println(marker + entry.getValue().getDisplayName() + " (" + entry.getKey() + ")");
-        }
-        System.out.println("=========================================");
     }
 
     // Adicione no ThemeManager:

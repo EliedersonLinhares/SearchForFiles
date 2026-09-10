@@ -1,8 +1,12 @@
 package com.esl.searchforfiles.database;
 
 import com.esl.searchforfiles.configuration.ConfigPanelBase;
+import com.esl.searchforfiles.ui.FileExplorerSwing;
 
 import javax.swing.*;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +15,7 @@ import java.util.stream.Collectors;
 public class DatabaseConfigPanel extends ConfigPanelBase {
 
     private final DatabaseManager db;
+    private final FileExplorerSwing mainFrame;
 
     private final JLabel totalFilesLabel   = makeValueLabel("...");
     private final JLabel totalFoldersLabel = makeValueLabel("...");
@@ -21,8 +26,11 @@ public class DatabaseConfigPanel extends ConfigPanelBase {
     private final JLabel tagsLabel         = makeValueLabel("...");
     private final JLabel extensionsLabel   = makeValueLabel("...");
 
-    public DatabaseConfigPanel(DatabaseManager db) {
+    public DatabaseConfigPanel(DatabaseManager db, FileExplorerSwing mainFrame) {
         this.db = db;
+        this.mainFrame = mainFrame;
+
+
 
         JPanel stats = addSection("Estatísticas do índice");
         addRow(stats, "Arquivos indexados", totalFilesLabel);
@@ -45,6 +53,41 @@ public class DatabaseConfigPanel extends ConfigPanelBase {
         JButton btnRefresh = makeBtn("Atualizar");
         btnRefresh.addActionListener(e -> refresh());
         addButtons(btnRefresh);
+
+        JButton btnExcludeIndexedFolder = makeBtn("Excluir Pasta Indexada");
+        btnExcludeIndexedFolder.setEnabled(db.isFolderIndexed(mainFrame.getSelectedPath()));
+        btnExcludeIndexedFolder.addActionListener(e -> {
+
+            int choice = JOptionPane.showConfirmDialog(
+                    this,
+                    "Deseja realmente excluir esta pasta indexada?\n" + mainFrame.getSelectedPath(),
+                    "Confirmar",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE
+            );
+
+            // Handle the user's selection
+            if (choice == JOptionPane.YES_OPTION) {
+                try {
+                    removeFolder(mainFrame.getSelectedPath());
+                } catch (SQLException ex) {
+                    throw new RuntimeException(ex);
+                }
+
+                // Converte a String para um objeto Path
+                Path path = Paths.get(mainFrame.getSelectedPath());
+                // Pega o caminho do diretório pai
+                Path pai = path.getParent();
+                mainFrame.navigateTo(pai.toString(), true);
+
+            } else if (choice == JOptionPane.NO_OPTION) {
+                System.out.println("User chose NO. Action canceled.");
+            } else if (choice == JOptionPane.CLOSED_OPTION) {
+                System.out.println("User closed the dialog box without choosing.");
+            }
+
+        });
+        addButtons(btnExcludeIndexedFolder);
 
         refresh();
     }
@@ -86,5 +129,27 @@ public class DatabaseConfigPanel extends ConfigPanelBase {
                 setValueLabelText(extensionsLabel, extText.isEmpty() ? "—" : extText);
             }
         }.execute();
+    }
+
+    public void removeFolder(String folderPath) throws  SQLException {
+        // 1. Descobre a política com que foi indexada (com fallback de inferência para dados legados)
+        boolean includeSubfolders = db.getIncludeSubfoldersPolicy(folderPath);
+
+        // 2. Para o monitoramento ANTES de remover do banco
+        //    (evita que um evento de FS dispare reindexação durante a remoção)
+        mainFrame.getController().getMonitoringService().unregisterDirectory(folderPath);
+
+        // 3. Remove do banco (file_index, indexed_folders, tags, identidades órfãs)
+        int removed = db.removeIndexedFolder(folderPath, includeSubfolders);
+
+        // 4. Limpa cache de busca
+        mainFrame.getController().getMonitoringService().getSearchService().clearCache();
+
+        // 5. Notifica a UI para atualizar (reaproveitando o callback já existente)
+        // Se você tiver acesso ao mesmo callback do MonitoringService, pode reusar:
+        // fileChangeCallback.onFileChanged();
+
+        System.out.println("✅ Pasta removida completamente: " + folderPath
+                + " (" + removed + " registros no índice)");
     }
 }

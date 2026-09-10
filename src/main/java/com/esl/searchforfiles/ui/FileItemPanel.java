@@ -531,29 +531,28 @@ public class FileItemPanel extends JPanel {
             JLabel gifLabel = animatedGifThumb.createGifLabel(boxSize);
             animatedGifThumb.loadAnimatedGif(fileToDisplay, boxSize, gifLabel);
 
-            // Monta JLayeredPane opaco para isolar o GIF do RepaintManager
             JLayeredPane gifPane = animatedGifThumb.createGifLayeredPane(boxSize);
             gifLabel.setBounds(0, 0, boxSize, boxSize);
             gifPane.add(gifLabel, JLayeredPane.DEFAULT_LAYER);
 
-            // Adiciona overlays se necessário
             if (isShortcut) {
-                ShortcutOverlay so = new ShortcutOverlay();
-                so.setBounds(0, 0, boxSize, boxSize);
-                gifPane.add(so, JLayeredPane.MODAL_LAYER);
+                ShortcutOverlay shortcutOverlay = new ShortcutOverlay(); // renomeado por clareza
+                shortcutOverlay.setBounds(0, 0, boxSize, boxSize);
+                gifPane.add(shortcutOverlay, JLayeredPane.MODAL_LAYER);
             }
             if (hasTypeOvl) {
-                TypeOverlay so = new TypeOverlay(ext, fileType);
-                so.setBounds(0, 0, boxSize, boxSize);
-                gifPane.add(so, JLayeredPane.MODAL_LAYER);
+                typeOverlay = new TypeOverlay(ext, fileType);   // CORRIGIDO: campo, não local
+                typeOverlay.setBounds(0, 0, boxSize, boxSize);
+                typeOverlay.setVisible(showExtensionFileOverlay);
+                gifPane.add(typeOverlay, JLayeredPane.MODAL_LAYER);
             }
-            ratingOverlay = new RatingOverlay(fileInfo.getRating()); // rating 0 = não desenha nada
+            ratingOverlay = new RatingOverlay(fileInfo.getRating());
             ratingOverlay.setBounds(0, 0, boxSize, boxSize);
             ratingOverlay.setVisible(showRatingOverlay && fileInfo.getRating() > 0);
             gifPane.add(ratingOverlay, JLayeredPane.MODAL_LAYER);
 
-            return gifPane; // retorna direto — não precisa do fluxo abaixo
-        } else if (isImage(fileToDisplay)) {
+            return gifPane;
+        }else if (isImage(fileToDisplay)) {
             loadThumbnailFit(fileToDisplay, boxSize, iconLabel);
         } else if (isVideo(fileToDisplay)) {
             loadVideoThumbnailFit(fileToDisplay, boxSize, iconLabel);

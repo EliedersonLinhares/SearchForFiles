@@ -29,6 +29,7 @@ public class ConfigManager {
     public static final String KEY_SUBFOLDER_SORT_ORDER = "subfolder_sort_order";
     public static final String KEY_RIGHT_SPLIT_POS = "right_split_pos";
     public static final String KEY_ITENS_SHOW = "itensShow";
+    public static final String KEY_SHOW_GLOBAL_ITENS = "showGlobalItens";
 
 
     public static final String KEY_SEARCH_HISTORY = "search_history";
@@ -57,6 +58,7 @@ public class ConfigManager {
         DEFAULTS.put(KEY_SUBFOLDER_SORT_ORDER, "ASC");
         DEFAULTS.put(KEY_RIGHT_SPLIT_POS, "-1");
         DEFAULTS.put(KEY_ITENS_SHOW, "100");
+        DEFAULTS.put(KEY_SHOW_GLOBAL_ITENS, "false");
 
     }
 
@@ -348,6 +350,13 @@ public class ConfigManager {
     public void saveItensShow(int qty) {
         setInt(KEY_ITENS_SHOW, qty);
     }
+
+
+    public boolean getSavedShowGlobalItens() {
+        return getBoolean(KEY_SHOW_GLOBAL_ITENS, false);
+    }
+    public void saveShowGlobalItens(boolean showGlobalItens) {setBoolean(KEY_SHOW_GLOBAL_ITENS, showGlobalItens);}
+
 
 
     // -------------------------------------------------------------------------

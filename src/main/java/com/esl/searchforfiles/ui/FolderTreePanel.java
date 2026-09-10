@@ -67,6 +67,8 @@ public class FolderTreePanel extends JPanel {
             }
         });
 
+
+
         // NOVO: Menu de contexto (botão direito)
         JPopupMenu contextMenu = createContextMenu();
 
@@ -400,6 +402,10 @@ public class FolderTreePanel extends JPanel {
 
             return this;
         }
+    }
+
+    public JTree getFolderTree() {
+        return folderTree;
     }
 }
 
