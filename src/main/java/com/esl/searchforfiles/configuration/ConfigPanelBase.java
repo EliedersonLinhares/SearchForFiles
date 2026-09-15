@@ -1,8 +1,13 @@
 package com.esl.searchforfiles.configuration;
 
 
+import com.esl.searchforfiles.localization.I18N;
+
 import javax.swing.*;
+import javax.swing.border.Border;
+import javax.swing.border.TitledBorder;
 import java.awt.*;
+import java.util.Locale;
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -16,7 +21,7 @@ import java.awt.*;
 //
 // Todas as abas seguirão o mesmo grid, espaçamento e tipografia.
 // ═══════════════════════════════════════════════════════════════
-public abstract class ConfigPanelBase extends JPanel {
+public abstract class ConfigPanelBase extends JPanel{
 
     // Larguras fixas para alinhar labels na coluna esquerda
     private static final int  LABEL_WIDTH  = 160;
@@ -25,6 +30,7 @@ public abstract class ConfigPanelBase extends JPanel {
 
     // Painel que acumula todo o conteúdo (layout vertical)
     private final JPanel body;
+    private  JPanel section;
 
     protected ConfigPanelBase() {
         setLayout(new BorderLayout());
@@ -55,7 +61,7 @@ public abstract class ConfigPanelBase extends JPanel {
         if (body.getComponentCount() > 0)
             body.add(Box.createVerticalStrut(GAP_SECTION));
 
-        JPanel section = new JPanel();
+        section = new JPanel();
         section.setLayout(new BoxLayout(section, BoxLayout.Y_AXIS));
         section.setBorder(BorderFactory.createTitledBorder(title));
         section.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -87,6 +93,27 @@ public abstract class ConfigPanelBase extends JPanel {
         section.add(Box.createVerticalStrut(GAP_V));
     }
 
+    protected JLabel addRowLabel(JPanel section, String labelText, JComponent value) {
+        JPanel row = new JPanel(new BorderLayout(8, 0));
+        row.setOpaque(false);
+        row.setAlignmentX(Component.LEFT_ALIGNMENT);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
+        row.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+
+        JLabel lbl = new JLabel(labelText);
+        lbl.setFont(UIConfig.FONT_DEFAULT_BOLD);
+        lbl.setPreferredSize(new Dimension(LABEL_WIDTH, 22));
+
+        row.add(lbl,   BorderLayout.WEST);
+        row.add(value, BorderLayout.CENTER);
+
+        section.add(row);
+        section.add(Box.createVerticalStrut(GAP_V));
+
+        return lbl;
+    }
+
+
     /**
      * Adiciona uma linha com apenas um componente (sem label),
      * útil para hints, checkboxes e radio buttons.
@@ -102,6 +129,8 @@ public abstract class ConfigPanelBase extends JPanel {
         section.add(row);
         section.add(Box.createVerticalStrut(GAP_V));
     }
+
+
 
     /**
      * Adiciona a faixa de botões alinhada à esquerda no rodapé do painel.
@@ -148,6 +177,10 @@ public abstract class ConfigPanelBase extends JPanel {
     protected void setValueLabelText(JLabel lbl, String text) {
         lbl.setText(wrapHtml(text));
     }
+    protected JLabel setValueLabel(JLabel lbl, String text) {
+        lbl.setText(wrapHtml(text));
+        return lbl;
+    }
 
     /** Cria um hint em itálico cinza com quebra de texto automática. */
     protected JLabel makeHint(String text) {
@@ -167,4 +200,6 @@ public abstract class ConfigPanelBase extends JPanel {
         int maxW = 580 - LABEL_WIDTH - 60; // largura do frame − label − margens
         return "<html><body style='width:" + maxW + "px'>" + inner + "</body></html>";
     }
+
+
 }

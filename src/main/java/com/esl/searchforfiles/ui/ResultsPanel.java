@@ -13,11 +13,14 @@ import com.esl.searchforfiles.actions.videoConverter.VideoConverterModeManager;
 import com.esl.searchforfiles.cache.thumbnail.ThumbnailCacheManager;
 import com.esl.searchforfiles.configuration.KeyboardManager;
 import com.esl.searchforfiles.configuration.UIConfig;
+import com.esl.searchforfiles.localization.I18N;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.others.ThumbnailSize;
+import com.formdev.flatlaf.FlatClientProperties;
 
 import javax.swing.*;
 import javax.swing.Timer;
+import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
@@ -28,7 +31,7 @@ import java.util.List;
  * Painel para exibir resultados da busca em grid
  * ATUALIZADO: Inclui menu de contexto para gerenciar cache de thumbnails
  */
-public class ResultsPanel extends JPanel {
+public class ResultsPanel extends JPanel implements I18N.LanguageChangeListener{
 
     private final JPanel gridPanel;
     private final JScrollPane scrollPane;
@@ -50,29 +53,30 @@ public class ResultsPanel extends JPanel {
     private JScrollBar vBar;
     private KeyEventDispatcher keyDispatcher;
     private TransferService transferService;
-    private JToolBar transferToolBar;
+    private JPanel transferToolBar;
     private EditModeManager editModeManager;
-    private JToolBar compressToolBar;
+    private JPanel compressToolBar;
     private CompressModeManager compressModeManager;
-    private JToolBar editToolBar;
+    private JPanel editToolBar;
     private VideoConverterModeManager videoConverterModeManager;
-    private JToolBar videoConverterToolBar;
+    private JPanel videoConverterToolBar;
     private FileItemPanel item;
     private RenameModeManager renameModeManager;
-    private JToolBar renameToolBar;
+    private JPanel renameToolBarNew;
     private int anchorIndex = -1; // último item clicado sem Shift
     private SubFolderPanel subFolderPanel; // adicione junto aos outros campos
 
     private JPanel topHeaderPanel;
     private JPanel containerLinks;
 
-    private JLabel labelLinkCaminho;
+    private TitledBorder titledBorder;
+
 
     public ResultsPanel(FileExplorerSwing fileExplorerSwing) {
         this.fileExplorerSwing = fileExplorerSwing;
         setLayout(new BorderLayout());
-        setBorder(BorderFactory.createTitledBorder("\uD83D\uDDBC Resultados" ));
-
+        setBorder(BorderFactory.createTitledBorder(I18N.get("resultsPanel.title") ));
+        titledBorder = (TitledBorder) this.getBorder();
 
         // 1. Cria o painel organizador do topo empilhado verticalmente (Y_AXIS)
         topHeaderPanel = new JPanel();
@@ -122,55 +126,55 @@ public class ResultsPanel extends JPanel {
         setupResizeListener();
         setupKeyboardScroll();
 
-        KeyboardManager.Action(
-                this,
-                "exitModes",
-                KeyEvent.VK_ESCAPE,
-                0,
-                this::exitModes
-        );
-        KeyboardManager.Action(
-                this,
-                "enterTransferMode",
-                KeyEvent.VK_S,
-                0,
-                () -> getFileExplorerSwing().toggleTransferMode()
-        );
-        KeyboardManager.Action(
-                this,
-                "enterEditMode",
-                KeyEvent.VK_E,
-                0,
-                () -> getFileExplorerSwing().toggleEditMode()
-        );
-        KeyboardManager.Action(
-                this,
-                "enterCompressMode",
-                KeyEvent.VK_C,
-                0,
-                () -> getFileExplorerSwing().toggleCompressMode()
-        );
-        KeyboardManager.Action(
-                this,
-                "enterVideoConverterMode",
-                KeyEvent.VK_V,
-                0,
-                () -> getFileExplorerSwing().toggleVideoConverterMode()
-        );
-        KeyboardManager.Action(
-                this,
-                "enterRenameFile",
-                KeyEvent.VK_R,
-                0,
-                () -> getFileExplorerSwing().toggleRenameModeFiles()
-        );
-        KeyboardManager.Action(
-                this,
-                "enterRenameFolder",
-                KeyEvent.VK_F,
-                0,
-                () -> getFileExplorerSwing().toggleRenameModeFolders()
-        );
+//        KeyboardManager.Action(
+//                this,
+//                "exitModes",
+//                KeyEvent.VK_ESCAPE,
+//                0,
+//                this::exitModes
+//        );
+//        KeyboardManager.Action(
+//                this,
+//                "enterTransferMode",
+//                KeyEvent.VK_S,
+//                0,
+//                () -> getFileExplorerSwing().toggleTransferMode()
+//        );
+//        KeyboardManager.Action(
+//                this,
+//                "enterEditMode",
+//                KeyEvent.VK_E,
+//                0,
+//                () -> getFileExplorerSwing().toggleEditMode()
+//        );
+//        KeyboardManager.Action(
+//                this,
+//                "enterCompressMode",
+//                KeyEvent.VK_C,
+//                0,
+//                () -> getFileExplorerSwing().toggleCompressMode()
+//        );
+//        KeyboardManager.Action(
+//                this,
+//                "enterVideoConverterMode",
+//                KeyEvent.VK_V,
+//                0,
+//                () -> getFileExplorerSwing().toggleVideoConverterMode()
+//        );
+//        KeyboardManager.Action(
+//                this,
+//                "enterRenameFile",
+//                KeyEvent.VK_R,
+//                0,
+//                () -> getFileExplorerSwing().toggleRenameModeFiles()
+//        );
+//        KeyboardManager.Action(
+//                this,
+//                "enterRenameFolder",
+//                KeyEvent.VK_F,
+//                0,
+//                () -> getFileExplorerSwing().toggleRenameModeFolders()
+//        );
 
 
         getFileExplorerSwing().getThemeManager().addThemeChangeListener(() ->
@@ -181,6 +185,9 @@ public class ResultsPanel extends JPanel {
                     repaint();
                 })
         );
+
+        updateTexts();
+        I18N.addLanguageChangeListener(this);
 
     }
 
@@ -925,85 +932,49 @@ public class ResultsPanel extends JPanel {
      * Barra de ferramentas exibida no topo do ResultsPanel durante o modo
      * de transferência. Fornece "Selecionar todos", "Limpar" e "Sair".
      */
-    private JToolBar buildTransferToolBar(TransferService tm) {
-        JToolBar bar = new JToolBar();
-        bar.setFloatable(false);
-        bar.setBackground(UIConfig.buttonBackgroundColor());
-        bar.setLayout(new FlowLayout(FlowLayout.LEFT, 2, 5));
-
-        JLabel lbl = new JLabel(" ✂️  Modo de Transferência ");
-        lbl.setFont(UIConfig.FONT_TITLE);
-        bar.add(lbl);
-
-        bar.addSeparator();
-
-        JButton selectAll = new JButton(" Selecionar todos ");
-        selectAll.setFont(UIConfig.FONT_DEFAULT);
-        selectAll.addActionListener(e -> {
-            List<File> files = currentItems.stream()
-                    .map(FileItemPanel::getDisplayFile)
-                    .toList();
-            tm.selectAll(files);
-            currentItems.forEach(item -> {
-                if (item.selectionCheckbox != null) {
-                    item.selectionCheckbox.setSelected(true);
-                    item.updateModeBackground();
-                    clearItemBackground();
-                }
-            });
-        });
-        bar.add(selectAll);
-
-        JButton clearSel = new JButton(" Limpar seleção ");
-        clearSel.setFont(UIConfig.FONT_DEFAULT);
-        clearSel.addActionListener(e -> {
-            tm.clearSelection();
-            currentItems.forEach(item -> {
-                if (item.selectionCheckbox != null){
-                    item.selectionCheckbox.setSelected(false);
-                    item.updateModeBackground();
-                    clearItemBackground();
-                }
-            });
-        });
-        bar.add(clearSel);
-        bar.addSeparator();
-        JButton copy = new JButton(" Copiar ");
-        copy.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        copy.setForeground(UIConfig.SELECTED_BORDER);
-        copy.addActionListener(e -> {
-            if (item == null) return;
-            item.requestTransfer(TransferMode.COPY, this::onTransferOperationCompleted);
-        });
-        bar.add(copy);
-
-        JButton move = new JButton(" Mover ");
-        move.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        move.setForeground(UIConfig.SELECTED_BORDER);
-        move.addActionListener(e -> {
-            if (item == null) return;
-            item.requestTransfer(TransferMode.MOVE, this::onTransferOperationCompleted);
-        });
-        bar.add(move);
-
-        JButton delete = new JButton(" Apagar ");
-        delete.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        delete.setForeground(UIConfig.SELECTED_BORDER);
-        delete.addActionListener(e -> {
-            if (item == null) return;
-            item.requestDelete(this::onTransferOperationCompleted);
-        });
-        bar.add(delete);
-
-        bar.addSeparator();
-
-        JButton exitBtn = new JButton(" ✕ Sair ");
-        exitBtn.setFont(UIConfig.FONT_DEFAULT);
-        exitBtn.setForeground(UIConfig.LIGHT_RED);
-        exitBtn.addActionListener(e -> exitTransferMode());
-        bar.add(exitBtn);
-
-        return bar;
+    private JPanel buildTransferToolBar(TransferService tm) {
+        return new ModeToolBarBuilder()
+                .title(I18N.get("resultsPanel.buildTransferToolBar.title"))
+                .separator()
+                .button(I18N.get("resultsPanel.selectAllButton"), () -> {
+                    List<File> files = currentItems.stream()
+                            .map(FileItemPanel::getDisplayFile)
+                            .toList();
+                    tm.selectAll(files);
+                    currentItems.forEach(item -> {
+                        if (item.selectionCheckbox != null) {
+                            item.selectionCheckbox.setSelected(true);
+                            item.updateModeBackground();
+                            clearItemBackground();
+                        }
+                    });
+                })
+                .button(I18N.get("resultsPanel.clearAllButton"), () -> {
+                    tm.clearSelection();
+                    currentItems.forEach(item -> {
+                        if (item.selectionCheckbox != null) {
+                            item.selectionCheckbox.setSelected(false);
+                            item.updateModeBackground();
+                            clearItemBackground();
+                        }
+                    });
+                })
+                .separator()
+                .highlightedMediumButton(I18N.get("resultsPanel.buildTransferToolBar.highlightedMediumButton.copy"), I18N.get("resultsPanel.buildTransferToolBar.highlightedMediumButton.copy.TooltipText"), 100,32, () -> {
+                    if (item == null) return;
+                    item.requestTransfer(TransferMode.COPY, this::onTransferOperationCompleted);
+                })
+                .highlightedMediumButton(I18N.get("resultsPanel.buildTransferToolBar.highlightedMediumButton.move"),I18N.get("resultsPanel.buildTransferToolBar.highlightedMediumButton.move.TooltipText"), 100,32, () -> {
+                    if (item == null) return;
+                    item.requestTransfer(TransferMode.MOVE, this::onTransferOperationCompleted);
+                })
+                .highlightedMediumButton(I18N.get("resultsPanel.buildTransferToolBar.highlightedMediumButton.delete"),I18N.get("resultsPanel.buildTransferToolBar.highlightedMediumButton.delete.TooltipText"), 100,32, () -> {
+                    if (item == null) return;
+                    item.requestDelete(this::onTransferOperationCompleted);
+                })
+                .separator()
+                .exitButton(I18N.get("resultsPanel.exitButton"), this::exitTransferMode)
+                .build();
     }
 
     public void enterEditMode(EditModeManager em) {
@@ -1062,81 +1033,51 @@ public class ResultsPanel extends JPanel {
                 getFileExplorerSwing());
     }
 
-    private JToolBar buildEditToolBar(EditModeManager em) {
-        JToolBar bar = new JToolBar();
-        bar.setFloatable(false);
-        bar.setBackground(UIConfig.buttonBackgroundColor());
-        bar.setLayout(new FlowLayout(FlowLayout.LEFT, 2, 5));
-
-        JLabel lbl = new JLabel("  🖼  Modo de Edição ");
-        lbl.setFont(UIConfig.FONT_TITLE);
-        lbl.setFont(lbl.getFont().deriveFont(Font.BOLD));
-        bar.add(lbl);
-
-        bar.addSeparator();
-
-        JButton selectAll = new JButton(" Selecionar todos ");
-        selectAll.setFont(UIConfig.FONT_DEFAULT);
-        selectAll.addActionListener(e -> {
-            List<File> files = currentItems.stream()
-                    .map(FileItemPanel::getDisplayFile)
-                    .toList();
-            em.selectAll(files);
-            currentItems.forEach(item -> {
-                if (EditModeManager.isAccepted(item.getDisplayFile())
-                        && item.editSelectionCheckbox != null) {
-                    item.editSelectionCheckbox.setSelected(true);
-                    item.updateModeBackground();
-                    clearItemBackground();
-                }
-            });
-        });
-        bar.add(selectAll);
-
-        JButton clearSel = new JButton(" Limpar seleção ");
-        clearSel.setFont(UIConfig.FONT_DEFAULT);
-        clearSel.addActionListener(e -> {
-            em.clearSelection();
-            currentItems.forEach(item -> {
-                if (item.editSelectionCheckbox != null) {
-                    item.editSelectionCheckbox.setSelected(false);
-                    item.updateModeBackground();
-                    clearItemBackground();
-                }
-            });
-        });
-        bar.add(clearSel);
-
-        bar.addSeparator();
-
-        JButton openEditor = new JButton(" 🖊 Abrir com o editor ");
-        openEditor.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        openEditor.setForeground(UIConfig.SELECTED_BORDER);
-        openEditor.setFocusPainted(false);
-        openEditor.addActionListener(e -> {
-            if (em.getSelectedCount() == 0) {
-                JOptionPane.showMessageDialog(
-                        SwingUtilities.getWindowAncestor(this),
-                        "Selecione ao menos uma imagem.",
-                        "Aviso", JOptionPane.INFORMATION_MESSAGE);
-                return;
-            }
-            new ImageEditorFrame(
-                    SwingUtilities.getWindowAncestor(this),
-                    this,
-                    new ArrayList<>(em.getSelectedFiles()));
-        });
-        bar.add(openEditor);
-
-        bar.addSeparator();
-
-        JButton exitBtn = new JButton(" ✕ Sair ");
-        exitBtn.setFont(UIConfig.FONT_DEFAULT);
-        exitBtn.setForeground(UIConfig.LIGHT_RED);
-        exitBtn.addActionListener(e -> exitEditMode());
-        bar.add(exitBtn);
-
-        return bar;
+    private JPanel buildEditToolBar(EditModeManager em) {
+        return new ModeToolBarBuilder()
+                .title(I18N.get("resultsPanel.buildEditToolBar.title"))
+                .separator()
+                .button(I18N.get("resultsPanel.selectAllButton"), () -> {
+                    List<File> files = currentItems.stream()
+                            .map(FileItemPanel::getDisplayFile)
+                            .toList();
+                    em.selectAll(files);
+                    currentItems.forEach(item -> {
+                        if (EditModeManager.isAccepted(item.getDisplayFile())
+                                && item.editSelectionCheckbox != null) {
+                            item.editSelectionCheckbox.setSelected(true);
+                            item.updateModeBackground();
+                            clearItemBackground();
+                        }
+                    });
+                })
+                .button(I18N.get("resultsPanel.clearAllButton"), () -> {
+                    em.clearSelection();
+                    currentItems.forEach(item -> {
+                        if (item.editSelectionCheckbox != null) {
+                            item.editSelectionCheckbox.setSelected(false);
+                            item.updateModeBackground();
+                            clearItemBackground();
+                        }
+                    });
+                })
+                .separator()
+                .highlightedMediumButton(I18N.get("resultsPanel.buildEditToolBar.highlightedMediumButton"),I18N.get("resultsPanel.buildEditToolBar.highlightedMediumButton.copy.TooltipText"), 190,32, () -> {
+                    if (em.getSelectedCount() == 0) {
+                        JOptionPane.showMessageDialog(
+                                SwingUtilities.getWindowAncestor(this),
+                                I18N.get("resultsPanel.buildEditToolBar.showMessageDialog"),
+                                I18N.get("resultsPanel.buildEditToolBar.showMessageDialog.title"), JOptionPane.INFORMATION_MESSAGE);
+                        return;
+                    }
+                    new ImageEditorFrame(
+                            SwingUtilities.getWindowAncestor(this),
+                            this,
+                            new ArrayList<>(em.getSelectedFiles()));
+                })
+                .separator()
+                .exitButton(I18N.get("resultsPanel.exitButton"), this::exitEditMode)
+                .build();
     }
 
     private void clearItemBackground() {
@@ -1157,9 +1098,9 @@ public class ResultsPanel extends JPanel {
         this.renameModeManager = rm;
         rm.enterMode();
 
-        if (renameToolBar == null) {
-            renameToolBar = buildRenameToolBar(rm);
-            topHeaderPanel.add(renameToolBar);
+        if (renameToolBarNew == null) {
+            renameToolBarNew = buildRenameToolBarNew(rm);
+            topHeaderPanel.add(renameToolBarNew);
             topHeaderPanel.revalidate();
             revalidate();
         }
@@ -1172,9 +1113,9 @@ public class ResultsPanel extends JPanel {
         anchorIndex = -1;
 
 
-        if (renameToolBar != null) {
-            topHeaderPanel.remove(renameToolBar);
-            renameToolBar = null;
+        if (renameToolBarNew != null) {
+            topHeaderPanel.remove(renameToolBarNew);
+            renameToolBarNew = null;
             topHeaderPanel.revalidate();
         }
         for (FileItemPanel item : currentItems) item.disableRenameMode();
@@ -1199,93 +1140,59 @@ public class ResultsPanel extends JPanel {
         }
     }
 
-    private JToolBar buildRenameToolBar(RenameModeManager rm) {
-        JToolBar bar = new JToolBar();
-        bar.setFloatable(false);
-        bar.setBackground(UIConfig.buttonBackgroundColor());
-        bar.setLayout(new FlowLayout(FlowLayout.LEFT, 2, 5));
-
-        JLabel lbl = new JLabel("  " + rm.getMode().toolbarLabel + "  ");
-        lbl.setFont(UIConfig.FONT_TITLE);
-        bar.add(lbl);
-        bar.addSeparator();
-
-        JButton selectAll = new JButton(" Selecionar todos ");
-        selectAll.setFont(UIConfig.FONT_DEFAULT);
-        selectAll.addActionListener(e -> {
-            List<File> files = currentItems.stream()
-                    .map(FileItemPanel::getDisplayFile).toList();
-            rm.selectAll(files);
-            currentItems.forEach(item -> {
-                if (rm.accepts(item.getDisplayFile())
-                        && item.renameSelectionCheckbox != null) {
-                    item.renameSelectionCheckbox.setSelected(true);
-                    item.updateModeBackground();
-                    clearItemBackground();
+private JPanel buildRenameToolBarNew(RenameModeManager rm) {
+    return new ModeToolBarBuilder()
+            .title(rm.getMode().toString())
+            .separator()
+            .button(I18N.get("resultsPanel.selectAllButton"), () -> {
+                List<File> files = currentItems.stream()
+                        .map(FileItemPanel::getDisplayFile).toList();
+                rm.selectAll(files);
+                currentItems.forEach(item -> {
+                    if (rm.accepts(item.getDisplayFile())
+                            && item.renameSelectionCheckbox != null) {
+                        item.renameSelectionCheckbox.setSelected(true);
+                        item.updateModeBackground();
+                        clearItemBackground();
+                    }
+                });
+            })
+            .button(I18N.get("resultsPanel.clearAllButton"), () -> {
+                rm.clearSelection();
+                currentItems.forEach(item -> {
+                    if (item.renameSelectionCheckbox != null){
+                        item.renameSelectionCheckbox.setSelected(false);
+                        item.updateModeBackground();
+                        clearItemBackground();
+                    }
+                });
+            })
+            .separator()
+            .highlightedMediumButton(I18N.get("resultsPanel.buildRenameToolBar.highlightedMediumButton"), I18N.get("resultsPanel.buildRenameToolBar.highlightedMediumButton.TooltipText"), 135, 32, () -> {
+                if (rm.getSelectedCount() == 0) {
+                    JOptionPane.showMessageDialog(
+                            SwingUtilities.getWindowAncestor(this),
+                            I18N.get("resultsPanel.buildRenameToolBar.showMessageDialog"), I18N.get("resultsPanel.buildRenameToolBar.showMessageDialog.title"),
+                            JOptionPane.INFORMATION_MESSAGE);
+                    return;
                 }
-            });
-        });
-        bar.add(selectAll);
-
-        JButton clearSel = new JButton(" Limpar seleção ");
-        clearSel.setFont(UIConfig.FONT_DEFAULT);
-        clearSel.addActionListener(e -> {
-            rm.clearSelection();
-            currentItems.forEach(item -> {
-                if (item.renameSelectionCheckbox != null){
-                    item.renameSelectionCheckbox.setSelected(false);
-                    item.updateModeBackground();
-                    clearItemBackground();
-                }
-            });
-
-        });
-        bar.add(clearSel);
-        bar.addSeparator();
-
-        JButton renameBtn = new JButton(" ✏ Renomear ");
-        renameBtn.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        renameBtn.setForeground(UIConfig.SELECTED_BORDER);
-        renameBtn.setToolTipText("Clique para Renomear");
-        renameBtn.addActionListener(e -> {
-            if (rm.getSelectedCount() == 0) {
-                JOptionPane.showMessageDialog(
-                        SwingUtilities.getWindowAncestor(this),
-                        "Selecione ao menos um item.", "Aviso",
-                        JOptionPane.INFORMATION_MESSAGE);
-                return;
-            }
-            // Converte File → FileInfo para o RenameFrame
-            List<FileInfo> infos = rm.getSelectedFiles().stream()
-                    .map(f -> {
-                        // Busca o FileInfo correspondente nos items renderizados
-                        return currentItems.stream()
+                List<FileInfo> infos = rm.getSelectedFiles().stream()
+                        .map(f -> currentItems.stream()
                                 .filter(p -> p.getDisplayFile().equals(f))
                                 .map(FileItemPanel::getFileInfo)
-                                .findFirst().orElse(null);
-                    })
-                    .filter(Objects::nonNull)
-                    .toList();
+                                .findFirst().orElse(null))
+                        .filter(Objects::nonNull)
+                        .toList();
 
-//            new VideoConverterManager(SwingUtilities.getWindowAncestor(this),
-//                   infos, this);
+                new RenameFrame(SwingUtilities.getWindowAncestor(this),
+                        rm.getMode(), infos, this);
+            })
+            .separator()
+            .exitButton(I18N.get("resultsPanel.exitButton"), this::exitRenameMode)
+            .build();
+}
 
-            new RenameFrame(SwingUtilities.getWindowAncestor(this),
-                    rm.getMode(), infos, this);
 
-        });
-        bar.add(renameBtn);
-        bar.addSeparator();
-
-        JButton exitBtn = new JButton(" ✕ Sair");
-        exitBtn.setFont(UIConfig.FONT_DEFAULT);
-        exitBtn.setForeground(UIConfig.LIGHT_RED);
-
-        exitBtn.addActionListener(e -> exitRenameMode());
-        bar.add(exitBtn);
-
-        return bar;
-    }
     public enum MessageType {
         WELCOME, LOADING, NO_RESULTS, ERROR
     }
@@ -1364,91 +1271,55 @@ public class ResultsPanel extends JPanel {
     }
 
 
-    private JToolBar buildCompressToolBar(CompressModeManager em) {
-        JToolBar bar = new JToolBar();
-        bar.setFloatable(false);
-        bar.setBackground(UIConfig.buttonBackgroundColor());
-        bar.setLayout(new FlowLayout(FlowLayout.LEFT, 2, 5));
+    private JPanel buildCompressToolBar(CompressModeManager em) {
+        return new ModeToolBarBuilder()
+                .title(I18N.get("resultsPanel.buildCompressToolBar.title"))
+                .separator()
+                .button(I18N.get("resultsPanel.selectAllButton"), () -> {
+                    List<File> files = currentItems.stream()
+                            .map(FileItemPanel::getDisplayFile)
+                            .toList();
+                    em.selectAll(files);
+                    currentItems.forEach(item -> {
+                        if (item.compressSelectionCheckbox != null) {
+                            item.compressSelectionCheckbox.setSelected(true);
+                            item.updateModeBackground();
+                            clearItemBackground();
+                        }
+                    });
+                })
+                .button(I18N.get("resultsPanel.clearAllButton"), () -> {
+                    em.clearSelection();
+                    currentItems.forEach(item -> {
+                        if (item.compressSelectionCheckbox != null) {
+                            item.compressSelectionCheckbox.setSelected(false);
+                            item.updateModeBackground();
+                            clearItemBackground();
+                        }
+                    });
+                })
+                .separator()
+                .highlightedMediumButton(I18N.get("resultsPanel.buildCompressToolBar.highlightedMediumButton"),I18N.get("resultsPanel.buildCompressToolBar.highlightedMediumButton.copy.TooltipText"),240,32, () -> {
+                    if (em.getSelectedCount() == 0) {
+                        JOptionPane.showMessageDialog(
+                                SwingUtilities.getWindowAncestor(this),
+                                I18N.get("resultsPanel.buildCompressToolBar.showMessageDialog"),
+                                I18N.get("resultsPanel.buildCompressToolBar.showMessageDialog.title"), JOptionPane.INFORMATION_MESSAGE);
+                        return;
+                    }
+                    List<FileInfo> infos = em.getSelectedFiles().stream()
+                            .map(f -> currentItems.stream()
+                                    .filter(p -> p.getDisplayFile().equals(f))
+                                    .map(FileItemPanel::getFileInfo)
+                                    .findFirst().orElse(null))
+                            .filter(Objects::nonNull)
+                            .toList();
 
-        JLabel lbl = new JLabel("  🖼  Modo de Compressão ");
-        lbl.setFont(UIConfig.FONT_TITLE);
-        lbl.setFont(lbl.getFont().deriveFont(Font.BOLD));
-        bar.add(lbl);
-
-        bar.addSeparator();
-
-        JButton selectAll = new JButton(" Selecionar todos ");
-        selectAll.setFont(UIConfig.FONT_DEFAULT);
-        selectAll.addActionListener(e -> {
-            List<File> files = currentItems.stream()
-                    .map(FileItemPanel::getDisplayFile)
-                    .toList();
-            em.selectAll(files);
-            currentItems.forEach(item -> {
-                if (item.compressSelectionCheckbox != null) {
-                    item.compressSelectionCheckbox.setSelected(true);
-                    item.updateModeBackground();
-                    clearItemBackground();
-                }
-            });
-        });
-        bar.add(selectAll);
-
-        JButton clearSel = new JButton(" Limpar seleção ");
-        clearSel.setFont(UIConfig.FONT_DEFAULT);
-        clearSel.addActionListener(e -> {
-            em.clearSelection();
-            currentItems.forEach(item -> {
-                if (item.compressSelectionCheckbox != null) {
-                    item.compressSelectionCheckbox.setSelected(false);
-                    item.updateModeBackground();
-                    clearItemBackground();
-                }
-            });
-        });
-        bar.add(clearSel);
-
-        bar.addSeparator();
-
-        JButton openEditor = new JButton(" 🖊 Abrir com o compressor ");
-        openEditor.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        openEditor.setForeground(UIConfig.SELECTED_BORDER);
-        openEditor.setFocusPainted(false);
-        openEditor.addActionListener(e -> {
-            if (em.getSelectedCount() == 0) {
-                JOptionPane.showMessageDialog(
-                        SwingUtilities.getWindowAncestor(this),
-                        "Selecione ao menos uma arquivo.",
-                        "Aviso", JOptionPane.INFORMATION_MESSAGE);
-                return;
-            }
-            // Converte File → FileInfo para o RenameFrame
-            List<FileInfo> infos = em.getSelectedFiles().stream()
-                    .map(f -> {
-                        // Busca o FileInfo correspondente nos items renderizados
-                        return currentItems.stream()
-                                .filter(p -> p.getDisplayFile().equals(f))
-                                .map(FileItemPanel::getFileInfo)
-                                .findFirst().orElse(null);
-                    })
-                    .filter(Objects::nonNull)
-                    .toList();
-
-            new ZipManager(SwingUtilities.getWindowAncestor(this),
-                    infos, this);
-
-        });
-        bar.add(openEditor);
-
-        bar.addSeparator();
-
-        JButton exitBtn = new JButton(" ✕ Sair ");
-        exitBtn.setFont(UIConfig.FONT_DEFAULT);
-        exitBtn.setForeground(UIConfig.LIGHT_RED);
-        exitBtn.addActionListener(e -> exitCompressMode());
-        bar.add(exitBtn);
-
-        return bar;
+                    new ZipManager(SwingUtilities.getWindowAncestor(this), infos, this);
+                })
+                .separator()
+                .exitButton(I18N.get("resultsPanel.exitButton"), this::exitCompressMode)
+                .build();
     }
 
     /**
@@ -1510,91 +1381,69 @@ public class ResultsPanel extends JPanel {
     }
 
 
-    private JToolBar buildVideoConverterToolBar(VideoConverterModeManager em) {
-        JToolBar bar = new JToolBar();
-        bar.setFloatable(false);
-        bar.setBackground(UIConfig.buttonBackgroundColor());
-        bar.setLayout(new FlowLayout(FlowLayout.LEFT, 2, 5));
+    private JPanel buildVideoConverterToolBar(VideoConverterModeManager em) {
+        return new ModeToolBarBuilder()
+                .title(I18N.get("resultsPanel.buildVideoConverterToolBar.title"))
+                .separator()
+                .button(I18N.get("resultsPanel.selectAllButton"), () -> {
+                    List<File> files = currentItems.stream()
+                            .map(FileItemPanel::getDisplayFile)
+                            .toList();
+                    em.selectAll(files);
+                    currentItems.forEach(item -> {
+                        if (VideoConverterModeManager.isAccepted(item.getDisplayFile())
+                                && item.videoConverterSelectionCheckbox != null) {
+                            item.videoConverterSelectionCheckbox.setSelected(true);
+                            item.updateModeBackground();
+                            clearItemBackground();
+                        }
+                    });
+                })
+                .button(I18N.get("resultsPanel.clearAllButton"), () -> {
+                    em.clearSelection();
+                    currentItems.forEach(item -> {
+                        if (item.videoConverterSelectionCheckbox != null) {
+                            item.videoConverterSelectionCheckbox.setSelected(false);
+                            item.updateModeBackground();
+                            clearItemBackground();
+                        }
+                    });
+                })
+                .separator()
+                .highlightedMediumButton(I18N.get("resultsPanel.buildVideoConverterToolBar.highlightedMediumButton"),I18N.get("resultsPanel.buildVideoConverterToolBar.highlightedMediumButton.copy.TooltipText"), 210,32, () -> {
+                    if (em.getSelectedCount() == 0) {
+                        JOptionPane.showMessageDialog(
+                                SwingUtilities.getWindowAncestor(this),
+                                I18N.get("resultsPanel.buildVideoConverterToolBar.showMessageDialog"),
+                                I18N.get("resultsPanel.buildVideoConverterToolBar.showMessageDialog.title"), JOptionPane.INFORMATION_MESSAGE);
+                        return;
+                    }
+                    List<FileInfo> infos = em.getSelectedFiles().stream()
+                            .map(f -> currentItems.stream()
+                                    .filter(p -> p.getDisplayFile().equals(f))
+                                    .map(FileItemPanel::getFileInfo)
+                                    .findFirst().orElse(null))
+                            .filter(Objects::nonNull)
+                            .toList();
 
-        JLabel lbl = new JLabel("  🖼  Modo de Conversão de Video ");
-        lbl.setFont(UIConfig.FONT_TITLE);
-        lbl.setFont(lbl.getFont().deriveFont(Font.BOLD));
-        bar.add(lbl);
+                    new VideoConverterManager(SwingUtilities.getWindowAncestor(this), infos, this);
+                })
+                .separator()
+                .exitButton(I18N.get("resultsPanel.exitButton"), this::exitVideoConverterMode)
+                .build();
+    }
 
-        bar.addSeparator();
+    protected void updateTexts() {
+        if (titledBorder != null) {
+            titledBorder.setTitle(I18N.get("resultsPanel.title"));
+        }
 
-        JButton selectAll = new JButton(" Selecionar todos ");
-        selectAll.setFont(UIConfig.FONT_DEFAULT);
-        selectAll.addActionListener(e -> {
-            List<File> files = currentItems.stream()
-                    .map(FileItemPanel::getDisplayFile)
-                    .toList();
-            em.selectAll(files);
-            currentItems.forEach(item -> {
-                if (VideoConverterModeManager.isAccepted(item.getDisplayFile())
-                        && item.videoConverterSelectionCheckbox != null) {
-                    item.videoConverterSelectionCheckbox.setSelected(true);
-                    item.updateModeBackground();
-                    clearItemBackground();
-                }
-            });
-        });
-        bar.add(selectAll);
+    }
 
-        JButton clearSel = new JButton(" Limpar seleção ");
-        clearSel.setFont(UIConfig.FONT_DEFAULT);
-        clearSel.addActionListener(e -> {
-            em.clearSelection();
-            currentItems.forEach(item -> {
-                if (item.videoConverterSelectionCheckbox != null) {
-                    item.videoConverterSelectionCheckbox.setSelected(false);
-                    item.updateModeBackground();
-                    clearItemBackground();
-                }
-            });
-        });
-        bar.add(clearSel);
-
-        bar.addSeparator();
-
-        JButton openEditor = new JButton(" 🖊 Abrir com o conversor de video ");
-        openEditor.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        openEditor.setForeground(UIConfig.SELECTED_BORDER);
-        openEditor.setFocusPainted(false);
-        openEditor.addActionListener(e -> {
-            if (em.getSelectedCount() == 0) {
-                JOptionPane.showMessageDialog(
-                        SwingUtilities.getWindowAncestor(this),
-                        "Selecione ao menos uma imagem.",
-                        "Aviso", JOptionPane.INFORMATION_MESSAGE);
-                return;
-            }
-            // Converte File → FileInfo para o RenameFrame
-            List<FileInfo> infos = em.getSelectedFiles().stream()
-                    .map(f -> {
-                        // Busca o FileInfo correspondente nos items renderizados
-                        return currentItems.stream()
-                                .filter(p -> p.getDisplayFile().equals(f))
-                                .map(FileItemPanel::getFileInfo)
-                                .findFirst().orElse(null);
-                    })
-                    .filter(Objects::nonNull)
-                    .toList();
-
-            new VideoConverterManager(SwingUtilities.getWindowAncestor(this),
-                   infos, this);
-
-        });
-        bar.add(openEditor);
-
-        bar.addSeparator();
-
-        JButton exitBtn = new JButton(" ✕ Sair ");
-        exitBtn.setFont(UIConfig.FONT_DEFAULT);
-        exitBtn.setForeground(UIConfig.LIGHT_RED);
-        exitBtn.addActionListener(e -> exitVideoConverterMode());
-        bar.add(exitBtn);
-
-        return bar;
+    @Override
+    public void onLanguageChanged(Locale newLocale) {
+        updateTexts();
+        repaint();
+        revalidate();
     }
 }

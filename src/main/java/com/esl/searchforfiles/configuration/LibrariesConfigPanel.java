@@ -1,14 +1,18 @@
 package com.esl.searchforfiles.configuration;
 
+import com.esl.searchforfiles.localization.I18N;
+
 import javax.swing.*;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
-public class LibrariesConfigPanel extends ConfigPanelBase {
+public class LibrariesConfigPanel extends ConfigPanelBase implements I18N.LanguageChangeListener {
+
+    @Override
+    public void onLanguageChanged(Locale newLocale) {
+
+    }
 
     // ── Descriptor de cada biblioteca ───────────────────────────
     private record Lib(String display, String groupId, String artifactId) {}

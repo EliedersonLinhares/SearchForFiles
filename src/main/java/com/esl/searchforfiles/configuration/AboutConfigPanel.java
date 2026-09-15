@@ -1,6 +1,9 @@
 package com.esl.searchforfiles.configuration;
 
+import com.esl.searchforfiles.localization.I18N;
+
 import javax.swing.*;
+import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -12,9 +15,18 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
-public class AboutConfigPanel extends ConfigPanelBase {
+public class AboutConfigPanel extends ConfigPanelBase implements I18N.LanguageChangeListener {
+
+
+    private TitledBorder licenseSectionBorder;
+    private TitledBorder authorSectionBorder;
+    private TitledBorder identitySectionBorder;
+    private JLabel nameLabel;
+    private JLabel descLabel;
+    private JLabel githubLink;
 
     private static final String LOGO_PATH    = "/img/jupiter128.png";
     private static final String LICENSE_PATH = "/license/license.txt";
@@ -23,12 +35,16 @@ public class AboutConfigPanel extends ConfigPanelBase {
         buildIdentitySection();
         buildDeveloperSection();
         buildLicenseSection();
+
+        updateTexts();
+        I18N.addLanguageChangeListener(this);
     }
 
     // ── Seção 1: logo + nome + descrição ────────────────────────
 
     private void buildIdentitySection() {
-        JPanel section = addSection("Aplicativo");
+        JPanel sectionIdentity = addSection(I18N.get("aboutConfigPanel.JPanel.sectionIdentity"));
+        identitySectionBorder = (TitledBorder) sectionIdentity.getBorder();
 
         // Carrega o logo
         ImageIcon logo = loadLogo();
@@ -39,11 +55,11 @@ public class AboutConfigPanel extends ConfigPanelBase {
         logoLabel.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 16));
 
         // Lado direito: nome + descrição empilhados
-        JLabel nameLabel = new JLabel("Jupiter - File Management");
+        nameLabel = new JLabel(I18N.get("aboutConfigPanel.nameLabel"));
         nameLabel.setFont(UIConfig.FONT_TITLE.deriveFont(Font.BOLD, 20f));
 
-        JLabel descLabel = new JLabel(
-                "Gerenciador de arquivos com múltiplas funções");
+        descLabel = new JLabel(
+                I18N.get("aboutConfigPanel.descLabel"));
         descLabel.setFont(UIConfig.FONT_DEFAULT);
         descLabel.setForeground(Color.GRAY);
 
@@ -63,23 +79,24 @@ public class AboutConfigPanel extends ConfigPanelBase {
         row.add(textBlock,  BorderLayout.CENTER);
 
         // Adiciona direto na seção (sem label fixo à esquerda)
-        section.add(row);
-        section.add(Box.createVerticalStrut(4));
+        sectionIdentity.add(row);
+        sectionIdentity.add(Box.createVerticalStrut(4));
     }
 
     // ── Seção 2: desenvolvedor ───────────────────────────────────
 
     private void buildDeveloperSection() {
-        JPanel section = addSection("Desenvolvedor");
+        JPanel sectionAuthor = addSection(I18N.get("aboutConfigPanel.JPanel.sectionAuthor"));
+        authorSectionBorder = (TitledBorder) sectionAuthor.getBorder();
 
-        addRow(section, "Autor", makeValueLabel("Eliederson Linhares"));
+        addRow(sectionAuthor, "Author", makeValueLabel("Eliederson Linhares"));
 
         // Link clicável para o GitHub
-        JLabel githubLink = new JLabel(
+        githubLink = new JLabel(
                 "<html><a href=''>github.com/eliederson</a></html>");
         githubLink.setFont(UIConfig.FONT_DEFAULT);
         githubLink.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        githubLink.setToolTipText("Abrir no navegador");
+        githubLink.setToolTipText(I18N.get("aboutConfigPanel.githubLink.setToolTipText"));
         githubLink.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
@@ -87,13 +104,14 @@ public class AboutConfigPanel extends ConfigPanelBase {
             }
         });
 
-        addRow(section, "GitHub", githubLink);
+        addRow(sectionAuthor, "GitHub", githubLink);
     }
 
     // ── Seção 3: licença ─────────────────────────────────────────
 
     private void buildLicenseSection() {
-        JPanel section = addSection("Licença");
+        JPanel sectionLicense = addSection(I18N.get("aboutConfigPanel.JPanel.sectionLicense"));
+        licenseSectionBorder = (TitledBorder) sectionLicense.getBorder();
 
         JTextArea area = new JTextArea(loadLicenseText());
         area.setFont(UIConfig.FONT_SMALL);
@@ -119,7 +137,7 @@ public class AboutConfigPanel extends ConfigPanelBase {
         wrapper.setBorder(BorderFactory.createEmptyBorder(2, 6, 6, 6));
         wrapper.add(scroll, BorderLayout.CENTER);
 
-        section.add(wrapper);
+        sectionLicense.add(wrapper);
     }
 
     // ── Helpers ──────────────────────────────────────────────────
@@ -144,14 +162,14 @@ public class AboutConfigPanel extends ConfigPanelBase {
 
     private String loadLicenseText() {
         URL url = getClass().getResource(LICENSE_PATH);
-        if (url == null) return "Arquivo de licença não encontrado.";
+        if (url == null) return I18N.get("aboutConfigPanel.loadLicenseNotFound");
 
         try (InputStream in = url.openStream();
              BufferedReader reader = new BufferedReader(
                      new InputStreamReader(in, StandardCharsets.UTF_8))) {
             return reader.lines().collect(Collectors.joining("\n"));
         } catch (IOException e) {
-            return "Erro ao carregar licença: " + e.getMessage();
+            return I18N.get("aboutConfigPanel.loadLicenseError") + " "  + e.getMessage();
         }
     }
 
@@ -160,8 +178,33 @@ public class AboutConfigPanel extends ConfigPanelBase {
             Desktop.getDesktop().browse(new URI(url));
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this,
-                    "Não foi possível abrir o link:\n" + url,
-                    "Erro", JOptionPane.ERROR_MESSAGE);
+                     I18N.get("aboutConfigPanel.openUrlError.text") + "\n" + url,
+                    I18N.get("aboutConfigPanel.openUrlError.title"), JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    protected void updateTexts() {
+
+        if (nameLabel != null)  nameLabel.setText(I18N.get("aboutConfigPanel.nameLabel"));
+        if (descLabel != null)  descLabel.setText(I18N.get("aboutConfigPanel.descLabel"));
+        if (githubLink != null)   githubLink.setToolTipText(I18N.get("aboutConfigPanel.githubLink.setToolTipText"));
+
+        if (identitySectionBorder != null) {
+            identitySectionBorder.setTitle(I18N.get("aboutConfigPanel.JPanel.sectionIdentity"));
+        }
+        if (licenseSectionBorder != null) {
+            licenseSectionBorder.setTitle(I18N.get("aboutConfigPanel.JPanel.sectionLicense"));
+        }
+        if (authorSectionBorder != null) {
+            authorSectionBorder.setTitle(I18N.get("aboutConfigPanel.JPanel.sectionAuthor"));
+        }
+
+    }
+
+    @Override
+    public void onLanguageChanged(Locale newLocale) {
+        updateTexts();
+        repaint();
+        revalidate();
     }
 }

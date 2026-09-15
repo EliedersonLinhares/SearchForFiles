@@ -1,17 +1,19 @@
 package com.esl.searchforfiles.model;
 
+import com.esl.searchforfiles.localization.I18N;
+
 public enum SortOption {
-    NAME("Nome", "name"),
-    DATE("Data de Modificação", "last_modified"),
-    SIZE("Tamanho", "size"),
-    TYPE("Tipo", "file_type"),
-    PATH("Caminho", "path");
+    NAME("optionSort.name", "name"),
+    DATE("optionSort.date", "last_modified"),
+    SIZE("optionSort.size", "size"),
+    TYPE("optionSort.type", "file_type"),
+    PATH("optionSort.path", "path");
 
-    private final String displayName;
-    private final String fieldName;
+    private final String i18nKey;   // chave estável, nunca muda
+    private final String fieldName; // identificador lógico/persistido, nunca muda
 
-    SortOption(String displayName, String fieldName) {
-        this.displayName = displayName;
+    SortOption(String i18nKey, String fieldName) {
+        this.i18nKey = i18nKey;
         this.fieldName = fieldName;
     }
 
@@ -19,16 +21,19 @@ public enum SortOption {
         return fieldName;
     }
 
+    /**
+     * Traduzido sob demanda a cada chamada — não há cache.
+     * Assim, o JComboBox sempre desenha o texto no idioma atual
+     * sem precisar de nenhum listener especial.
+     */
     @Override
     public String toString() {
-        return displayName;
+        return I18N.get(i18nKey);
     }
 
-    public static SortOption fromDisplayName(String fieldName){
-        for (SortOption size : values()){
-            if(size.fieldName.equalsIgnoreCase(fieldName)){
-            return size;
-            }
+    public static SortOption fromDisplayName(String fieldName) {
+        for (SortOption s : values()) {
+            if (s.fieldName.equalsIgnoreCase(fieldName)) return s;
         }
         return DATE;
     }

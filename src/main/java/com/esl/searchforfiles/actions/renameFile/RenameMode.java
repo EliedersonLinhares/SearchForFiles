@@ -1,18 +1,26 @@
 package com.esl.searchforfiles.actions.renameFile;
 
-import java.awt.*;
+import com.esl.searchforfiles.localization.I18N;
+
+
 
 public enum RenameMode {
-    FILES("Renomear arquivos",  "🗒  Modo renomear arquivos",  new Color(59, 109, 17)),
-    FOLDERS("Renomear pastas", "📁  Modo renomear pastas",    new Color(133, 79, 11));
+    FILES("Renomear arquivos",  "🗒  Modo renomear arquivos",  "resultsPanel.buildRenameToolBar.title.file"),
+    FOLDERS("Renomear pastas", "📁  Modo renomear pastas", "resultsPanel.buildRenameToolBar.title.folder");
 
     public final String label;
     public final String toolbarLabel;
-    public final Color  accentColor;
+    public final String  i18nKey;
 
-    RenameMode(String label, String toolbarLabel, Color accentColor) {
+    @Override
+    public String toString() {
+        return I18N.get(i18nKey);
+    }
+
+
+    RenameMode(String label, String toolbarLabel, String i18nKey) {
         this.label       = label;
         this.toolbarLabel = toolbarLabel;
-        this.accentColor  = accentColor;
+        this.i18nKey  = i18nKey;
     }
 }

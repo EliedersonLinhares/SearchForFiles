@@ -3,12 +3,14 @@ package com.esl.searchforfiles.ui;
 import com.esl.searchforfiles.actions.fileTransfer.FileTransferHandler;
 import com.esl.searchforfiles.actions.fileTransfer.TransferDropHelper;
 import com.esl.searchforfiles.configuration.UIConfig;
+import com.esl.searchforfiles.localization.I18N;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.service.FavoritesService;
 import com.esl.searchforfiles.service.IconService;
 import com.esl.searchforfiles.actions.fileTransfer.TransferService;
 
 import javax.swing.*;
+import javax.swing.border.TitledBorder;
 import javax.swing.event.TreeExpansionEvent;
 import javax.swing.event.TreeWillExpandListener;
 import javax.swing.filechooser.FileSystemView;
@@ -25,11 +27,12 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Painel com JTree para navegação de drives e pastas
  */
-public class FolderTreePanel extends JPanel {
+public class FolderTreePanel extends JPanel implements I18N.LanguageChangeListener{
 
     private final JTree folderTree;
     private final DefaultMutableTreeNode rootNode;
@@ -39,15 +42,20 @@ public class FolderTreePanel extends JPanel {
     private File selectedFile;
     private DragAction dragAction;
     private TransferService transferService;
+    private TitledBorder titledBorder;
+    private JMenuItem addFavoriteItem;
+    private JMenuItem openItem;
+    private JMenuItem defaultFolderItem;
 
     public FolderTreePanel(FavoritesService favoritesService, FileExplorerSwing fileExplorerSwing) {
         this.favoritesService = favoritesService;
         this.fileExplorerSwing = fileExplorerSwing;
 
         setLayout(new BorderLayout());
-        setBorder(BorderFactory.createTitledBorder("📁 Navegação"));
+        setBorder(BorderFactory.createTitledBorder("📁 " + I18N.get("folderTreePanel.titledBorder")));
+        titledBorder = (TitledBorder) this.getBorder();
 
-        rootNode = new DefaultMutableTreeNode("Computador");
+        rootNode = new DefaultMutableTreeNode(I18N.get("folderTreePanel.rootNode"));
         folderTree = new JTree(rootNode);
         folderTree.setFont(UIConfig.FONT_SMALL);
 
@@ -150,6 +158,9 @@ public class FolderTreePanel extends JPanel {
                 folderTree  // ← drag reconhecido na JTree, não no painel
                 ,transferService
         );
+
+        updateTexts();
+        I18N.addLanguageChangeListener(this);
     }
 
     /**
@@ -158,7 +169,8 @@ public class FolderTreePanel extends JPanel {
     private JPopupMenu createContextMenu() {
         JPopupMenu menu = new JPopupMenu();
 
-        JMenuItem addFavoriteItem = new JMenuItem("⭐ Adicionar aos Favoritos");
+        addFavoriteItem = new JMenuItem("⭐ " + I18N.get("folderTreePanel.addFavoriteItem"));
+        addFavoriteItem.setFont(UIConfig.FONT_DEFAULT);
         addFavoriteItem.addActionListener(e -> {
 
             DefaultMutableTreeNode selectedNode =
@@ -171,7 +183,8 @@ public class FolderTreePanel extends JPanel {
             }
         });
 
-        JMenuItem openItem = new JMenuItem("Abrir no Explorer");
+        openItem = new JMenuItem(I18N.get("folderTreePanel.openItem"));
+        openItem.setFont(UIConfig.FONT_DEFAULT);
         openItem.addActionListener(e -> {
             DefaultMutableTreeNode selectedNode =
                     (DefaultMutableTreeNode) folderTree.getLastSelectedPathComponent();
@@ -182,14 +195,15 @@ public class FolderTreePanel extends JPanel {
                     Desktop.getDesktop().open(selectedFile);
                 } catch (Exception ex) {
                     JOptionPane.showMessageDialog(this,
-                            "Erro ao abrir: " + ex.getMessage(),
-                            "Erro", JOptionPane.ERROR_MESSAGE);
+                            I18N.get("folderTreePanel.openItem.showMessageDialog") + " " + ex.getMessage(),
+                            I18N.get("folderTreePanel.openItem.showMessageDialog.title"), JOptionPane.ERROR_MESSAGE);
                 }
             }
         });
 
 
-        JMenuItem defaultFolderItem = new JMenuItem("Definir como pasta padrão");
+        defaultFolderItem = new JMenuItem(I18N.get("folderTreePanel.defaultFolderItem"));
+        defaultFolderItem.setFont(UIConfig.FONT_DEFAULT);
         defaultFolderItem.addActionListener(e -> defaultFolderListener());
 
 
@@ -271,22 +285,22 @@ public class FolderTreePanel extends JPanel {
     private void confirmFavoriteAdd(File selectedFile) {
         if (fileExplorerSwing.isDriveRoot(selectedFile.getAbsolutePath())) {
             JOptionPane.showMessageDialog(this,
-                    "Drive raiz não pode ser adicionado aos favoritos!\n" + "Somente pastas.",
-                    "Aviso", JOptionPane.INFORMATION_MESSAGE);
+                    I18N.get("folderTreePanel.confirmFavoriteAdd.isDriveRoot.showMessageDialog"),
+                    I18N.get("folderTreePanel.confirmFavoriteAdd.isDriveRoot.showMessageDialog.title"), JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
         if (favoritesService.isFavorite(selectedFile.getAbsolutePath())) {
             JOptionPane.showMessageDialog(this,
-                    "Esta pasta já está nos favoritos!",
-                    "Aviso", JOptionPane.INFORMATION_MESSAGE);
+                    I18N.get("folderTreePanel.confirmFavoriteAdd.isFavorite.showMessageDialog"),
+                    I18N.get("folderTreePanel.confirmFavoriteAdd.isFavorite.showMessageDialog.title"), JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
         if (favoritesService.addFavorite(selectedFile.getAbsolutePath())) {
             JOptionPane.showMessageDialog(this,
-                    "Pasta adicionada aos favoritos!\n\n" + selectedFile.getAbsolutePath(),
-                    "Sucesso", JOptionPane.INFORMATION_MESSAGE);
+                     I18N.get("folderTreePanel.confirmFavoriteAdd.addFavorite.showMessageDialog") + "\n\n" + selectedFile.getAbsolutePath(),
+                    I18N.get("folderTreePanel.confirmFavoriteAdd.addFavorite.showMessageDialog.title"), JOptionPane.INFORMATION_MESSAGE);
         }
     }
 
@@ -298,12 +312,10 @@ public class FolderTreePanel extends JPanel {
 
             if (!fileExplorerSwing.isDriveRoot(selectedFile.getAbsolutePath())) {
                 fileExplorerSwing.getConfigManager().saveDefaulFolder(selectedFile.getAbsolutePath());
-                System.out.println("Diretorio padrão salvo: " + selectedFile.getAbsolutePath());
 
             } else {
-                JOptionPane.showMessageDialog(this, "Diretório padrão não pode ser raiz",
-                        "Erro", JOptionPane.ERROR_MESSAGE);
-                System.out.println("Diretorio padrão não pode ser raiz");
+                JOptionPane.showMessageDialog(this, I18N.get("folderTreePanel.defaultFolderListener.isDriveRoot.showMessageDialog"),
+                        I18N.get("folderTreePanel.defaultFolderListener.isDriveRoot.showMessageDialog.title"), JOptionPane.ERROR_MESSAGE);
             }
         }
     }
@@ -314,7 +326,7 @@ public class FolderTreePanel extends JPanel {
         File[] roots = File.listRoots();
         for (File root : roots) {
             DefaultMutableTreeNode driveNode = new DefaultMutableTreeNode(root);
-            driveNode.add(new DefaultMutableTreeNode("Carregando..."));
+            driveNode.add(new DefaultMutableTreeNode(I18N.get("folderTreePanel.rootNode.state")));
             rootNode.add(driveNode);
         }
 
@@ -346,7 +358,7 @@ public class FolderTreePanel extends JPanel {
                         }
 
                         if (hasSubdirs) {
-                            childNode.add(new DefaultMutableTreeNode("Carregando..."));
+                            childNode.add(new DefaultMutableTreeNode(I18N.get("folderTreePanel.rootNode.state")));
                         }
                     }
 
@@ -396,7 +408,7 @@ public class FolderTreePanel extends JPanel {
                     setIcon(IconService.getIcon(file, "", FileType.FOLDER, 32));
                 }
 
-            } else if (userObject.equals("Computador")) {
+            } else if (userObject.equals(I18N.get("folderTreePanel.rootNode"))) {
                 setIcon(UIManager.getIcon("FileView.computerIcon"));
             }
 
@@ -406,6 +418,34 @@ public class FolderTreePanel extends JPanel {
 
     public JTree getFolderTree() {
         return folderTree;
+    }
+
+    protected void updateTexts() {
+        if (titledBorder != null) {
+            titledBorder.setTitle(I18N.get("folderTreePanel.titledBorder"));
+        }
+
+        if (rootNode != null) {
+            rootNode.setUserObject(I18N.get("folderTreePanel.rootNode"));
+        }
+        if (addFavoriteItem != null) {
+            addFavoriteItem.setText(I18N.get("folderTreePanel.addFavoriteItem"));
+        }
+        if (openItem != null) {
+            openItem.setText(I18N.get("folderTreePanel.openItem"));
+        }
+        if (defaultFolderItem != null) {
+            defaultFolderItem.setText(I18N.get("folderTreePanel.defaultFolderItem"));
+        }
+
+
+    }
+
+    @Override
+    public void onLanguageChanged(Locale newLocale) {
+        updateTexts();
+        repaint();
+        revalidate();
     }
 }
 

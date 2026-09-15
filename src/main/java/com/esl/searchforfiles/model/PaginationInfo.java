@@ -1,9 +1,13 @@
 package com.esl.searchforfiles.model;
 
+import com.esl.searchforfiles.localization.I18N;
+
+import java.util.Locale;
+
 /**
  * Informações sobre paginação de resultados
  */
-public class PaginationInfo {
+public class PaginationInfo implements I18N.LanguageChangeListener{
     private final int currentPage;
     private final int pageSize;
     private final long totalResults;
@@ -46,7 +50,12 @@ public class PaginationInfo {
 
     @Override
     public String toString() {
-        return String.format("Página %d de %d (%,d resultados)",
+        return String.format(I18N.get("paginationInfo.ToString"),
                 currentPage, totalPages, totalResults);
+    }
+
+    @Override
+    public void onLanguageChanged(Locale newLocale) {
+
     }
 }

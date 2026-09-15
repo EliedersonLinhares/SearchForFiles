@@ -1,18 +1,21 @@
 package com.esl.searchforfiles.database;
 
 import com.esl.searchforfiles.configuration.ConfigPanelBase;
+import com.esl.searchforfiles.localization.I18N;
 import com.esl.searchforfiles.ui.FileExplorerSwing;
 
 import javax.swing.*;
+import javax.swing.border.TitledBorder;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class DatabaseConfigPanel extends ConfigPanelBase {
+public class DatabaseConfigPanel extends ConfigPanelBase implements I18N.LanguageChangeListener {
 
     private final DatabaseManager db;
     private final FileExplorerSwing mainFrame;
@@ -25,43 +28,66 @@ public class DatabaseConfigPanel extends ConfigPanelBase {
     private final JLabel dbSizeLabel       = makeValueLabel("...");
     private final JLabel tagsLabel         = makeValueLabel("...");
     private final JLabel extensionsLabel   = makeValueLabel("...");
+    private TitledBorder statsSectionBorder;
+    private TitledBorder tagSectionBorder;
+    private TitledBorder extensionSectionBorder;
+    private TitledBorder databaseSectionBorder;
+
+    private JLabel totalRowsLabel;
+    private JLabel totalFoldersRowsLabel;
+    private JLabel totalSizeRowsLabel;
+    private JLabel lastIndexedRowsLabel;
+    private JLabel lastModifiedRowsLabel;
+    private JLabel tagRowsLabel;
+    private JLabel extensionRowsLabel;
+    private JLabel databaseRowsLabel;
+    private JLabel localizationRowsLabel;
+    private JLabel localizationHintLabel;
+    private JButton btnRefresh;
+    private JButton btnExcludeIndexedFolder;
+
+    private JLabel valueLabelText;
+    private JLabel valueLabelThirdPart;
 
     public DatabaseConfigPanel(DatabaseManager db, FileExplorerSwing mainFrame) {
         this.db = db;
         this.mainFrame = mainFrame;
 
+        JPanel stats = addSection(I18N.get("databaseConfigPanel.JPanel.stats"));
+        statsSectionBorder = (TitledBorder) stats.getBorder();
 
+        totalRowsLabel = addRowLabel(stats, I18N.get("databaseConfigPanel.rowTotalLabel.text"), totalFilesLabel);
+        totalFoldersRowsLabel = addRowLabel(stats, I18N.get("databaseConfigPanel.totalFoldersRowsLabel"),   totalFoldersLabel);
+        totalSizeRowsLabel = addRowLabel(stats, I18N.get("databaseConfigPanel.totalSizeRowsLabel"),      totalSizeLabel);
+        lastIndexedRowsLabel = addRowLabel(stats, I18N.get("databaseConfigPanel.lastIndexedRowsLabel"),   lastIndexedLabel);
+        lastModifiedRowsLabel = addRowLabel(stats, I18N.get("databaseConfigPanel.lastModifiedRowsLabel"),     lastModifiedLabel);
 
-        JPanel stats = addSection("Estatísticas do índice");
-        addRow(stats, "Arquivos indexados", totalFilesLabel);
-        addRow(stats, "Pastas indexadas",   totalFoldersLabel);
-        addRow(stats, "Tamanho total",      totalSizeLabel);
-        addRow(stats, "Última indexação",   lastIndexedLabel);
-        addRow(stats, "Último arquivo",     lastModifiedLabel);
+        JPanel tagsSection = addSection(I18N.get("databaseConfigPanel.JPanel.tagsSection"));
+        tagSectionBorder = (TitledBorder) tagsSection.getBorder();
+        tagRowsLabel = addRowLabel(tagsSection, I18N.get("databaseConfigPanel.tagRowsLabel"), tagsLabel);
 
-        JPanel tagsSection = addSection("Tags e avaliações");
-        addRow(tagsSection, "Tags / arquivos", tagsLabel);
+        JPanel extSection = addSection(I18N.get("databaseConfigPanel.JPanel.extSection"));
+        extensionSectionBorder = (TitledBorder) extSection.getBorder();
+        extensionRowsLabel = addRowLabel(extSection, I18N.get("databaseConfigPanel.extensionRowsLabel"), extensionsLabel);
 
-        JPanel extSection = addSection("Extensões mais comuns");
-        addRow(extSection, "Top 5", extensionsLabel);
+        JPanel dbSection = addSection(I18N.get("databaseConfigPanel.JPanel.dbSection"));
+        databaseSectionBorder = (TitledBorder) dbSection.getBorder();
+        databaseRowsLabel = addRowLabel(dbSection, I18N.get("databaseConfigPanel.databaseRowsLabel"), dbSizeLabel);
+        localizationHintLabel = makeHint( DatabaseManager.DB_PATH.toAbsolutePath().toString());
+        localizationRowsLabel = addRowLabel(dbSection, I18N.get("databaseConfigPanel.localizationRowsLabel") + " " ,localizationHintLabel);
 
-        JPanel dbSection = addSection("Banco de dados");
-        addRow(dbSection, "Tamanho do DB", dbSizeLabel);
-        addRow(dbSection, makeHint("Localizado em: " +
-                DatabaseManager.DB_PATH.toAbsolutePath()));
-
-        JButton btnRefresh = makeBtn("Atualizar");
+        btnRefresh = makeBtn(I18N.get("databaseConfigPanel.btnRefresh"));
         btnRefresh.addActionListener(e -> refresh());
         addButtons(btnRefresh);
 
-        JButton btnExcludeIndexedFolder = makeBtn("Excluir Pasta Indexada");
+        btnExcludeIndexedFolder = makeBtn(I18N.get("databaseConfigPanel.btnExcludeIndexedFolder"));
         btnExcludeIndexedFolder.setEnabled(db.isFolderIndexed(mainFrame.getSelectedPath()));
         btnExcludeIndexedFolder.addActionListener(e -> {
 
             int choice = JOptionPane.showConfirmDialog(
                     this,
-                    "Deseja realmente excluir esta pasta indexada?\n" + mainFrame.getSelectedPath(),
-                    "Confirmar",
+                     I18N.get("databaseConfigPanel.btnExcludeIndexedFolder.JOptionPane.showConfirmDialog.text") + "\n" + mainFrame.getSelectedPath(),
+                    I18N.get("databaseConfigPanel.btnExcludeIndexedFolder.JOptionPane.showConfirmDialog.title"),
                     JOptionPane.YES_NO_OPTION,
                     JOptionPane.WARNING_MESSAGE
             );
@@ -89,7 +115,11 @@ public class DatabaseConfigPanel extends ConfigPanelBase {
         });
         addButtons(btnExcludeIndexedFolder);
 
+        updateTexts();
+        I18N.addLanguageChangeListener(this);
+
         refresh();
+
     }
 
     public void refresh() {
@@ -120,8 +150,10 @@ public class DatabaseConfigPanel extends ConfigPanelBase {
                 setValueLabelText(dbSizeLabel,       DatabaseInformation.formatBytes(dbBytes));
                 setValueLabelText(lastIndexedLabel,  DatabaseInformation.formatDateTime(lastIndexed));
                 setValueLabelText(lastModifiedLabel, DatabaseInformation.formatDateTime(lastModified));
-                setValueLabelText(tagsLabel,
-                        tagStats[0] + " tags · " + tagStats[1] + " arquivo(s) com tag(s)");
+
+                valueLabelThirdPart = new JLabel(I18N.get("databaseConfigPanel.valueLabelThirdPart")) ;
+                valueLabelText =  setValueLabel(tagsLabel,
+                        tagStats[0] + " tags · " + tagStats[1] + " " + valueLabelThirdPart.getText());
 
                 String extText = exts.stream()
                         .map(e -> "." + e.getKey() + " (" + e.getValue() + ")")
@@ -151,5 +183,37 @@ public class DatabaseConfigPanel extends ConfigPanelBase {
 
         System.out.println("✅ Pasta removida completamente: " + folderPath
                 + " (" + removed + " registros no índice)");
+    }
+
+    protected void updateTexts() {
+
+        refresh();
+
+        if(statsSectionBorder != null) statsSectionBorder.setTitle(I18N.get("databaseConfigPanel.JPanel.stats"));
+        if(tagSectionBorder != null) tagSectionBorder.setTitle(I18N.get("databaseConfigPanel.JPanel.tagsSection"));
+        if(extensionSectionBorder != null) extensionSectionBorder.setTitle(I18N.get("databaseConfigPanel.JPanel.extSection"));
+        if(databaseSectionBorder != null) databaseSectionBorder.setTitle(I18N.get("databaseConfigPanel.JPanel.dbSection"));
+
+        if (totalRowsLabel != null)  totalRowsLabel.setText(I18N.get("databaseConfigPanel.rowTotalLabel.text"));
+        if(totalFoldersRowsLabel != null) totalFoldersRowsLabel.setText(I18N.get("databaseConfigPanel.totalFoldersRowsLabel"));
+        if(totalSizeRowsLabel != null) totalSizeRowsLabel.setText(I18N.get("databaseConfigPanel.totalSizeRowsLabel"));
+        if(lastIndexedLabel != null) lastIndexedLabel.setText(I18N.get("databaseConfigPanel.lastIndexedRowsLabel"));
+        if(lastModifiedLabel != null) lastModifiedLabel.setText(I18N.get("databaseConfigPanel.lastModifiedRowsLabel"));
+        if(tagRowsLabel != null) tagRowsLabel.setText(I18N.get("databaseConfigPanel.tagRowsLabel"));
+        if(extensionRowsLabel != null) extensionRowsLabel.setText(I18N.get("databaseConfigPanel.extensionRowsLabel"));
+        if(databaseRowsLabel != null) databaseRowsLabel.setText(I18N.get("databaseConfigPanel.databaseRowsLabel"));
+        if(localizationRowsLabel != null) localizationRowsLabel.setText(I18N.get("databaseConfigPanel.localizationRowsLabel"));
+        if(btnRefresh != null) btnRefresh.setText(I18N.get("databaseConfigPanel.btnRefresh"));
+        if(btnExcludeIndexedFolder != null) btnExcludeIndexedFolder.setText(I18N.get("databaseConfigPanel.btnExcludeIndexedFolder"));
+
+        if(valueLabelThirdPart != null) valueLabelThirdPart.setText(I18N.get("databaseConfigPanel.valueLabelThirdPart"));
+
+    }
+
+    @Override
+    public void onLanguageChanged(Locale newLocale) {
+        updateTexts();
+        repaint();
+        revalidate();
     }
 }

@@ -94,10 +94,10 @@ public class ThemeManager {
     private void registerThemes() {
         // Adicionar temas existentes
         availableThemes.put(DEFAULT_THEME,
-                new ThemeInfo(DEFAULT_THEME, "Tema Claro", FlatArcIJTheme.class));
+                new ThemeInfo(DEFAULT_THEME, "FlatArcIJTheme", FlatArcIJTheme.class));
 
         availableThemes.put("FlatArcDarkIJTheme",
-                new ThemeInfo("FlatArcDarkIJTheme", "Tema Escuro", FlatArcDarkIJTheme.class));
+                new ThemeInfo("FlatArcDarkIJTheme", "FlatArcDarkIJTheme" , FlatArcDarkIJTheme.class));
     }
 
 

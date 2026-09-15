@@ -10,6 +10,7 @@ import com.esl.searchforfiles.actions.renameFile.RenameModeManager;
 import com.esl.searchforfiles.actions.videoConverter.VideoConverterModeManager;
 import com.esl.searchforfiles.configuration.ConfigManager;
 import com.esl.searchforfiles.configuration.UIConfig;
+import com.esl.searchforfiles.localization.I18N;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.PaginationInfo;
 import com.esl.searchforfiles.others.ThumbnailSize;
@@ -31,6 +32,7 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 
@@ -38,7 +40,7 @@ import java.util.function.Consumer;
  * Interface gráfica para o sistema de busca avançada
  * Adaptado do FileExplorer original para usar AdvancedFileSearch
  */
-public class FileExplorerSwing extends JFrame {
+public class FileExplorerSwing extends JFrame implements I18N.LanguageChangeListener {
 
     private final SearchPanel searchPanel;
     private final ResultsPanel resultsPanel;
@@ -73,22 +75,30 @@ public class FileExplorerSwing extends JFrame {
     private boolean useDefaultWindowsProgramPdf = false;
     private boolean useDefaultWindowsProgram3dModel = false;
 
+    private JSplitPane rightSplit;
+    private JSplitPane mainSplit;
+    private JPanel leftPanel;
+
+    private boolean programmaticDividerChange = false;
+    private boolean programmaticMainDividerChange = false;
+    private boolean showingWelcome = true;
 
     public FileExplorerSwing(ThemeManager themeManager) {
-        super("Jupiter - Gerenciador de Arquivos");
+        super(I18N.get("fileExplorerSwing.frameTitle"));
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setExtendedState(Frame.MAXIMIZED_BOTH);
+        setSize(new Dimension(1600, 800));
+        // setExtendedState(Frame.MAXIMIZED_BOTH);
         setMinimumSize(new Dimension(1600, 800));
         setLocationRelativeTo(null);
         setIconImages(UIConfig.IconsConfig(this));
-
-
-
 
         setLayout(new BorderLayout(10, 10));
 
         favoritesService = new FavoritesService();
         configManager = new ConfigManager();
+
+        I18N.setLocale(configManager.getSavedLocale());
+
         this.themeManager = themeManager;
         setSelectedPath(configManager.getSavedDefaultFolder());
         showGlobalSearch = configManager.getSavedShowGlobalItens();
@@ -150,7 +160,7 @@ public class FileExplorerSwing extends JFrame {
         add(searchWrapper, BorderLayout.NORTH);  // ← wrapper no NORTH, não o searchPanel direto
 
         // === PAINEL ESQUERDO ===
-        JPanel leftPanel = createLeftPanel();
+        leftPanel = createLeftPanel();
 
         // === PAINEL CENTRAL (resultados + paginação) ===
 
@@ -161,17 +171,16 @@ public class FileExplorerSwing extends JFrame {
                     navigateTo(file.getAbsolutePath(), true);
                 } else {
                     try {
-                        if(isImageFile(file) && !useDefaultWindowsProgramImage) {
+                        if (isImageFile(file) && !useDefaultWindowsProgramImage) {
                             new ImageViewerFrame(FileExplorerSwing.this, file);
                         } else if (isVideoFile(file) && !useDefaultWindowsProgramVideo) {
-                            new VideoPlayerFrame(FileExplorerSwing.this,file);
-                        } else if (isPdfFile(file) && !useDefaultWindowsProgramPdf ) {
-                            new PdfViewerFrame(FileExplorerSwing.this,file);
-                        }else if (isObject3dFile(file) && !useDefaultWindowsProgram3dModel ) {
-                            new Obj3DViewerFrame(FileExplorerSwing.this,file);
-                        }
-                        else {
-                             Desktop.getDesktop().open(file);
+                            new VideoPlayerFrame(FileExplorerSwing.this, file);
+                        } else if (isPdfFile(file) && !useDefaultWindowsProgramPdf) {
+                            new PdfViewerFrame(FileExplorerSwing.this, file);
+                        } else if (isObject3dFile(file) && !useDefaultWindowsProgram3dModel) {
+                            new Obj3DViewerFrame(FileExplorerSwing.this, file);
+                        } else {
+                            Desktop.getDesktop().open(file);
                         }
 
                     } catch (IOException | IllegalArgumentException e) {
@@ -181,7 +190,6 @@ public class FileExplorerSwing extends JFrame {
                 }
             }
 
-
             @Override
             public void onFileRightClick(File file, FileInfo fileInfo,
                                          Component source, int x, int y,
@@ -190,10 +198,10 @@ public class FileExplorerSwing extends JFrame {
                 FileContextMenu menu = new FileContextMenu(
                         file, fileInfo, source, controller.getDbManager(), itemPanel,
                         path -> navigateTo(path, true)
-                         , FileExplorerSwing.this, favoritesService
+                        , FileExplorerSwing.this, favoritesService
                 );
                 if (!editModeManager.isEditModeActive() && !transferService.isTransferModeActive()
-                        && !renameModeFiles.isActive()  && !compressModeManager.isCompressModeActive()
+                        && !renameModeFiles.isActive() && !compressModeManager.isCompressModeActive()
                         && !videoConverterModeManager.isVideoConverterModeActive()) {
                     menu.show(source, x, y);
                 }
@@ -224,28 +232,28 @@ public class FileExplorerSwing extends JFrame {
         centerPanel.add(paginationWrapper, BorderLayout.SOUTH);  // ← wrapper no NORTH, não o searchPanel direto
 
 
-        //centerPanel.add(paginationPanel, BorderLayout.SOUTH);
-
         // === PAINEL DIREITO (subpastas) ===
         subFolderPanel = new SubFolderPanel(this, configManager);
+        subFolderPanel.setVisible(configManager.getSavedShowRightPanel());
         resultsPanel.setSubFolderPanel(subFolderPanel);
         subFolderPanel.setFolderClickListener(folder ->
                 navigateTo(folder.getAbsolutePath(), true));
 
         // === SPLITS ===
         // 1. rightSplit: centerPanel (resultados) + subFolderPanel
-        JSplitPane rightSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+        rightSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                 centerPanel, subFolderPanel);
         rightSplit.setResizeWeight(1.0);      // resultados expande, subpastas fixo
         rightSplit.setDividerSize(4);
         rightSplit.setContinuousLayout(true);
         // Divider location em pixels após o frame estar visível (veja abaixo)
+        rightSplit.setLastDividerLocation(configManager.getRightSplitPos());
 
         subFolderPanel.setParentSplit(rightSplit); // ← adicione esta linha
 
 
         // 2. mainSplit: leftPanel + rightSplit
-        JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+        mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                 leftPanel, rightSplit);
         mainSplit.setDividerLocation(300);
         mainSplit.setResizeWeight(0.0);
@@ -261,15 +269,16 @@ public class FileExplorerSwing extends JFrame {
         setVisible(true);
 
 
-    // Salva posição do divider sempre que o usuário o mover.
-    // Salvamos a largura do subFolderPanel (rightSplit.getWidth() - dividerPos)
-    // em vez da posição absoluta do divider, pois ela é invariante ao resize da janela.
+        // Salva posição do divider sempre que o usuário o mover.
+        // Salvamos a largura do subFolderPanel (rightSplit.getWidth() - dividerPos)
+        // em vez da posição absoluta do divider, pois ela é invariante ao resize da janela.
 
         // Flag — só salva após a inicialização estar completa
         final boolean[] splitReady = {false};
 
         rightSplit.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, e -> {
-            if (!splitReady[0]) return;  // ignora eventos da inicialização
+            if (!splitReady[0]) return;
+            if (programmaticDividerChange) return; // ← ignora mudanças feitas pelo próprio código
 
             int divPos = (int) e.getNewValue();
             int totalW = rightSplit.getWidth();
@@ -280,23 +289,44 @@ public class FileExplorerSwing extends JFrame {
             }
         });
 
+        final boolean[] mainSplitReady = {false}; // flag de "pronto" própria, separada da do rightSplit
+
+        mainSplit.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, e -> {
+            if (!mainSplitReady[0]) return;
+            if (programmaticMainDividerChange) return; // ignora mudanças feitas pelo seu próprio código
+
+            int divPos = (int) e.getNewValue();
+            if (divPos > 0) {
+                configManager.saveMainSplitPos(divPos); // aqui já é a largura do leftPanel, sem subtração
+            }
+        });
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowOpened(WindowEvent e) {
-                // windowOpened dispara uma única vez — quando o frame é exibido
-                // pela primeira vez. Nunca dispara em maximize/restore.
                 SwingUtilities.invokeLater(() -> SwingUtilities.invokeLater(() -> {
+
+                    // --- restauração do rightSplit (já existente, sem mudanças) ---
                     int totalW = rightSplit.getWidth();
-                    if (totalW <= 0) return;
+                    if (totalW > 0) {
+                        int subFolderWidth = configManager.getRightSplitPos();
+                        if (subFolderWidth <= 0) subFolderWidth = 200;
+                        int divPos = totalW - subFolderWidth - rightSplit.getDividerSize();
+                        rightSplit.setDividerLocation(Math.max(0, divPos));
+                        SwingUtilities.invokeLater(() -> splitReady[0] = true);
+                    }
 
-                    int subFolderWidth = configManager.getRightSplitPos();
-                    if (subFolderWidth <= 0) subFolderWidth = 200;
-
-                    int divPos = totalW - subFolderWidth - rightSplit.getDividerSize();
-                    rightSplit.setDividerLocation(Math.max(0, divPos));
-
-                    // Libera o listener somente após a posição ser restaurada
-                    SwingUtilities.invokeLater(() -> splitReady[0] = true);
+                    // --- restauração do mainSplit (NOVO, independente) ---
+                    programmaticMainDividerChange = true;
+                    try {
+                        int leftWidth = configManager.getMainSplitPos();
+                        if (leftWidth <= 0) leftWidth = 300; // valor padrão inicial
+                        mainSplit.setDividerLocation(leftWidth);
+                    } finally {
+                        SwingUtilities.invokeLater(() -> {
+                            programmaticMainDividerChange = false;
+                            mainSplitReady[0] = true; // libera o listener só depois de restaurar
+                        });
+                    }
                 }));
             }
         });
@@ -343,6 +373,9 @@ public class FileExplorerSwing extends JFrame {
             }
         }, AWTEvent.MOUSE_EVENT_MASK);
 
+
+        I18N.addLanguageChangeListener(this);
+
     }
 
     // Verifica se "clicado" é o próprio componente-alvo ou está dentro dele
@@ -356,6 +389,15 @@ public class FileExplorerSwing extends JFrame {
     }
 
 
+    int getSafeRightSplitPos() {
+        int v = configManager.getRightSplitPos();
+        return v > 0 ? v : 200; // default
+    }
+
+    int getSafeLeftSplitPos() {
+        int v = configManager.getMainSplitPos();
+        return v > 0 ? v : 300; // default
+    }
 
     /**
      * Chamado quando o usuário alterna a busca global.
@@ -423,13 +465,14 @@ public class FileExplorerSwing extends JFrame {
 
     private boolean isObject3dFile(File file) {
         String name = file.getName().toLowerCase();
-        return name.endsWith(".obj") ;
+        return name.endsWith(".obj");
     }
 
     private boolean isPdfFile(File file) {
         String name = file.getName().toLowerCase();
         return name.endsWith(".pdf");
     }
+
     private boolean isVideoFile(File file) {
         String name = file.getName().toLowerCase();
         return name.endsWith(".mp4") || name.endsWith(".avi") ||
@@ -440,6 +483,7 @@ public class FileExplorerSwing extends JFrame {
                 name.endsWith(".ogg") || name.endsWith(".m4a") ||
                 name.endsWith(".wav");
     }
+
     private boolean isImageFile(File file) {
         String name = file.getName().toLowerCase();
         return name.endsWith(".jpg") || name.endsWith(".jpeg") ||
@@ -456,6 +500,7 @@ public class FileExplorerSwing extends JFrame {
                 name.endsWith(".ico") || name.endsWith(".png") ||
                 name.endsWith(".psd");
     }
+
     public SearchController getController() {
         return controller;
     }
@@ -537,13 +582,13 @@ public class FileExplorerSwing extends JFrame {
         subFolderPanel.loadSubfolders(selectedPath, controller);
         currentPage = 1;
 
-        bottomIndicatorPanel.showSyncIndicator("🔄 Verificando mudanças...");
+        bottomIndicatorPanel.showSyncIndicator(I18N.get("fileExplorerSwing.showSyncIndicator"));
         bottomIndicatorPanel.setWorking(true);
 
         // Cria o diálogo antecipadamente para poder referenciar dentro da tarefa
         BlockingDialog dlg = new BlockingDialog(
                 this,
-                "Aguarde, verificando mudanças...",
+                I18N.get("fileExplorerSwing.BlockingDialog.message"),
                 path);
 
         // NOVO: guarda o status descoberto durante a sincronização
@@ -564,22 +609,22 @@ public class FileExplorerSwing extends JFrame {
                                             // dlg é acessado diretamente — sem parâmetro
                                             dlg.setSubMessage(
                                                     result.hasChanges()
-                                                            ? String.format("Sincronizado: +%d | ↻%d | -%d",
+                                                            ? String.format(I18N.get("fileExplorerSwing.navigateTo.BlockingTaskRunner.run"),
                                                             result.getAdded(),
                                                             result.getUpdated(),
                                                             result.getDeleted())
-                                                            : "Índice atualizado");
+                                                            : I18N.get("fileExplorerSwing.navigateTo.BlockingTaskRunner.result"));
 
                                             controller.startMonitoringAsync(path);
                                         } else {
-                                            dlg.setSubMessage("Pasta não indexada");
+                                            dlg.setSubMessage(I18N.get("fileExplorerSwing.navigateTo.BlockingTaskRunner.notIndexed"));
                                         }
                                         latch.countDown();
                                     }
 
                                     @Override
                                     public void onSyncError(Exception e) {
-                                        dlg.setSubMessage("Erro na sincronização");
+                                        dlg.setSubMessage(I18N.get("fileExplorerSwing.navigateTo.BlockingTaskRunner.error"));
                                         latch.countDown();
                                     }
                                 });
@@ -597,11 +642,12 @@ public class FileExplorerSwing extends JFrame {
                     searchPanel.setIndexButtonEnabled(!folderIndexed[0]); // NOVO
                     bottomIndicatorPanel.setWorking(false);
                     searchPanel.setIndexButtonEnabled(!folderIndexed[0] && !getController().isDriveRoot(selectedPath)); // NOVO: bloqueia raiz de drive também
+                    showingWelcome = false;
                     performCurrentSearch();
+                    subFolderPanel.reload();
                 }
         );
     }
-
 
 
     /**
@@ -612,8 +658,6 @@ public class FileExplorerSwing extends JFrame {
         // Mostra feedback visual temporário
         bottomIndicatorPanel.showAutoRefreshIndicator();
 
-        System.out.println("🔄 Sistema de arquivos modificado - Auto-refresh ativado");
-
     }
 
     /**
@@ -621,6 +665,8 @@ public class FileExplorerSwing extends JFrame {
      */
     private JPanel createLeftPanel() {
         JPanel leftPanel = new JPanel(new BorderLayout(0, 5));
+
+        leftPanel.setVisible(configManager.getSavedShowLeftPanels());
 
         // Tree de pastas
         treePanel = new FolderTreePanel(favoritesService, this);
@@ -684,18 +730,116 @@ public class FileExplorerSwing extends JFrame {
     }
 
 
+//    private void onSearchWithPagination(String searchTerm, String filter,
+//                                        String sortBy, String sortOrder,
+//                                        int minRating, String tag, boolean includeSubfolders, boolean globalSearch,
+//                                        int page, int pageSize) {
+//
+//        String loadingMessage;
+//        if (searchTerm == null || searchTerm.trim().isEmpty()) {
+//            loadingMessage = "📂 Carregando todos os arquivos...";
+//        } else {
+//            loadingMessage = "🔍 Buscando: " + searchTerm + "...";
+//        }
+//
+//        resultsPanel.showMessage(loadingMessage, ResultsPanel.MessageType.LOADING);
+//        paginationPanel.setEnabled(false);
+//
+//        controller.performSearchWithPagination(
+//                searchTerm, filter, selectedPath,
+//                sortBy, sortOrder,
+//                minRating, tag,
+//                includeSubfolders,   // NOVO
+//                globalSearch,
+//                page, pageSize,
+//                new SearchController.PaginatedSearchCallback() {
+//
+//                    @Override
+//                    public void onSearchStarted() {
+//
+//                    }
+//
+//                    @Override
+//                    public void onSearchCompleted(List<FileInfo> results, PaginationInfo pagination) {
+//
+//                        // NOVO: remove a própria pasta atual dos resultados
+//                        List<FileInfo> filtered = results.stream()
+//                                .filter(f -> !f.getPath().equalsIgnoreCase(selectedPath))
+//                                .filter(f -> !f.getExtension().equalsIgnoreCase("ini"))
+//                                .filter(f -> !f.getExtension().equalsIgnoreCase("db"))
+//                                .toList();
+//                        resultsPanel.atualizarBordaCaminho(selectedPath);
+//                        if (filtered.isEmpty()) {
+//                            String emptyMessage;
+//                            if (searchTerm == null || searchTerm.trim().isEmpty()) {
+//                                emptyMessage = "📂 Nenhum arquivo corresponde aos critérios de busca";
+//                            } else {
+//                                // NOVO: menciona os filtros ativos na mensagem de vazio
+//                                StringBuilder sb = new StringBuilder("Nenhum arquivo encontrado");
+//                                sb.append(" para: ").append(searchTerm);
+//                                if (minRating > 0)
+//                                    sb.append(" | Rating ≥ ").append(minRating).append("★");
+//                                if (tag != null && !tag.isEmpty())
+//                                    sb.append(" | Tag: \"").append(tag).append("\"");
+//                                emptyMessage = sb.toString();
+//                            }
+//                            resultsPanel.showMessage(emptyMessage, ResultsPanel.MessageType.NO_RESULTS);
+//                            paginationPanel.setEnabled(false);
+//                        } else {
+//                            resultsPanel.showResults(filtered);
+//                            paginationPanel.updatePagination(pagination);
+//
+//
+//
+//                            // NOVO: garante foco no painel de resultados
+//                            // para que as teclas funcionem imediatamente
+//                            SwingUtilities.invokeLater(resultsPanel::requestFocusInWindow);
+//                        }
+//
+//                        // NOVO: inclui rating e tag no texto de status
+//                        String sortInfo = getSortDisplayName(sortBy) +
+//                                " " + (sortOrder.equals("ASC") ? "↑" : "↓");
+//
+//                        StringBuilder filters = new StringBuilder();
+//                        if (minRating > 0)
+//                            filters.append(" | ").append("★".repeat(minRating)).append("+");
+//                        if (tag != null && !tag.isEmpty())
+//                            filters.append(" | 🏷️ ").append(tag);
+//
+//                        String monitoringStatus = controller.getMonitoringStatus();
+//
+//                        String statusText;
+//                        if (searchTerm == null || searchTerm.trim().isEmpty()) {
+//                            statusText = String.format("📂 Listando: %s | Ordem: %s%s | Local: %s",
+//                                    pagination, sortInfo, filters, selectedPath);
+//                        } else {
+//                            statusText = String.format("✅ %s | Ordem: %s%s | Local: %s",
+//                                    pagination, sortInfo, filters, selectedPath);
+//                        }
+//
+//                        if (!monitoringStatus.isEmpty())
+//                            statusText += " | " + monitoringStatus + " 🔄";
+//
+//                        bottomIndicatorPanel.getStatusLabel().setText(statusText);
+//                    }
+//
+//                    @Override
+//                    public void onSearchError(Exception e) {
+//                        resultsPanel.showMessage("Erro: " + e.getMessage(),
+//                                ResultsPanel.MessageType.ERROR);
+//                        paginationPanel.setEnabled(false);
+//                    }
+//                });
+//    }
 
     private void onSearchWithPagination(String searchTerm, String filter,
                                         String sortBy, String sortOrder,
                                         int minRating, String tag, boolean includeSubfolders, boolean globalSearch,
                                         int page, int pageSize) {
 
-        String loadingMessage;
-        if (searchTerm == null || searchTerm.trim().isEmpty()) {
-            loadingMessage = "📂 Carregando todos os arquivos...";
-        } else {
-            loadingMessage = "🔍 Buscando: " + searchTerm + "...";
-        }
+        String loadingMessage = (searchTerm == null || searchTerm.trim().isEmpty())
+                ? I18N.get("fileExplorerSwing.loading.allFiles")
+                : I18N.get("fileExplorerSwing.loading.searching").replace("{0}", searchTerm);
 
         resultsPanel.showMessage(loadingMessage, ResultsPanel.MessageType.LOADING);
         paginationPanel.setEnabled(false);
@@ -704,38 +848,38 @@ public class FileExplorerSwing extends JFrame {
                 searchTerm, filter, selectedPath,
                 sortBy, sortOrder,
                 minRating, tag,
-                includeSubfolders,   // NOVO
+                includeSubfolders,
                 globalSearch,
                 page, pageSize,
                 new SearchController.PaginatedSearchCallback() {
 
                     @Override
                     public void onSearchStarted() {
-
                     }
 
                     @Override
                     public void onSearchCompleted(List<FileInfo> results, PaginationInfo pagination) {
 
-                        // NOVO: remove a própria pasta atual dos resultados
                         List<FileInfo> filtered = results.stream()
                                 .filter(f -> !f.getPath().equalsIgnoreCase(selectedPath))
                                 .filter(f -> !f.getExtension().equalsIgnoreCase("ini"))
                                 .filter(f -> !f.getExtension().equalsIgnoreCase("db"))
                                 .toList();
                         resultsPanel.atualizarBordaCaminho(selectedPath);
+
                         if (filtered.isEmpty()) {
                             String emptyMessage;
                             if (searchTerm == null || searchTerm.trim().isEmpty()) {
-                                emptyMessage = "📂 Nenhum arquivo corresponde aos critérios de busca";
+                                emptyMessage = I18N.get("fileExplorerSwing.empty.noMatch");
                             } else {
-                                // NOVO: menciona os filtros ativos na mensagem de vazio
-                                StringBuilder sb = new StringBuilder("Nenhum arquivo encontrado");
-                                sb.append(" para: ").append(searchTerm);
+                                StringBuilder sb = new StringBuilder(I18N.get("fileExplorerSwing.empty.noneFoundFor"))
+                                        .append(" ").append(searchTerm);
                                 if (minRating > 0)
-                                    sb.append(" | Rating ≥ ").append(minRating).append("★");
+                                    sb.append(" | ").append(I18N.get("fileExplorerSwing.empty.ratingSuffix"))
+                                            .append(" ≥ ").append(minRating).append("★");
                                 if (tag != null && !tag.isEmpty())
-                                    sb.append(" | Tag: \"").append(tag).append("\"");
+                                    sb.append(" | ").append(I18N.get("fileExplorerSwing.empty.tagSuffix"))
+                                            .append(": \"").append(tag).append("\"");
                                 emptyMessage = sb.toString();
                             }
                             resultsPanel.showMessage(emptyMessage, ResultsPanel.MessageType.NO_RESULTS);
@@ -743,115 +887,140 @@ public class FileExplorerSwing extends JFrame {
                         } else {
                             resultsPanel.showResults(filtered);
                             paginationPanel.updatePagination(pagination);
-
-
-
-                            // NOVO: garante foco no painel de resultados
-                            // para que as teclas funcionem imediatamente
                             SwingUtilities.invokeLater(resultsPanel::requestFocusInWindow);
                         }
 
-                        // NOVO: inclui rating e tag no texto de status
-                        String sortInfo = getSortDisplayName(sortBy) +
-                                " " + (sortOrder.equals("ASC") ? "↑" : "↓");
-
-                        StringBuilder filters = new StringBuilder();
-                        if (minRating > 0)
-                            filters.append(" | ").append("★".repeat(minRating)).append("+");
-                        if (tag != null && !tag.isEmpty())
-                            filters.append(" | 🏷️ ").append(tag);
-
-                        String monitoringStatus = controller.getMonitoringStatus();
-
-                        String statusText;
-                        if (searchTerm == null || searchTerm.trim().isEmpty()) {
-                            statusText = String.format("📂 Listando: %s | Ordem: %s%s | Local: %s",
-                                    pagination, sortInfo, filters, selectedPath);
-                        } else {
-                            statusText = String.format("✅ %s | Ordem: %s%s | Local: %s",
-                                    pagination, sortInfo, filters, selectedPath);
-                        }
-
-                        if (!monitoringStatus.isEmpty())
-                            statusText += " | " + monitoringStatus + " 🔄";
-
-                        bottomIndicatorPanel.getStatusLabel().setText(statusText);
+                        // ── AQUI está a mudança principal: nunca mais setText direto ──
+                        String sortFieldKey = getSortDisplayNameKey(sortBy);
+                        boolean hasSearchTerm = searchTerm != null && !searchTerm.trim().isEmpty();
+                        bottomIndicatorPanel.showSearchStatus(
+                                hasSearchTerm,
+                                pagination,
+                                sortFieldKey != null ? sortFieldKey : sortBy, // fallback bruto se chave não mapeada
+                                sortOrder,
+                                minRating,
+                                tag,
+                                controller.getMonitoringStatus(),
+                                selectedPath
+                        );
                     }
 
                     @Override
                     public void onSearchError(Exception e) {
-                        resultsPanel.showMessage("Erro: " + e.getMessage(),
+                        resultsPanel.showMessage(
+                                I18N.get("fileExplorerSwing.error.search").replace("{0}", e.getMessage()),
                                 ResultsPanel.MessageType.ERROR);
                         paginationPanel.setEnabled(false);
                     }
                 });
     }
 
+
     /**
      * Converte nome do campo para exibição
      * NOVO MÉTODO
      */
-    private String getSortDisplayName(String fieldName) {
+//    private String getSortDisplayName(String fieldName) {
+//        return switch (fieldName) {
+//            case "name" -> "Nome";
+//            case "last_modified" -> "Data";
+//            case "size" -> "Tamanho";
+//            case "file_type" -> "Tipo";
+//            case "path" -> "Caminho";
+//            default -> fieldName;
+//        };
+//    }
+    private String getSortDisplayNameKey(String fieldName) {
         return switch (fieldName) {
-            case "name" -> "Nome";
-            case "last_modified" -> "Data";
-            case "size" -> "Tamanho";
-            case "file_type" -> "Tipo";
-            case "path" -> "Caminho";
-            default -> fieldName;
+            case "name" -> "sortField.name";
+            case "last_modified" -> "sortField.date";
+            case "size" -> "sortField.size";
+            case "file_type" -> "sortField.type";
+            case "path" -> "sortField.path";
+            default -> null; // sem tradução — usa o próprio fieldName como fallback
         };
     }
 
-    private void onIndexRequest() {
-        String message = String.format(
-                "Deseja indexar a pasta selecionada?\n" +
-                        "Pasta: %s\n\n" +
-                        "===================Atenção=============================\n" +
-                 "A velocidade da indexação vai depender da velocide do disco onde\n" +
-                    "os arquivos estão armazenados (Nvme > SSD > HD). Mutos arquivos (< 1000)\n" +
-                    "podem resultar em uma demora no processo\n\n" +
-                        "Incluir subpastas?" ,
-                selectedPath
-        );
+//    private void onIndexRequest() {
+//        String message = String.format(
+//                "Deseja indexar a pasta selecionada?\n" +
+//                        "Pasta: %s\n\n" +
+//                        "===================Atenção=============================\n" +
+//                        "A velocidade da indexação vai depender da velocide do disco onde\n" +
+//                        "os arquivos estão armazenados (Nvme > SSD > HD). Mutos arquivos (< 1000)\n" +
+//                        "podem resultar em uma demora no processo\n\n" +
+//                        "Incluir subpastas?",
+//                selectedPath
+//        );
+//
+//
+//        int option = JOptionPane.showConfirmDialog(this,
+//                message,
+//                "Indexar Pasta",
+//                JOptionPane.YES_NO_CANCEL_OPTION,
+//                JOptionPane.QUESTION_MESSAGE);
+//
+//        if (option == JOptionPane.YES_OPTION) {
+//            indexFolder(true);
+//        } else if (option == JOptionPane.NO_OPTION) {
+//            indexFolder(false);
+//        }
+//    }
+private void onIndexRequest() {
+    String message = String.format(
+            I18N.get("fileExplorerSwing.indexRequest.message"),
+            selectedPath
+    );
 
+    int option = JOptionPane.showConfirmDialog(this,
+            message,
+            I18N.get("fileExplorerSwing.indexRequest.title"),
+            JOptionPane.YES_NO_CANCEL_OPTION,
+            JOptionPane.QUESTION_MESSAGE);
 
-        int option = JOptionPane.showConfirmDialog(this,
-                message,
-                "Indexar Pasta",
-                JOptionPane.YES_NO_CANCEL_OPTION,
-                JOptionPane.QUESTION_MESSAGE);
-
-        if (option == JOptionPane.YES_OPTION) {
-            indexFolder(true);
-        } else if (option == JOptionPane.NO_OPTION) {
-            indexFolder(false);
-        }
+    if (option == JOptionPane.YES_OPTION) {
+        indexFolder(true);
+    } else if (option == JOptionPane.NO_OPTION) {
+        indexFolder(false);
     }
+}
 
+    //    private void indexFolder(boolean includeSubfolders) {
+//        controller.indexFolder(selectedPath, includeSubfolders,
+//                new SearchController.IndexCallback() {
+//                    @Override
+//                    public void onIndexCompleted() {
+//                        bottomIndicatorPanel.getStatusLabel().setText("✓ Indexação concluída: " + selectedPath);
+//                    }
+//
+//                    @Override
+//                    public void onIndexError(Exception e) {
+//                        bottomIndicatorPanel.getStatusLabel().setText("❌ Erro na indexação");
+//                    }
+//                });
+//    }
     private void indexFolder(boolean includeSubfolders) {
         controller.indexFolder(selectedPath, includeSubfolders,
                 new SearchController.IndexCallback() {
                     @Override
                     public void onIndexCompleted() {
-                        bottomIndicatorPanel.getStatusLabel().setText("✓ Indexação concluída: " + selectedPath);
+                        bottomIndicatorPanel.showIndexDone(selectedPath); // era setText direto
                     }
 
                     @Override
                     public void onIndexError(Exception e) {
-                        bottomIndicatorPanel.getStatusLabel().setText("❌ Erro na indexação");
+                        bottomIndicatorPanel.showIndexError(); // era setText direto
                     }
                 });
     }
 
     private void onFolderSelected(File folder) {
         navigateTo(folder.getAbsolutePath(), true);
-        System.out.println("📂 Selecionado: " + folder.getAbsolutePath());
     }
 
     private void onFavoriteSelected(File folder) {
         if (folder != null && folder.exists() && folder.isDirectory()) {
             navigateTo(folder.getAbsolutePath(), true);
-            System.out.println("⭐ Favorito selecionado: " + folder.getAbsolutePath());
         }
     }
 
@@ -859,19 +1028,24 @@ public class FileExplorerSwing extends JFrame {
     /**
      * Mensagem de boas-vindas
      * MODIFICADO: Menciona busca vazia
-     */////////////
+     */
+    /// /////////
+//    private void showWelcomeMessage() {
+//        resultsPanel.showMessage(
+//                "Sistema de Busca Avançada\n" +
+//                        "Selecione uma pasta e clique em 'Indexar'\n\n" +
+//                        "💡 Recursos Ativos:\n" +
+//                        "   🔄 Sincronização automática (apenas pastas indexadas)\n" +
+//                        "   📡 Monitoramento em tempo real\n" +
+//                        "   ⚡ Auto-refresh de resultados\n" +
+//                        "   📂 Busca vazia = Lista TODOS os arquivos\n" +
+//                        "   ✅ Índice sempre atualizado",
+//                ResultsPanel.MessageType.WELCOME
+//        );
+//    }
     private void showWelcomeMessage() {
-        resultsPanel.showMessage(
-                "Sistema de Busca Avançada\n" +
-                        "Selecione uma pasta e clique em 'Indexar'\n\n" +
-                        "💡 Recursos Ativos:\n" +
-                        "   🔄 Sincronização automática (apenas pastas indexadas)\n" +
-                        "   📡 Monitoramento em tempo real\n" +
-                        "   ⚡ Auto-refresh de resultados\n" +
-                        "   📂 Busca vazia = Lista TODOS os arquivos\n" +
-                        "   ✅ Índice sempre atualizado",
-                ResultsPanel.MessageType.WELCOME
-        );
+        resultsPanel.showMessage(I18N.get("fileExplorerSwing.welcome.message"),
+                ResultsPanel.MessageType.WELCOME);
     }
 
     /**
@@ -934,6 +1108,7 @@ public class FileExplorerSwing extends JFrame {
 
         }
     }
+
     /**
      * Botão para comprimir Arquivos
      */
@@ -1013,28 +1188,53 @@ public class FileExplorerSwing extends JFrame {
             resultsPanel.exitVideoConverterMode();
     }
 
-    public void createNewFolder() {
-        if (getSelectedPath() == null) {
-            JOptionPane.showMessageDialog(this,
-                    "Selecione uma pasta pai antes de criar uma nova pasta.",
-                    "Aviso", JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-        String name = JOptionPane.showInputDialog(this,
-                "Nome da nova pasta:", "Nova pasta");
-        if (name == null || name.isBlank()) return;
-
-        File newDir = new File(getSelectedPath(), name.trim());
-        if (newDir.mkdirs()) {
-            JOptionPane.showMessageDialog(this,
-                    "Pasta criada: " + newDir.getAbsolutePath());
-            subFolderPanel.reload();
-        } else {
-            JOptionPane.showMessageDialog(this,
-                    "Não foi possível criar a pasta.", "Erro",
-                    JOptionPane.ERROR_MESSAGE);
-        }
+//    public void createNewFolder() {
+//        if (getSelectedPath() == null) {
+//            JOptionPane.showMessageDialog(this,
+//                    "Selecione uma pasta pai antes de criar uma nova pasta.",
+//                    "Aviso", JOptionPane.WARNING_MESSAGE);
+//            return;
+//        }
+//        String name = JOptionPane.showInputDialog(this,
+//                "Nome da nova pasta:", "Nova pasta");
+//        if (name == null || name.isBlank()) return;
+//
+//        File newDir = new File(getSelectedPath(), name.trim());
+//        if (newDir.mkdirs()) {
+//            JOptionPane.showMessageDialog(this,
+//                    "Pasta criada: " + newDir.getAbsolutePath());
+//            subFolderPanel.reload();
+//        } else {
+//            JOptionPane.showMessageDialog(this,
+//                    "Não foi possível criar a pasta.", "Erro",
+//                    JOptionPane.ERROR_MESSAGE);
+//        }
+//    }
+public void createNewFolder() {
+    if (getSelectedPath() == null) {
+        JOptionPane.showMessageDialog(this,
+                I18N.get("fileExplorerSwing.newFolder.selectParentWarning"),
+                I18N.get("fileExplorerSwing.newFolder.warningTitle"),
+                JOptionPane.WARNING_MESSAGE);
+        return;
     }
+    String name = JOptionPane.showInputDialog(this,
+            I18N.get("fileExplorerSwing.newFolder.namePrompt"),
+            I18N.get("fileExplorerSwing.newFolder.defaultName"));
+    if (name == null || name.isBlank()) return;
+
+    File newDir = new File(getSelectedPath(), name.trim());
+    if (newDir.mkdirs()) {
+        JOptionPane.showMessageDialog(this,
+                I18N.get("fileExplorerSwing.newFolder.created").replace("{0}", newDir.getAbsolutePath()));
+        subFolderPanel.reload();
+    } else {
+        JOptionPane.showMessageDialog(this,
+                I18N.get("fileExplorerSwing.newFolder.failed"),
+                I18N.get("fileExplorerSwing.newFolder.errorTitle"),
+                JOptionPane.ERROR_MESSAGE);
+    }
+}
 
     public boolean isUseDefaultWindowsProgramVideo() {
         return useDefaultWindowsProgramVideo;
@@ -1068,5 +1268,39 @@ public class FileExplorerSwing extends JFrame {
         this.useDefaultWindowsProgram3dModel = useDefaultWindowsProgram3dModel;
     }
 
+    public SubFolderPanel getSubFolderPanel() {
+        return subFolderPanel;
+    }
 
+    public JSplitPane getRightSplit() {
+        return rightSplit;
+    }
+
+    public JSplitPane getMainSplit() {
+        return mainSplit;
+    }
+
+    public JPanel getLeftPanel() {
+        return leftPanel;
+    }
+
+    public void setProgrammaticDividerChange(boolean programmaticDividerChange) {
+        this.programmaticDividerChange = programmaticDividerChange;
+    }
+
+    public void setProgrammaticMainDividerChange(boolean programmaticMainDividerChange) {
+        this.programmaticMainDividerChange = programmaticMainDividerChange;
+    }
+
+
+    @Override
+    public void onLanguageChanged(Locale newLocale) {
+        setTitle(I18N.get("fileExplorerSwing.frameTitle")); // se quiser traduzir o título da janela
+
+        if (showingWelcome) {
+            showWelcomeMessage(); // reconstrói a mensagem de boas-vindas no novo idioma
+        } else {
+            performCurrentSearch(); // reconstrói o texto de status + resultsPanel com o idioma atual
+        }
+    }
 }

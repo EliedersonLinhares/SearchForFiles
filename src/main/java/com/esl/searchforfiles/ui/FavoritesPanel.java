@@ -2,6 +2,7 @@ package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.actions.fileTransfer.TransferDropHelper;
 import com.esl.searchforfiles.configuration.UIConfig;
+import com.esl.searchforfiles.localization.I18N;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.service.FavoritesService;
 import com.esl.searchforfiles.service.IconService;
@@ -9,6 +10,7 @@ import com.esl.searchforfiles.actions.fileTransfer.TransferService;
 import com.formdev.flatlaf.FlatClientProperties;
 
 import javax.swing.*;
+import javax.swing.border.TitledBorder;
 import javax.swing.filechooser.FileSystemView;
 import java.awt.*;
 import java.awt.datatransfer.DataFlavor;
@@ -17,25 +19,33 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.File;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
  * Painel com JList de pastas favoritas
  */
-public class FavoritesPanel extends JPanel {
+public class FavoritesPanel extends JPanel implements I18N.LanguageChangeListener{
     private final JList<String> favoritesList;
     private final DefaultListModel<String> listModel;
     private final FavoritesService favoritesService;
     private FavoriteSelectionListener selectionListener;
     private FileExplorerSwing fileExplorerSwing;
     private TransferService transferService;
+    private TitledBorder titledBorder;
+    private JMenuItem removeItem;
+    private JMenuItem openItem;
+    private JMenuItem defaultFolderItem;
+    private String selected;
+    private JButton clearButton;
 
     public FavoritesPanel(FavoritesService favoritesManager, FileExplorerSwing fileExplorerSwing) {
         this.favoritesService = favoritesManager;
         this.fileExplorerSwing = fileExplorerSwing;
 
         setLayout(new BorderLayout());
-        setBorder(BorderFactory.createTitledBorder("⭐ Favoritos"));
+        setBorder(BorderFactory.createTitledBorder(I18N.get("favoritesPanel.titledBorder")));
+        titledBorder = (TitledBorder) this.getBorder();
         setPreferredSize(new Dimension(300, 200));
 
         // Modelo da lista
@@ -61,7 +71,7 @@ public class FavoritesPanel extends JPanel {
                 int index = favoritesList.locationToIndex(e.getPoint());
 
                 if (index >= 0 && index < listModel.getSize()) {
-                    String selected = listModel.getElementAt(index);
+                    selected = listModel.getElementAt(index);
 
                     // Verifica se não é o item placeholder
                     if (selected != null &&
@@ -75,12 +85,11 @@ public class FavoritesPanel extends JPanel {
                         File folder = new File(selected);
                         if (folder.exists() && folder.isDirectory()) {
                             selectionListener.onFavoriteSelected(folder);
-                            System.out.println("⭐ Favorito clicado: " + selected);
                             fileExplorerSwing.performCurrentSearch();
                         } else {
                             JOptionPane.showMessageDialog(FavoritesPanel.this,
-                                    "Esta pasta não existe mais:\n" + selected,
-                                    "Pasta Inválida", JOptionPane.WARNING_MESSAGE);
+                                    I18N.get("favoritesPanel.folder.exists.showMessageDialog") + "\n" + selected,
+                                    I18N.get("favoritesPanel.folder.exists.showMessageDialog.title"), JOptionPane.WARNING_MESSAGE);
                         }
                     }
                 }
@@ -128,10 +137,8 @@ public class FavoritesPanel extends JPanel {
         JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
 //        JButton clearButton = new JButton("Limpar Todos");
 //        clearButton.setFont(UIConfig.FONT_DEFAULT);
-        JButton clearButton =  makeTextBtn("🗑️ Limpar Todos",
-                "Remover todos os favoritos",
-                "Slider.trackColor",
-                "Component.accentColor");
+         clearButton = makeHighlightedMediumBtn(I18N.get("favoritesPanel.clearButton"),
+                I18N.get("favoritesPanel.clearButton.tooltiptext"), 145,40);
         clearButton.addActionListener(e -> clearAllFavorites());
         bottomPanel.add(clearButton);
         add(bottomPanel, BorderLayout.SOUTH);
@@ -143,6 +150,9 @@ public class FavoritesPanel extends JPanel {
         favoritesService.addListener(this::refreshFavorites);
 
         setupDropTarget();
+
+        updateTexts();
+        I18N.addLanguageChangeListener(this);
     }
 
     private JButton makeTextBtn(String text, String toolTipText, String borderColor, String borderHoverColor) {
@@ -186,7 +196,7 @@ public class FavoritesPanel extends JPanel {
         JPopupMenu menu = new JPopupMenu();
 
 
-        JMenuItem defaultFolderItem = new JMenuItem("Definir como pasta padrão");
+        defaultFolderItem = new JMenuItem(I18N.get("favoritesPanel.defaultFolderItem"));
         defaultFolderItem.addActionListener(e -> {
             String selected = favoritesList.getSelectedValue();
             if (selected != null && !selected.equals("(Nenhum favorito)")) {
@@ -195,7 +205,7 @@ public class FavoritesPanel extends JPanel {
             }
         });
 
-        JMenuItem openItem = new JMenuItem("Abrir no Explorer");
+        openItem = new JMenuItem(I18N.get("favoritesPanel.openItem"));
         openItem.addActionListener(e -> {
             String selected = favoritesList.getSelectedValue();
             if (selected != null && !selected.equals("(Nenhum favorito)")) {
@@ -209,13 +219,13 @@ public class FavoritesPanel extends JPanel {
             }
         });
 
-        JMenuItem removeItem = new JMenuItem("Remover dos Favoritos");
+        removeItem = new JMenuItem(I18N.get("favoritesPanel.removeItem"));
         removeItem.addActionListener(e -> {
             String selected = favoritesList.getSelectedValue();
             if (selected != null && !selected.equals("(Nenhum favorito)")) {
                 int confirm = JOptionPane.showConfirmDialog(this,
-                        "Remover dos favoritos?\n\n" + selected,
-                        "Confirmar Remoção",
+                         I18N.get("favoritesPanel.removeItem.showMessageDialog") + "\n\n" + selected,
+                        I18N.get("favoritesPanel.removeItem.showMessageDialog.title"),
                         JOptionPane.YES_NO_OPTION);
 
                 if (confirm == JOptionPane.YES_OPTION) {
@@ -241,8 +251,8 @@ public class FavoritesPanel extends JPanel {
         }
 
         int confirm = JOptionPane.showConfirmDialog(this,
-                "Remover TODOS os favoritos?",
-                "Confirmar",
+                I18N.get("favoritesPanel.clearAllFavorites.showMessageDialog"),
+                I18N.get("favoritesPanel.clearAllFavorites.showMessageDialog.title"),
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.WARNING_MESSAGE);
 
@@ -280,7 +290,7 @@ public class FavoritesPanel extends JPanel {
                 dtde.acceptDrag(DnDConstants.ACTION_COPY_OR_MOVE);
                 setBorder(BorderFactory.createTitledBorder(
                         BorderFactory.createLineBorder(new Color(33, 150, 243), 2),
-                        "⭐ Favoritos"));
+                        I18N.get("favoritesPanel.titledBorder")));
 
                 // BUG 2 FIX — tenta inspecionar o conteúdo já no dragEnter
                 // para saber se é drag de pasta pura (adicionar favorito)
@@ -312,13 +322,13 @@ public class FavoritesPanel extends JPanel {
 
             @Override
             public void dragExit(DropTargetEvent dte) {
-                setBorder(BorderFactory.createTitledBorder("⭐ Favoritos"));
+                setBorder(BorderFactory.createTitledBorder(I18N.get("favoritesPanel.titledBorder")));
                 favoritesList.clearSelection();
             }
 
             @Override
             public void drop(DropTargetDropEvent dtde) {
-                setBorder(BorderFactory.createTitledBorder("⭐ Favoritos"));
+                setBorder(BorderFactory.createTitledBorder( I18N.get("favoritesPanel.titledBorder")));
 
                 try {
                     dtde.acceptDrop(DnDConstants.ACTION_COPY_OR_MOVE);
@@ -347,8 +357,8 @@ public class FavoritesPanel extends JPanel {
 
                     if (selectedFav == null || selectedFav.equals("(Nenhum favorito)")) {
                         JOptionPane.showMessageDialog(FavoritesPanel.this,
-                                "Solte sobre um favorito específico para copiar/mover arquivos.",
-                                "Destino não identificado", JOptionPane.INFORMATION_MESSAGE);
+                                I18N.get("favoritesPanel.drop.showMessageDialog"),
+                                I18N.get("favoritesPanel.drop.showMessageDialog.title"), JOptionPane.INFORMATION_MESSAGE);
                         return;
                     }
 
@@ -372,14 +382,14 @@ public class FavoritesPanel extends JPanel {
             private void tryAddFavorite(File dir) {
                 if (fileExplorerSwing.isDriveRoot(dir.getAbsolutePath())) {
                     JOptionPane.showMessageDialog(FavoritesPanel.this,
-                            "Drive raiz não pode ser adicionado aos favoritos!",
-                            "Aviso", JOptionPane.WARNING_MESSAGE);
+                            I18N.get("favoritesPanel.tryAddFavorite.isDriveRoot.showMessageDialog"),
+                            I18N.get("favoritesPanel.tryAddFavorite.isDriveRoot.showMessageDialog.title"), JOptionPane.WARNING_MESSAGE);
                     return;
                 }
                 if (favoritesService.isFavorite(dir.getAbsolutePath())) {
                     JOptionPane.showMessageDialog(FavoritesPanel.this,
-                            "Esta pasta já está nos favoritos!\n\n" + dir.getName(),
-                            "Aviso", JOptionPane.INFORMATION_MESSAGE);
+                             I18N.get("favoritesPanel.tryAddFavorit.isFavorite.showMessageDialog") + "\n\n" + dir.getName(),
+                            I18N.get("favoritesPanel.tryAddFavorite.isDriveRoot.showMessageDialog.title"), JOptionPane.INFORMATION_MESSAGE);
                     return;
                 }
                 favoritesService.addFavorite(dir.getAbsolutePath());
@@ -436,5 +446,48 @@ public class FavoritesPanel extends JPanel {
 
     public JList<String> getFavoritesList() {
         return favoritesList;
+    }
+
+    protected void updateTexts() {
+        if (titledBorder != null) {
+            titledBorder.setTitle(I18N.get("favoritesPanel.titledBorder"));
+        }
+        if (removeItem != null) {
+            removeItem.setText(I18N.get("favoritesPanel.removeItem"));
+        }
+        if (openItem != null) {
+            openItem.setText(I18N.get("favoritesPanel.openItem"));
+        }
+        if (defaultFolderItem != null) {
+            defaultFolderItem.setText(I18N.get("favoritesPanel.defaultFolderItem"));
+        }
+//        if (selected != null) {
+//            selected = (I18N.get("folderTreePanel.defaultFolderItem"));
+//        }
+        if (clearButton != null) {
+            clearButton.setText(I18N.get("favoritesPanel.clearButton"));
+        }
+
+    }
+    private JButton makeHighlightedMediumBtn(String text, String toolTipText, int width, int height) {
+        Map<String, Object> styleButton = Map.of(
+                "borderWidth", 3,
+                "borderColor", UIManager.getColor("Component.accentColor"),
+                "hoverBorderColor", UIManager.getColor("Component.accentColor").brighter(),
+                "focusedBorderColor", UIManager.getColor("Component.accentColor")
+        );
+        JButton btn = new JButton(text);
+        btn.setFont(UIConfig.FONT_DEFAULT_BOLD);
+        btn.putClientProperty(FlatClientProperties.STYLE, styleButton);
+        btn.setToolTipText(toolTipText);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setPreferredSize(new Dimension(width, height));
+        return btn;
+    }
+    @Override
+    public void onLanguageChanged(Locale newLocale) {
+        updateTexts();
+        repaint();
+        revalidate();
     }
 }

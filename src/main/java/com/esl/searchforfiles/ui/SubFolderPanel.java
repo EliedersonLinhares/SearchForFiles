@@ -5,6 +5,7 @@ import com.esl.searchforfiles.configuration.ConfigManager;
 import com.esl.searchforfiles.actions.fileTransfer.FileTransferHandler;
 import com.esl.searchforfiles.actions.fileTransfer.TransferDropHelper;
 import com.esl.searchforfiles.configuration.UIConfig;
+import com.esl.searchforfiles.localization.I18N;
 import com.esl.searchforfiles.model.FileInfo;
 import com.esl.searchforfiles.model.FileType;
 import com.esl.searchforfiles.model.SearchCriteria;
@@ -14,6 +15,7 @@ import com.formdev.flatlaf.FlatClientProperties;
 import com.formdev.flatlaf.FlatLaf;
 
 import javax.swing.*;
+import javax.swing.border.TitledBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
@@ -26,12 +28,12 @@ import java.awt.event.MouseEvent;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Supplier;
+public class SubFolderPanel extends JPanel implements I18N.LanguageChangeListener {
 
-public class SubFolderPanel extends JPanel {
-
-    private static final int   PAGE_SIZE    = 100;
+    private static final int PAGE_SIZE = 100;
 
     // ── Ordenação ──────────────────────────────────────────────────
     private String sortField = "name";
@@ -48,13 +50,14 @@ public class SubFolderPanel extends JPanel {
     // ── UI ─────────────────────────────────────────────────────────
     private final JPanel      listPanel;
     private final JScrollPane scrollPane;
-   // private final JLabel      titleLabel;
     private final JTextField  searchField;
     private final JLabel      pageLabel;
     private final JLabel      emptyLabel;
     private final JButton     btnFirst, btnPrev, btnNext, btnLast;
     private JButton titleButton;
-
+    private TitledBorder titledBorder;
+    private JMenuItem asc;
+    private JMenuItem desc;
 
     private FolderClickListener clickListener;
     private TransferService     transferService;
@@ -70,25 +73,15 @@ public class SubFolderPanel extends JPanel {
         this.sortField = configManager.getSubfolderSortField();
         this.sortOrder = configManager.getSubfolderSortOrder();
 
-
-
         isDark = UIManager.getBoolean("laf.dark");
 
         setLayout(new BorderLayout(0, 0));
-        setBorder(BorderFactory.createTitledBorder("📁 Subpastas"));
+        setBorder(BorderFactory.createTitledBorder(I18N.get("subFolderPanel.titledBorder")));
+        titledBorder = (TitledBorder) this.getBorder();
+
         // ── Cabeçalho ──────────────────────────────────────────────
-//        titleLabel = new JLabel(buildTitle());
-//        titleLabel.setFont(UIConfig.FONT_DEFAULT);
-//        titleLabel.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 8));
-//        titleLabel.setOpaque(true);
-//        titleLabel.setToolTipText("Clique com botão direito para ordenar");
-//        titleLabel.addMouseListener(new MouseAdapter() {
-//            @Override public void mousePressed(MouseEvent e) {
-//                if (SwingUtilities.isLeftMouseButton(e)) showSortMenu(e);
-//            }
-//        });
-        titleButton = new JButton();
-        titleButton =UIConfig.makeHighlightedMediumBtn(buildTitle(), "Clique para ordenar",120,35);
+        titleButton = UIConfig.makeHighlightedMediumBtn(
+                buildTitle(), I18N.get("subFolderPanel.titleButton.tooltip"), 120, 35);
         titleButton.addMouseListener(new MouseAdapter() {
             @Override public void mousePressed(MouseEvent e) {
                 if (SwingUtilities.isLeftMouseButton(e)) showSortMenu(e);
@@ -96,10 +89,13 @@ public class SubFolderPanel extends JPanel {
         });
 
         searchIcon = new ImageIcon(Objects.requireNonNull(getClass().getResource("/icons/text/search_icon16.png")));
+
         // ── Campo de pesquisa ───────────────────────────────────────
         searchField = new JTextField();
-        searchField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Digite para pesquisar...");
-        searchField.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, isDark ?  fileExplorerSwing.getThemeManager().inverterColorIcon(searchIcon) : searchIcon);
+        searchField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT,
+                I18N.get("subFolderPanel.searchField.placeholder"));
+        searchField.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON,
+                isDark ? fileExplorerSwing.getThemeManager().inverterColorIcon(searchIcon) : searchIcon);
 
         searchField.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(70, 70, 70)),
@@ -139,14 +135,13 @@ public class SubFolderPanel extends JPanel {
         // ── Painel norte ────────────────────────────────────────────
         JPanel northPanel = new JPanel(new BorderLayout());
         northPanel.setBackground(UIConfig.background());
-       // northPanel.add(titleLabel,  BorderLayout.NORTH);
         northPanel.add(titleButton,  BorderLayout.NORTH);
         northPanel.add(searchField, BorderLayout.CENTER);
         northPanel.add(pagBar,      BorderLayout.SOUTH);
         add(northPanel, BorderLayout.NORTH);
 
         // ── Mensagem de vazio ───────────────────────────────────────
-        emptyLabel = new JLabel("Nenhuma subpasta", SwingConstants.CENTER);
+        emptyLabel = new JLabel(I18N.get("subFolderPanel.emptyLabel.default"), SwingConstants.CENTER);
         emptyLabel.setFont(UIConfig.FONT_SMALL);
         emptyLabel.setVisible(false);
 
@@ -154,7 +149,6 @@ public class SubFolderPanel extends JPanel {
         listPanel = new JPanel();
         listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
 
-        // Wrapper que contém tanto a lista quanto o emptyLabel
         JPanel centerWrapper = new JPanel(new BorderLayout());
         centerWrapper.add(emptyLabel, BorderLayout.NORTH);
         centerWrapper.add(listPanel,  BorderLayout.CENTER);
@@ -167,31 +161,23 @@ public class SubFolderPanel extends JPanel {
         setPreferredSize(new Dimension(200, 0));
         setTransferHandler(new FileTransferHandler());
 
-
-        // Atualiza quando o tema mudar
         fileExplorerSwing.getThemeManager().addThemeChangeListener(() ->
                 SwingUtilities.invokeLater(() -> {
-                    // 1. Atualiza a variável com o estado do novo tema ativo
                     isDark = UIManager.getBoolean("laf.dark");
-
-                    // 2. Cria ou recupera o ícone correto baseado no novo estado
                     Icon iconeAtualizado = isDark ?
                             fileExplorerSwing.getThemeManager().inverterColorIcon(searchIcon) :
                             searchIcon;
-
-                    // 3. Reaplica a propriedade do cliente para atualizar o FlatLaf
                     searchField.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, iconeAtualizado);
-
-                    // 4. Redesenha o componente para garantir que a mudança visual apareça na hora
                     searchField.repaint();
                     searchField.revalidate();
                 })
         );
+
+        updateTexts();
+        I18N.addLanguageChangeListener(this);
     }
 
     // ── API pública ────────────────────────────────────────────────
-
-
     public void setParentSplit(JSplitPane split) { /* mantido por compatibilidade */ }
     public void setTransferManager(TransferService tm) { this.transferService = tm; }
     public void setFolderClickListener(FolderClickListener l) { this.clickListener = l; }
@@ -204,7 +190,7 @@ public class SubFolderPanel extends JPanel {
         searchField.setText("");
         resetting = false;
 
-        showEmpty(false); // limpa estado enquanto carrega
+        showEmpty(false);
 
         SwingWorker<List<FileInfo>, Void> worker = new SwingWorker<>() {
             @Override
@@ -274,10 +260,13 @@ public class SubFolderPanel extends JPanel {
         updatePagination();
     }
 
+    // ── NOVO: usa chave i18n com placeholder para o termo buscado ────
     private void showEmpty(boolean empty) {
         String q = searchField.getText().trim();
         emptyLabel.setText(empty
-                ? (q.isEmpty() ? "Nenhuma subpasta" : "Nenhum resultado para \"" + q + "\"")
+                ? (q.isEmpty()
+                ? I18N.get("subFolderPanel.emptyLabel.default")
+                : I18N.get("subFolderPanel.emptyLabel.noResults").replace("{0}", q))
                 : "");
         emptyLabel.setVisible(empty);
         listPanel.setVisible(!empty);
@@ -313,12 +302,17 @@ public class SubFolderPanel extends JPanel {
     }
 
     // ── Ordenação ──────────────────────────────────────────────────
-
+    // NOVO: menu recriado a cada clique, então basta usar I18N.get() aqui —
+    // não é necessário guardar referência para o language change.
     private void showSortMenu(MouseEvent e) {
         JPopupMenu menu = new JPopupMenu();
         menu.setFont(UIConfig.FONT_DEFAULT);
 
-        String[][] fields = {{"Nome", "name"}, {"Data", "last_modified"}, {"Tamanho", "size"}};
+        String[][] fields = {
+                {I18N.get("subFolderPanel.sortField.name"), "name"},
+                {I18N.get("subFolderPanel.sortField.date"), "last_modified"},
+                {I18N.get("subFolderPanel.sortField.size"), "size"}
+        };
         for (String[] f : fields) {
             boolean active = sortField.equals(f[1]);
             JMenuItem item = new JMenuItem((active ? "✓ " : "   ") + f[0]);
@@ -329,8 +323,8 @@ public class SubFolderPanel extends JPanel {
 
         menu.addSeparator();
 
-        JMenuItem asc  = new JMenuItem((sortOrder.equals("ASC")  ? "✓ " : "   ") + "Crescente ↑");
-        JMenuItem desc = new JMenuItem((sortOrder.equals("DESC") ? "✓ " : "   ") + "Decrescente ↓");
+        asc  = new JMenuItem((sortOrder.equals("ASC")  ? "✓ " : "   ") + I18N.get("subFolderPanel.sortOrder.asc"));
+        desc = new JMenuItem((sortOrder.equals("DESC") ? "✓ " : "   ") + I18N.get("subFolderPanel.sortOrder.desc"));
         styleMenuItem(asc,  sortOrder.equals("ASC"));
         styleMenuItem(desc, sortOrder.equals("DESC"));
         asc .addActionListener(ev -> { sortOrder = "ASC";  configManager.saveSubfolderSortOrder("ASC");  reload(); });
@@ -358,14 +352,15 @@ public class SubFolderPanel extends JPanel {
         titleButton.setText(buildTitle() + suffix);
     }
 
+    // NOVO: usa chaves i18n para o prefixo e os nomes de campo
     private String buildTitle() {
         String arrow = sortOrder.equals("ASC") ? "↑" : "↓";
         String field = switch (sortField) {
-            case "last_modified" -> "Data";
-            case "size"          -> "Tamanho";
-            default              -> "Nome";
+            case "last_modified" -> I18N.get("subFolderPanel.sortField.date");
+            case "size"          -> I18N.get("subFolderPanel.sortField.size");
+            default              -> I18N.get("subFolderPanel.sortField.name");
         };
-        return  "Ordernar por: " + field + " " + arrow;
+        return I18N.get("subFolderPanel.buildTitle.prefix") + field + " " + arrow;
     }
 
     private JButton makePageBtn(String text) {
@@ -457,6 +452,33 @@ public class SubFolderPanel extends JPanel {
         new DropTarget(nameLabel, DnDConstants.ACTION_COPY_OR_MOVE, dta);
 
         return row;
+    }
+
+    // ── i18n ───────────────────────────────────────────────────────
+    protected void updateTexts() {
+        if (titledBorder != null) {
+            titledBorder.setTitle(I18N.get("subFolderPanel.titledBorder"));
+        }
+
+        // NOVO: tooltip do botão de ordenação
+        titleButton.setToolTipText(I18N.get("subFolderPanel.titleButton.tooltip"));
+
+        // NOVO: placeholder do campo de busca
+        searchField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT,
+                I18N.get("subFolderPanel.searchField.placeholder"));
+
+        // NOVO: reconstrói o texto do titleButton (usa buildTitle(), que já traduz)
+        updateTitle(filteredList.size());
+
+        // NOVO: reconstrói o texto do emptyLabel mantendo o estado de visibilidade atual
+        showEmpty(emptyLabel.isVisible());
+    }
+
+    @Override
+    public void onLanguageChanged(Locale newLocale) {
+        updateTexts();
+        repaint();
+        revalidate();
     }
 
     // ── Interface ──────────────────────────────────────────────────

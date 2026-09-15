@@ -2,31 +2,35 @@ package com.esl.searchforfiles.ui;
 
 import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.configuration.WrapLayout;
+import com.esl.searchforfiles.localization.I18N;
 import com.esl.searchforfiles.model.PaginationInfo;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.Locale;
 
 /**
  * Painel com controles de paginação
  */
+public class PaginationPanel extends JPanel implements I18N.LanguageChangeListener {
 
-public class PaginationPanel extends JPanel {
-    private  JButton firstButton;
-    private  JButton previousButton;
+    private JButton firstButton;
+    private JButton previousButton;
     private final JLabel pageLabel;
-    private  JButton nextButton;
-    private  JButton lastButton;
+    private JButton nextButton;
+    private JButton lastButton;
     private final JComboBox<Integer> pageSizeCombo;
-    private final JComboBox<Integer> pageSelectCombo; // ← NOVO
+    private final JComboBox<Integer> pageSelectCombo;
     private final JLabel totalLabel;
     private final FileExplorerSwing fileExplorerSwing;
     private PaginationListener paginationListener;
     private PaginationInfo currentPagination;
 
-    // Flag para evitar que a atualização programática do combo
-    // dispare o ActionListener como se fosse uma escolha do usuário
     private boolean updatingPageCombo = false;
+
+    // ── NOVO: labels/tooltips que precisam ser atualizados ao trocar idioma
+    private JLabel goToLabel;
+    private JLabel perPageLabel;
 
     public PaginationPanel(FileExplorerSwing fileExplorerSwing) {
         this.fileExplorerSwing = fileExplorerSwing;
@@ -35,48 +39,32 @@ public class PaginationPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
 
         // ── Botões de navegação ───────────────────────────────────
-       // firstButton = navButton("⏮", "Primeira página");
-
-
-        firstButton = new JButton();
-        firstButton = UIConfig.makeHighlightedMediumBtn("⏮", "Primeira página",50,26);
+        firstButton = UIConfig.makeHighlightedMediumBtn("⏮",
+                I18N.get("paginationPanel.firstButton.tooltip"), 50, 26);
         firstButton.addActionListener(e -> {
             goToPage(1);
             fileExplorerSwing.getResultsPanel().topScroll();
         });
 
-
-//        previousButton = navButton("◀", "Página anterior");
-//        previousButton.addActionListener(e -> {
-//            goToPreviousPage();
-//            fileExplorerSwing.getResultsPanel().topScroll();
-//        });
-        previousButton = new JButton();
-        previousButton = UIConfig.makeHighlightedMediumBtn("◀", "Página anterior",50,26);
+        previousButton = UIConfig.makeHighlightedMediumBtn("◀",
+                I18N.get("paginationPanel.previousButton.tooltip"), 50, 26);
         previousButton.addActionListener(e -> {
             goToPreviousPage();
             fileExplorerSwing.getResultsPanel().topScroll();
         });
 
-        pageLabel = new JLabel("Página 1 de 1");
+        pageLabel = new JLabel(I18N.get("paginationPanel.pageLabel.initial"));
         pageLabel.setFont(UIConfig.FONT_DEFAULT);
 
-//        nextButton = navButton("▶", "Próxima página");
-//        nextButton.addActionListener(e -> {
-//            goToNextPage();
-//            fileExplorerSwing.getResultsPanel().topScroll();
-//        });
-        nextButton = new JButton();
-        nextButton = UIConfig.makeHighlightedMediumBtn("▶", "Próxima página",50,26);
+        nextButton = UIConfig.makeHighlightedMediumBtn("▶",
+                I18N.get("paginationPanel.nextButton.tooltip"), 50, 26);
         nextButton.addActionListener(e -> {
             goToNextPage();
             fileExplorerSwing.getResultsPanel().topScroll();
         });
 
-       // lastButton = navButton("⏭", "Última página");
-
-        lastButton = new JButton();
-        lastButton = UIConfig.makeHighlightedMediumBtn("⏭", "Última página",50,26);
+        lastButton = UIConfig.makeHighlightedMediumBtn("⏭",
+                I18N.get("paginationPanel.lastButton.tooltip"), 50, 26);
         lastButton.addActionListener(e -> {
             goToLastPage();
             fileExplorerSwing.getResultsPanel().topScroll();
@@ -86,9 +74,8 @@ public class PaginationPanel extends JPanel {
         pageSelectCombo = new JComboBox<>(new Integer[]{1});
         pageSelectCombo.setFont(UIConfig.FONT_DEFAULT);
         pageSelectCombo.setPreferredSize(new Dimension(70, 26));
-        pageSelectCombo.setToolTipText("Ir para página");
+        pageSelectCombo.setToolTipText(I18N.get("paginationPanel.pageSelectCombo.tooltip"));
         pageSelectCombo.addActionListener(e -> {
-            // Ignora eventos disparados programaticamente
             if (updatingPageCombo) return;
             Integer selected = (Integer) pageSelectCombo.getSelectedItem();
             if (selected != null && paginationListener != null
@@ -99,7 +86,7 @@ public class PaginationPanel extends JPanel {
             }
         });
 
-        // ── Items por página ──────────────────────────────────────
+        // ── Itens por página ──────────────────────────────────────
         pageSizeCombo = new JComboBox<>(new Integer[]{50, 100, 200, 500, 1000});
         pageSizeCombo.setSelectedItem(fileExplorerSwing.getConfigManager().getItensShow());
         pageSizeCombo.setFont(UIConfig.FONT_DEFAULT);
@@ -111,12 +98,11 @@ public class PaginationPanel extends JPanel {
         });
 
         // ── Total ─────────────────────────────────────────────────
-        totalLabel = new JLabel("0 resultados");
+        totalLabel = new JLabel(I18N.get("paginationPanel.totalLabel.initial"));
         totalLabel.setFont(UIConfig.FONT_DEFAULT);
         totalLabel.setForeground(Color.GRAY);
 
         // ── Layout ───────────────────────────────────────────────
-        // Grupo 1 — Navegação
         add(firstButton);
         add(previousButton);
         add(pageLabel);
@@ -125,26 +111,26 @@ public class PaginationPanel extends JPanel {
 
         add(vSep());
 
-        // Grupo 2 — Ir para página
-        JLabel goToLabel = new JLabel("Ir para:");
+        goToLabel = new JLabel(I18N.get("paginationPanel.goToLabel.text"));
         goToLabel.setFont(UIConfig.FONT_DEFAULT);
         add(goToLabel);
         add(pageSelectCombo);
 
         add(vSep());
 
-        // Grupo 3 — Tamanho de página
-        JLabel perPage = new JLabel("Itens/pág:");
-        perPage.setFont(UIConfig.FONT_DEFAULT);
-        add(perPage);
+        perPageLabel = new JLabel(I18N.get("paginationPanel.perPageLabel.text"));
+        perPageLabel.setFont(UIConfig.FONT_DEFAULT);
+        add(perPageLabel);
         add(pageSizeCombo);
 
         add(vSep());
 
-        // Grupo 4 — Total
         add(totalLabel);
 
         setEnabled(false);
+
+        updateTexts();
+        I18N.addLanguageChangeListener(this);
     }
 
     // ── Atualização ───────────────────────────────────────────────
@@ -158,38 +144,38 @@ public class PaginationPanel extends JPanel {
         }
 
         setEnabled(true);
+        refreshPageAndTotalLabels();
 
-        // Atualiza label de página
-        pageLabel.setText(String.format("Página %d de %d",
-                pagination.getCurrentPage(),
-                pagination.getTotalPages()));
-
-        totalLabel.setText(String.format("%,d resultado(s)",
-                pagination.getTotalResults()));
-
-        // Atualiza botões
         firstButton.setEnabled(pagination.hasPreviousPage());
         previousButton.setEnabled(pagination.hasPreviousPage());
         nextButton.setEnabled(pagination.hasNextPage());
         lastButton.setEnabled(pagination.hasNextPage());
 
-        // Reconstrói o combo de seleção de página se o total mudou
         rebuildPageSelectCombo(pagination);
     }
 
     /**
-     * Reconstrói os itens do combo sempre que o número de páginas
-     * ou a página atual mudar. A flag updatingPageCombo evita que
-     * o ActionListener interprete a atualização como escolha do usuário.
+     * NOVO: centraliza a formatação de pageLabel/totalLabel a partir
+     * de currentPagination, para poder ser chamada tanto de
+     * updatePagination() quanto de updateTexts() (troca de idioma).
      */
+    private void refreshPageAndTotalLabels() {
+        if (currentPagination == null) return;
+
+        pageLabel.setText(I18N.get("paginationPanel.pageLabel.format")
+                .replace("{0}", String.valueOf(currentPagination.getCurrentPage()))
+                .replace("{1}", String.valueOf(currentPagination.getTotalPages())));
+
+        totalLabel.setText(I18N.get("paginationPanel.totalLabel.format")
+                .replace("{0}", String.format("%,d", currentPagination.getTotalResults())));
+    }
+
     private void rebuildPageSelectCombo(PaginationInfo pagination) {
         int total   = pagination.getTotalPages();
         int current = pagination.getCurrentPage();
 
-        // Verifica se realmente precisa reconstruir (evita trabalho desnecessário)
         boolean needsRebuild = pageSizeCombo.getItemCount() != total;
         if (!needsRebuild && pageSelectCombo.getItemCount() == total) {
-            // Só atualiza a seleção
             updatingPageCombo = true;
             pageSelectCombo.setSelectedItem(current);
             updatingPageCombo = false;
@@ -207,7 +193,6 @@ public class PaginationPanel extends JPanel {
             updatingPageCombo = false;
         }
 
-        // Ajusta largura do combo para acomodar números grandes (ex: "999")
         int digits = String.valueOf(total).length();
         int comboW = Math.max(55, 30 + digits * 14);
         pageSelectCombo.setPreferredSize(
@@ -228,7 +213,7 @@ public class PaginationPanel extends JPanel {
         pageSelectCombo.setEnabled(enabled);
 
         if (!enabled) {
-            pageLabel.setText("Nenhum resultado");
+            pageLabel.setText(I18N.get("paginationPanel.pageLabel.noResults"));
             totalLabel.setText("");
         }
     }
@@ -267,15 +252,6 @@ public class PaginationPanel extends JPanel {
         return sep;
     }
 
-    private JButton navButton(String text, String tooltip) {
-        JButton btn = new JButton(text);
-        btn.setFont(UIConfig.FONT_DEFAULT);
-        btn.setToolTipText(tooltip);
-        btn.setPreferredSize(new Dimension(46, 26));
-        btn.setMargin(new Insets(2, 6, 2, 6));
-        return btn;
-    }
-
     public int getPageSize() {
         Integer size = (Integer) pageSizeCombo.getSelectedItem();
         return size != null ? size : 100;
@@ -283,6 +259,35 @@ public class PaginationPanel extends JPanel {
 
     public void setPaginationListener(PaginationListener listener) {
         this.paginationListener = listener;
+    }
+
+    // ── i18n ─────────────────────────────────────────────────────
+    private void updateTexts() {
+        firstButton.setToolTipText(I18N.get("paginationPanel.firstButton.tooltip"));
+        previousButton.setToolTipText(I18N.get("paginationPanel.previousButton.tooltip"));
+        nextButton.setToolTipText(I18N.get("paginationPanel.nextButton.tooltip"));
+        lastButton.setToolTipText(I18N.get("paginationPanel.lastButton.tooltip"));
+
+        pageSelectCombo.setToolTipText(I18N.get("paginationPanel.pageSelectCombo.tooltip"));
+
+        goToLabel.setText(I18N.get("paginationPanel.goToLabel.text"));
+        perPageLabel.setText(I18N.get("paginationPanel.perPageLabel.text"));
+
+        // Reconstrói pageLabel/totalLabel a partir do estado atual,
+        // ou usa os textos de "vazio" se o painel estiver desabilitado.
+        if (isEnabled() && currentPagination != null) {
+            refreshPageAndTotalLabels();
+        } else {
+            pageLabel.setText(I18N.get("paginationPanel.pageLabel.noResults"));
+            totalLabel.setText("");
+        }
+    }
+
+    @Override
+    public void onLanguageChanged(Locale newLocale) {
+        updateTexts();
+        revalidate();
+        repaint();
     }
 
     public interface PaginationListener {

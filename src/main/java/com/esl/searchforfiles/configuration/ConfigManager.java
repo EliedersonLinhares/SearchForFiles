@@ -15,6 +15,9 @@ import java.util.*;
 public class ConfigManager {
 
     // Chaves de configuração disponíveis
+    private static final String CONFIG_FILE = "app_config.properties";
+    private static final String APP_DIR_NAME = ".jupiterFileControl";
+
     public static final String KEY_DEFAULT_FOLDER = "default_folder";
     public static final String KEY_THUMBNAILS_SIZE = "thumbnails_size";
     public static final String KEY_SORT_BY = "sort_by";
@@ -28,15 +31,17 @@ public class ConfigManager {
     public static final String KEY_SUBFOLDER_SORT_FIELD = "subfolder_sort_field";
     public static final String KEY_SUBFOLDER_SORT_ORDER = "subfolder_sort_order";
     public static final String KEY_RIGHT_SPLIT_POS = "right_split_pos";
+    public static final String KEY_MAIN_SPLIT_POS = "main_split_pos";
     public static final String KEY_ITENS_SHOW = "itensShow";
     public static final String KEY_SHOW_GLOBAL_ITENS = "showGlobalItens";
+    public static final String KEY_SHOW_RIGHT_PANEL = "showRightPanel";
+    public static final String KEY_SHOW_LEFT_PANELS = "showLeftPanels";
 
 
     public static final String KEY_SEARCH_HISTORY = "search_history";
     public static final String KEY_TAG_HISTORY = "tag_history";
 
-    private static final String CONFIG_FILE = "app_config.properties";
-    private static final String APP_DIR_NAME = ".advancedsearch";
+    public static final String KEY_LANGUAGE = "language";
 
 
 
@@ -57,8 +62,12 @@ public class ConfigManager {
         DEFAULTS.put(KEY_SUBFOLDER_SORT_FIELD, "name");
         DEFAULTS.put(KEY_SUBFOLDER_SORT_ORDER, "ASC");
         DEFAULTS.put(KEY_RIGHT_SPLIT_POS, "-1");
+        DEFAULTS.put(KEY_MAIN_SPLIT_POS, "-1");
         DEFAULTS.put(KEY_ITENS_SHOW, "100");
         DEFAULTS.put(KEY_SHOW_GLOBAL_ITENS, "false");
+        DEFAULTS.put(KEY_LANGUAGE, "en_US"); // padrão inglês
+        DEFAULTS.put(KEY_SHOW_RIGHT_PANEL, "true");
+        DEFAULTS.put(KEY_SHOW_LEFT_PANELS, "true");
 
     }
 
@@ -343,6 +352,15 @@ public class ConfigManager {
         setInt(KEY_RIGHT_SPLIT_POS, pos);
     }
 
+    public int getMainSplitPos() {
+        return getInt(KEY_MAIN_SPLIT_POS, -1);
+    }
+    public void saveMainSplitPos(int pos) {
+        setInt(KEY_MAIN_SPLIT_POS, pos);
+    }
+
+
+
 
     public int getItensShow() {
         return getInt(KEY_ITENS_SHOW, 100);
@@ -358,6 +376,48 @@ public class ConfigManager {
     public void saveShowGlobalItens(boolean showGlobalItens) {setBoolean(KEY_SHOW_GLOBAL_ITENS, showGlobalItens);}
 
 
+    public boolean getSavedShowRightPanel() {
+        return getBoolean(KEY_SHOW_RIGHT_PANEL, true);
+    }
+    public void saveShowShowRightPanel(boolean showRightPanel) {setBoolean(KEY_SHOW_RIGHT_PANEL, showRightPanel);}
+
+    public boolean getSavedShowLeftPanels() {
+        return getBoolean(KEY_SHOW_LEFT_PANELS, true);
+    }
+    public void saveShowShowLeftPanels(boolean showLeftPanels) {setBoolean(KEY_SHOW_LEFT_PANELS, showLeftPanels);}
+
+
+
+    // -------------------------------------------------------------------------
+    // Atalhos específicos para idioma (usados pelo I18N / MainPanel)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Retorna o Locale salvo. Padrão: en_US.
+     * Suporta os formatos "en_US" e "en-US".
+     */
+    public Locale getSavedLocale() {
+        String tag = get(KEY_LANGUAGE); // ex: "en_US"
+        if (tag == null || tag.isBlank()) return Locale.of("en", "US");
+
+        // Aceita tanto underscore ("en_US") quanto hífen ("en-US")
+        String[] parts = tag.replace('-', '_').split("_", 2);
+        if (parts.length == 2) {
+            return Locale.of(parts[0], parts[1]);
+        }
+        return Locale.of(parts[0]);
+    }
+
+    /**
+     * Salva o Locale atual no formato "language_COUNTRY" (ex: "pt_BR").
+     */
+    public void saveLocale(Locale locale) {
+        String tag = locale.getLanguage();
+        if (!locale.getCountry().isBlank()) {
+            tag += "_" + locale.getCountry();
+        }
+        set(KEY_LANGUAGE, tag);
+    }
 
     // -------------------------------------------------------------------------
     // Persistência interna — formato "chave=valor", uma por linha

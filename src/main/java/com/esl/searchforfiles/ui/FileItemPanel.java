@@ -1451,9 +1451,9 @@ public class FileItemPanel extends JPanel {
 
 
         if (transferChecked) {
-            setBackground(BG_TRANSFER_SELECTED);
+            setBackground(UIConfig.accent());
         } else if (editChecked) {
-            setBackground(BG_EDIT_SELECTED);
+            setBackground(UIConfig.accent());
         } else if (renameChecked) {
             setBackground(UIConfig.accent());
         } else if (compressChecked) {

@@ -3,6 +3,7 @@ package com.esl.searchforfiles.ui;
 import com.esl.searchforfiles.actions.fileTransfer.TransferService;
 import com.esl.searchforfiles.configuration.UIConfig;
 import com.esl.searchforfiles.configuration.WrapLayout;
+import com.esl.searchforfiles.localization.I18N;
 import com.esl.searchforfiles.model.OrderBy;
 import com.esl.searchforfiles.model.SortOption;
 import com.esl.searchforfiles.others.ThumbnailSize;
@@ -14,6 +15,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -21,68 +23,71 @@ import java.util.Objects;
  * Painel de busca com campo de texto, ordenação, filtro e botões
  * ATUALIZADO: Controles de ordenação adicionados
  */
-public class SearchPanel extends JPanel {
+public class SearchPanel extends JPanel implements I18N.LanguageChangeListener {
 
-
-    private final JTextField searchField;
-    private final JComboBox<SortOption> sortByCombo; // NOVO
-    private final JComboBox<OrderBy> sortOrderCombo; // NOVO
-    private final JComboBox<String> filterBox;
-    private final JButton searchButton;
-    private final JButton indexButton;
-    private final JButton transferButton;
-    private final JButton editModeBtn;
-    private final JButton compressModeBtn;
-    private final JButton videoConverterModeBtn;
-    private final JButton renameFilesBtn;
-    private final JButton renameFoldersBtn;
-    private final JButton configurationBtn;
-    private final JButton newFilesBtn;
-
-    private final JCheckBox globalSearchCheckbox; // NOVO
-    private final JCheckBox showSubfolderContentCheckbox; // NOVO
-    private final JCheckBox showRatingCheckbox;         // NOVO
-    private final JCheckBox showExtensionTypeCheckbox;  // NOVO
-    private final JCheckBox showAnimatedGifCheckbox;     // NOVO
-
-    private JPopupMenu displayMenu;   // NOVO — vira campo
-    private JPopupMenu toolsMenu;     // NOVO — vira campo
-
-    // NOVO ▼
-    private final JComboBox<String> ratingFilterCombo;   // "Qualquer", "1+", "2+", …, "5"
-    private final JTextField tagFilterField;       // texto livre de tag
-    private final JButton backButton;
-    private final JButton forwardButton;
-    private final JComboBox<ThumbnailSize> thumbSizeCombo; // NOVO
+    // ── Campos existentes ────────────────────────────────────────
     private final FileExplorerSwing fileExplorerSwing;
-    private final TransferService transferService = new TransferService();
-    private GlobalSearchListener globalSearchListener; // NOVO
-    private showSubFolderContentListener showSubfolderContentListener; // NOVO
+    private boolean isDark;
+    private ImageIcon searchIcon;
+    private JTextField searchField;
+    private JButton backButton, forwardButton;
+    private JComboBox<SortOption> sortByCombo;
+    private JComboBox<OrderBy> sortOrderCombo;
+    private JComboBox<ThumbnailSize> thumbSizeCombo;
+    private JComboBox<String> filterBox;
+    private JButton searchButton, indexButton;
+    private JComboBox<String> ratingFilterCombo;
+    private JTextField tagFilterField;
+    private JButton transferButton, editModeBtn, compressModeBtn,
+            videoConverterModeBtn, renameFilesBtn, renameFoldersBtn,
+            configurationBtn, newFilesBtn;
+    private JCheckBox globalSearchCheckbox, showSubfolderContentCheckbox,
+            showRatingCheckbox, showExtensionTypeCheckbox, showAnimatedGifCheckbox;
+    private JPopupMenu displayMenu, toolsMenu;
+
     private NavigationListener navigationListener;
+    private ThumbnailSizeListener thumbSizeListener;
     private SearchListener searchListener;
     private IndexListener indexListener;
-    private ThumbnailSizeListener thumbSizeListener;
-    private boolean isDark;// NOVO
-    private Icon searchIcon;
+    private GlobalSearchListener globalSearchListener;
+    private showSubFolderContentListener showSubfolderContentListener;
+
+    // ── NOVO: campos para suportar i18n em tempo real ──────────────
+    private JLabel sortLabel, typeLabel, ratingLabel, tagLabel, iconLabel;
+    private JButton displayMenuBtn, toolsMenuBtn;
+    private JCheckBoxMenuItem showRatingMenuItem, showExtensionTypeMenuItem, showAnimatedGifMenuItem;
+    private JMenuItem transferMenuItem, editModeMenuItem, renameFilesMenuItem,
+            renameFoldersMenuItem, compressModeMenuItem, videoConverterMenuItem;
+
+    private JCheckBox subPanelVisibility;
+    private JCheckBoxMenuItem showSubfolderContentMenuItem;
+
+    private JCheckBox leftPanellVisibility;
+    private JCheckBoxMenuItem showLeftPanelContentMenuItem;
+
+    private int lastDividerLocation = -1;
+    private int lastMainDividerLocation = -1;
+
+    ;
 
     public SearchPanel(FileExplorerSwing fileExplorerSwing) {
         this.fileExplorerSwing = fileExplorerSwing;
+
+
 
         setLayout(new BorderLayout(5, 5));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 5, 10));
 
         isDark = UIManager.getBoolean("laf.dark");
+
         // Campo de busca
         searchIcon = new ImageIcon(Objects.requireNonNull(getClass().getResource("/icons/text/search_icon16.png")));
         searchField = createSearchField();
 
-
-
-
-        // NOVO: botões de navegação ─────────────────────────────────
+        // Botões de navegação
         backButton = new JButton("◀");
         backButton.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        backButton.setToolTipText("Voltar (Alt+←)");
+        backButton.setToolTipText(I18N.get("searchPanel.backButton.tooltip"));
         backButton.setEnabled(false);
         backButton.setPreferredSize(new Dimension(36, 25));
         backButton.addActionListener(e -> {
@@ -91,33 +96,31 @@ public class SearchPanel extends JPanel {
 
         forwardButton = new JButton("▶");
         forwardButton.setFont(UIConfig.FONT_DEFAULT_BOLD);
-        forwardButton.setToolTipText("Avançar (Alt+→)");
+        forwardButton.setToolTipText(I18N.get("searchPanel.forwardButton.tooltip"));
         forwardButton.setEnabled(false);
         forwardButton.setPreferredSize(new Dimension(36, 25));
         forwardButton.addActionListener(e -> {
             if (navigationListener != null) navigationListener.onForward();
         });
 
-        // Atalhos de teclado Alt+← e Alt+→
         registerKeyboardShortcuts();
 
-        // NOVO: ComboBox de ordenação
+        // ComboBox de ordenação
         sortByCombo = new JComboBox<>(SortOption.values());
-        //  sortByCombo.setSelectedItem(SortOption.DATE); // Padrão: Nome
-        sortByCombo.setSelectedItem(SortOption.fromDisplayName(fileExplorerSwing.getConfigManager().getSavedSortBy())); // Padrão: Nome
+        sortByCombo.setToolTipText(I18N.get("searchPanel.sortByCombo.setToolTipText"));
+        sortByCombo.setSelectedItem(SortOption.fromDisplayName(fileExplorerSwing.getConfigManager().getSavedSortBy()));
         sortByCombo.setFont(UIConfig.FONT_DEFAULT);
-        sortByCombo.setToolTipText("Ordenar por");
         sortByCombo.setPreferredSize(new Dimension(160, 25));
         sortByCombo.addActionListener(e -> {
             fileExplorerSwing.getConfigManager().saveSortBy(getSortBy());
             triggerSearch();
         });
 
-        // NOVO: ComboBox de ordem (crescente/decrescente)
+        // ComboBox de ordem
         sortOrderCombo = new JComboBox<>(OrderBy.values());
-        sortOrderCombo.setSelectedItem(OrderBy.fromDisplayName(fileExplorerSwing.getConfigManager().getSavedOrderBy())); // Padrão: Crescente
+        sortOrderCombo.setSelectedItem(OrderBy.fromDisplayName(fileExplorerSwing.getConfigManager().getSavedOrderBy()));
         sortOrderCombo.setFont(UIConfig.FONT_DEFAULT);
-        sortOrderCombo.setToolTipText("Ordem de classificação");
+        sortOrderCombo.setToolTipText(I18N.get("searchPanel.sortOrderCombo.tooltip"));
         sortOrderCombo.setPreferredSize(new Dimension(120, 25));
         sortOrderCombo.addActionListener(e -> {
             fileExplorerSwing.getConfigManager().saveOrderBy(getSortOrder());
@@ -125,162 +128,128 @@ public class SearchPanel extends JPanel {
         });
 
         thumbSizeCombo = new JComboBox<>(ThumbnailSize.values());
-        thumbSizeCombo.setSelectedItem(ThumbnailSize.fromLabel(fileExplorerSwing.getConfigManager().getSavedThumbnailsSize()));
+        thumbSizeCombo.setSelectedItem(
+                ThumbnailSize.fromKey(fileExplorerSwing.getConfigManager().getSavedThumbnailsSize()));
+
         thumbSizeCombo.setFont(UIConfig.FONT_DEFAULT);
-        thumbSizeCombo.setToolTipText("Tamanho das miniaturas");
+        thumbSizeCombo.setToolTipText(I18N.get("searchPanel.thumbSizeCombo.tooltip"));
         thumbSizeCombo.setPreferredSize(new Dimension(130, 25));
         thumbSizeCombo.addActionListener(e -> {
             if (thumbSizeListener != null)
                 System.out.println(getSelectedThumbnailSize());
-            fileExplorerSwing.getConfigManager().saveThumbnailsSize(getSelectedThumbnailSize().toString());
+            fileExplorerSwing.getConfigManager().saveThumbnailsSize(getSelectedThumbnailSize().name());
             thumbSizeListener.onSizeChanged(getSelectedThumbnailSize());
-            // NÃO dispara triggerSearch() — só muda o visual, não a busca
         });
 
-
-        // ComboBox de filtro por tipo
+        // ComboBox de filtro por tipo (valores internos continuam em inglês/fixos)
         filterBox = new JComboBox<>(new String[]{
                 "ALL", "AUDIO", "VIDEO", "IMAGE", "DOCUMENT", "COMPRESSED", "EXECUTABLE", "CONFIGURATION", "FOLDER"
         });
 
-        // Renderizador para traduzir o que aparece na tela
+        // Renderizador traduz o texto exibido via I18N, sem alterar o valor interno
         filterBox.setRenderer(new DefaultListCellRenderer() {
             @Override
-            public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+            public java.awt.Component getListCellRendererComponent(JList<?> list, Object value, int index,
+                                                                   boolean isSelected, boolean cellHasFocus) {
                 super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-
                 if (value != null) {
-                    String texto = value.toString();
-                    // Traduz "ALL" para "Tudo". Você pode adicionar outras traduções aqui se quiser.
-                    if ("ALL".equals(texto)) {
-                        setText("Tudo");
-                    } else if ("AUDIO".equals(texto)) {
-                        setText("Audio");
-                    } else if ("VIDEO".equals(texto)) {
-                        setText("Video");
-                    } else if ("IMAGE".equals(texto)) {
-                        setText("Imagem");
-                    } else if ("DOCUMENT".equals(texto)) {
-                        setText("Documento");
-                    } else if ("COMPRESSED".equals(texto)) {
-                        setText("Compactado");
-                    } else if ("EXECUTABLE".equals(texto)) {
-                        setText("Executável");
-                    } else if ("CONFIGURATION".equals(texto)) {
-                        setText("Configuração");
-                    } else if ("FOLDER".equals(texto)) {
-                        setText("Pasta");
-                    } else {
-                        setText(texto);
-                    }
+                    String key = "searchPanel.filterBox.item." + value.toString().toLowerCase();
+                    setText(I18N.get(key));
                 }
                 return this;
             }
         });
         filterBox.setSelectedItem(fileExplorerSwing.getConfigManager().getSavedFileType());
         filterBox.setFont(UIConfig.FONT_DEFAULT);
-        filterBox.setToolTipText("Filtrar por tipo");
+        filterBox.setToolTipText(I18N.get("searchPanel.filterBox.tooltip"));
         filterBox.setPreferredSize(new Dimension(120, 25));
         filterBox.addActionListener(e -> {
             fileExplorerSwing.getConfigManager().saveFiletype(Objects.requireNonNull(filterBox.getSelectedItem()).toString());
             triggerSearch();
-
         });
 
         // Botão de busca
-        searchButton = makeTextBtn("🔍 Buscar",
-                "Confirmar busca",
+        searchButton = makeTextBtn("🔍 " + I18N.get("searchPanel.searchButton.text"),
+                I18N.get("searchPanel.searchButton.tooltip"),
                 "Slider.trackColor",
                 "Component.accentColor");
         searchButton.addActionListener(e -> triggerSearch());
 
-
-
-        indexButton = makeHighlightedBtn("\uD83D\uDCCA Indexar Pasta", "Indexar pasta selecionada");
+        indexButton = makeHighlightedBtn(I18N.get("searchPanel.indexButton.text"),
+                I18N.get("searchPanel.indexButton.tooltip"));
         indexButton.addActionListener(e -> triggerIndex());
 
-        // NOVO: ComboBox de filtro por estrelas ─────────────────────
-        ratingFilterCombo = new JComboBox<>(new String[]{
-                "★ Qualquer", "★ 1+", "★★ 2+", "★★★ 3+", "★★★★ 4+", "★★★★★ 5"
-        });
-
-        ratingFilterCombo.setSelectedItem(
-                ratingToComboItem(fileExplorerSwing.getConfigManager().getSavedStarRating())
-        );
+        // ComboBox de filtro por estrelas (valor interno = índice, texto traduzido no refreshRatingCombo)
+        ratingFilterCombo = new JComboBox<>();
+        refreshRatingCombo(); // popula os itens já traduzidos
+        ratingFilterCombo.setSelectedIndex(fileExplorerSwing.getConfigManager().getSavedStarRating());
         ratingFilterCombo.setFont(UIConfig.FONT_DEFAULT);
-        ratingFilterCombo.setToolTipText("Filtrar por avaliação mínima");
+        ratingFilterCombo.setToolTipText(I18N.get("searchPanel.ratingFilterCombo.tooltip"));
         ratingFilterCombo.setPreferredSize(new Dimension(120, 25));
         ratingFilterCombo.addActionListener(e -> {
             fileExplorerSwing.getConfigManager().saveStarRating(getMinRating());
             triggerSearch();
         });
 
-        // NOVO: Campo de texto para filtro por tag ──────────────────
+        // Campo de texto para filtro por tag
         tagFilterField = new JTextField();
         tagFilterField.setFont(UIConfig.FONT_DEFAULT);
-        tagFilterField.setToolTipText("Filtrar por tag (ex: ferias)");
+        tagFilterField.setToolTipText(I18N.get("searchPanel.tagFilterField.tooltip"));
         tagFilterField.setPreferredSize(new Dimension(110, 25));
         tagFilterField.addActionListener(e -> triggerSearch());
 
-
-        transferButton = makeTextBtn("✂️ Selecionar(S)",
-                "Ativar modo de transferência de arquivos",
+        transferButton = makeTextBtn(I18N.get("searchPanel.transferButton.text"),
+                I18N.get("searchPanel.transferButton.tooltip"),
                 "Slider.trackColor",
                 "Component.accentColor");
         transferButton.addActionListener(e -> fileExplorerSwing.toggleTransferMode());
 
-        editModeBtn = makeTextBtn("🖼 Editar imagens(E)",
-                "Ativar modo de edição de Imagens",
+        editModeBtn = makeTextBtn(I18N.get("searchPanel.editModeBtn.text"),
+                I18N.get("searchPanel.editModeBtn.tooltip"),
                 "Slider.trackColor",
                 "Component.accentColor");
         editModeBtn.addActionListener(e -> fileExplorerSwing.toggleEditMode());
 
-        compressModeBtn = makeTextBtn("🖼 Compressão de Arquivos(C)",
-                "Ativar modo de compressão de arquivos",
+        compressModeBtn = makeTextBtn(I18N.get("searchPanel.compressModeBtn.text"),
+                I18N.get("searchPanel.compressModeBtn.tooltip"),
                 "Slider.trackColor",
                 "Component.accentColor");
         compressModeBtn.addActionListener(e -> fileExplorerSwing.toggleCompressMode());
 
-        videoConverterModeBtn = makeTextBtn("🖼 Conversão de Videos(V)",
-                "Ativar modo de conversão de videos",
+        videoConverterModeBtn = makeTextBtn(I18N.get("searchPanel.videoConverterModeBtn.text"),
+                I18N.get("searchPanel.videoConverterModeBtn.tooltip"),
                 "Slider.trackColor",
                 "Component.accentColor");
         videoConverterModeBtn.addActionListener(e -> fileExplorerSwing.toggleVideoConverterMode());
 
-
-        renameFilesBtn = makeTextBtn("🗒 Renomear arquivos(R)",
-                "Ativar modo para renomear arquivos",
+        renameFilesBtn = makeTextBtn(I18N.get("searchPanel.renameFilesBtn.text"),
+                I18N.get("searchPanel.renameFilesBtn.tooltip"),
                 "Slider.trackColor",
                 "Component.accentColor");
         renameFilesBtn.addActionListener(e -> fileExplorerSwing.toggleRenameModeFiles());
 
-
-        renameFoldersBtn = makeTextBtn("📁 Renomear pastas(F)",
-                "Ativar modo para renomear arquivos",
+        renameFoldersBtn = makeTextBtn(I18N.get("searchPanel.renameFoldersBtn.text"),
+                I18N.get("searchPanel.renameFoldersBtn.tooltip"),
                 "Slider.trackColor",
                 "Component.accentColor");
         renameFoldersBtn.addActionListener(e -> fileExplorerSwing.toggleRenameModeFolders());
 
-
-        configurationBtn = makeTextBtn("\uD83D\uDD27 Configurações",
-                "Painel de configurações do aplicativo",
+        configurationBtn = makeTextBtn(I18N.get("searchPanel.configurationBtn.text"),
+                I18N.get("searchPanel.configurationBtn.tooltip"),
                 "Slider.trackColor",
                 "Component.accentColor");
         configurationBtn.addActionListener(e -> fileExplorerSwing.toggleConfigurationMode());
 
-        newFilesBtn = makeTextBtn("📁 Nova pasta",
-                "Crie uma nova pasta no destino atual",
+        newFilesBtn = makeTextBtn(I18N.get("searchPanel.newFilesBtn.text"),
+                I18N.get("searchPanel.newFilesBtn.tooltip"),
                 "Slider.trackColor",
                 "Component.accentColor");
         newFilesBtn.addActionListener(e -> fileExplorerSwing.createNewFolder());
 
-
-        // NOVO: Checkbox de busca global ──────────────────────────────
-        globalSearchCheckbox = new JCheckBox("Buscar em todas as pastas");
+        // Checkbox de busca global
+        globalSearchCheckbox = new JCheckBox(I18N.get("searchPanel.globalSearchCheckbox.text"));
         globalSearchCheckbox.setFont(UIConfig.FONT_DEFAULT);
-        globalSearchCheckbox.setToolTipText(
-                "Quando ativo, busca em TODAS as pastas indexadas, " +
-                        "não apenas na pasta atualmente selecionada");
+        globalSearchCheckbox.setToolTipText(I18N.get("searchPanel.globalSearchCheckbox.tooltip"));
         globalSearchCheckbox.setSelected(fileExplorerSwing.getConfigManager().getSavedShowGlobalItens());
         globalSearchCheckbox.addActionListener(e -> {
             boolean value = globalSearchCheckbox.isSelected();
@@ -290,8 +259,8 @@ public class SearchPanel extends JPanel {
             }
         });
 
-        // NOVO: Checkbox de busca global ──────────────────────────────
-        showSubfolderContentCheckbox = new JCheckBox("📂 Mostrar conteúdo de sub pastas");
+        // Checkbox de conteúdo de subpastas
+        showSubfolderContentCheckbox = new JCheckBox(I18N.get("searchPanel.showSubfolderContentCheckbox.text"));
         showSubfolderContentCheckbox.setFont(UIConfig.FONT_DEFAULT);
         showSubfolderContentCheckbox.setSelected(fileExplorerSwing.getConfigManager().getSavedSubfolderItems());
         showSubfolderContentCheckbox.addActionListener(e -> {
@@ -300,39 +269,96 @@ public class SearchPanel extends JPanel {
             if (showSubfolderContentListener != null) {
                 showSubfolderContentListener.onShowSubFolderContentChanged(showSubfolderContentCheckbox.isSelected());
             }
-
         });
 
-        // NOVO: Checkboxes de exibição (movidos do menu de contexto) ──
-        showRatingCheckbox = new JCheckBox("⭐ Avaliação nos ícones");
+        // Checkboxes de exibição
+        showRatingCheckbox = new JCheckBox(I18N.get("searchPanel.showRatingCheckbox.text"));
         showRatingCheckbox.setFont(UIConfig.FONT_DEFAULT);
-        showRatingCheckbox.setToolTipText("Mostrar estrelas de avaliação sobre as miniaturas");
+        showRatingCheckbox.setToolTipText(I18N.get("searchPanel.showRatingCheckbox.tooltip"));
         showRatingCheckbox.setSelected(fileExplorerSwing.getConfigManager().getSavedShowStarRating());
         showRatingCheckbox.addActionListener(e ->
                 fileExplorerSwing.setShowRatingOverlay(showRatingCheckbox.isSelected()));
 
-        showExtensionTypeCheckbox = new JCheckBox("Tipo de arquivo nos ícones");
+        showExtensionTypeCheckbox = new JCheckBox(I18N.get("searchPanel.showExtensionTypeCheckbox.text"));
         showExtensionTypeCheckbox.setFont(UIConfig.FONT_DEFAULT);
-        showExtensionTypeCheckbox.setToolTipText("Mostrar selo do tipo de arquivo sobre as miniaturas");
+        showExtensionTypeCheckbox.setToolTipText(I18N.get("searchPanel.showExtensionTypeCheckbox.tooltip"));
         showExtensionTypeCheckbox.setSelected(fileExplorerSwing.getConfigManager().getSavedShowTypeFile());
         showExtensionTypeCheckbox.addActionListener(e ->
                 fileExplorerSwing.setShowExtensionTypeOverlay(showExtensionTypeCheckbox.isSelected()));
 
-        showAnimatedGifCheckbox = new JCheckBox("Gifs animados");
+        showAnimatedGifCheckbox = new JCheckBox(I18N.get("searchPanel.showAnimatedGifCheckbox.text"));
         showAnimatedGifCheckbox.setFont(UIConfig.FONT_DEFAULT);
-        showAnimatedGifCheckbox.setToolTipText("Reproduzir GIFs animados nas miniaturas (em vez de estáticos)");
+        showAnimatedGifCheckbox.setToolTipText(I18N.get("searchPanel.showAnimatedGifCheckbox.tooltip"));
         showAnimatedGifCheckbox.setSelected(fileExplorerSwing.getConfigManager().getSavedShowAnimatedGif());
         showAnimatedGifCheckbox.addActionListener(e ->
                 fileExplorerSwing.setShowAnimatedGif(showAnimatedGifCheckbox.isSelected()));
 
+        subPanelVisibility = new JCheckBox(I18N.get("searchPanel.subPanelVisibility"));
+        subPanelVisibility.setFont(UIConfig.FONT_DEFAULT);
+        subPanelVisibility.setToolTipText(I18N.get("searchPanel.subPanelVisibility.setToolTipText"));
+        subPanelVisibility.setSelected(fileExplorerSwing.getConfigManager().getSavedShowRightPanel());
+        subPanelVisibility.addActionListener(e -> {
+            boolean show = subPanelVisibility.isSelected();
+            JSplitPane rightSplit = fileExplorerSwing.getRightSplit();
+            if (!show) {
+                // Esconder: salva a posição atual antes, empurra o divider pro fim
+                fileExplorerSwing.setProgrammaticDividerChange(true);
+                try {
+                    lastDividerLocation = rightSplit.getDividerLocation();
+                    fileExplorerSwing.getSubFolderPanel().setVisible(false);
+                    rightSplit.setDividerLocation(rightSplit.getWidth());
+                    rightSplit.revalidate();
+                    rightSplit.repaint();
+                } finally {
+                    SwingUtilities.invokeLater(() -> fileExplorerSwing.setProgrammaticDividerChange(false));
+                }
+            } else {
+                // Mostrar: precisa aguardar o layout ter largura real antes de setar o divider
+                fileExplorerSwing.getSubFolderPanel().setVisible(true);
+                rightSplit.revalidate();
+                rightSplit.repaint();
 
+                SwingUtilities.invokeLater(this::restoreRightDividerLocation);
+            }
+            fileExplorerSwing.getConfigManager().saveShowShowRightPanel(show);
+
+        });
+
+        leftPanellVisibility = new JCheckBox(I18N.get("searchPanel.leftPanellVisibility"));
+        leftPanellVisibility.setFont(UIConfig.FONT_DEFAULT);
+        leftPanellVisibility.setToolTipText(I18N.get("searchPanel.leftPanellVisibility.setToolTipText"));
+        leftPanellVisibility.setSelected(fileExplorerSwing.getConfigManager().getSavedShowLeftPanels());
+        leftPanellVisibility.addActionListener(e -> {
+            boolean show = leftPanellVisibility.isSelected();
+
+            if (!show) {
+                // Esconder: salva a posição atual antes, empurra o divider pro início
+                fileExplorerSwing.setProgrammaticMainDividerChange(true);
+                try {
+                    lastMainDividerLocation =  fileExplorerSwing.getMainSplit().getDividerLocation();
+                    fileExplorerSwing.getLeftPanel().setVisible(false);
+                    fileExplorerSwing.getMainSplit().setDividerLocation(0);
+                    fileExplorerSwing.getMainSplit().revalidate();
+                    fileExplorerSwing.getMainSplit().repaint();
+                } finally {
+                    SwingUtilities.invokeLater(() ->fileExplorerSwing.setProgrammaticMainDividerChange(false));
+                }
+            } else {
+                // Mostrar: precisa aguardar o layout ter largura real antes de setar o divider
+                fileExplorerSwing.getLeftPanel().setVisible(true);
+                fileExplorerSwing.getMainSplit().revalidate();
+                fileExplorerSwing.getMainSplit().repaint();
+
+                SwingUtilities.invokeLater(this::restoreLeftDividerLocation);
+            }
+            fileExplorerSwing.getConfigManager().saveShowShowLeftPanels(show);
+        });
 
         registerKeyboardShortcuts();
 
-        // ── NOVO: monta em 3 linhas, cada uma com seu próprio WrapLayout ──
+        // Monta em linhas
         JPanel row1 = buildNavigationAndSearchRow();
         JPanel row2 = buildFiltersRow();
-        //JPanel row3 = buildDisplayAndActionsRow();
 
         JPanel rows = new JPanel();
         rows.setLayout(new BoxLayout(rows, BoxLayout.Y_AXIS));
@@ -344,142 +370,87 @@ public class SearchPanel extends JPanel {
         outer.add(rows, BorderLayout.CENTER);
         outer.add(buildIndexButtonPanel(), BorderLayout.EAST);
 
-//        JPanel outer = new JPanel(new BorderLayout(0, 2));
-//        outer.add(rows, BorderLayout.CENTER);
         add(outer, BorderLayout.CENTER);
 
-
-
-//// Envolve todo o conteúdo num painel com WrapLayout
-//        JPanel wrapPanel = new JPanel(new WrapLayout(FlowLayout.LEFT, 5, 4));
-//
-//// ── Grupo 1: Navegação ────────────────────────────────────────────────────────
-//        wrapPanel.add(backButton);
-//        wrapPanel.add(forwardButton);
-//        wrapPanel.add(makeSeparator());
-//
-//// ── Grupo 2: Busca ────────────────────────────────────────────────────────────
-//        searchField.setPreferredSize(new Dimension(280, 28));   // largura mínima razoável
-//        wrapPanel.add(searchField);
-//        wrapPanel.add(searchButton);
-//        wrapPanel.add(globalSearchCheckbox); // NOVO
-//        wrapPanel.add(showSubfolderContentCheckbox); // NOVO
-//        wrapPanel.add(makeSeparator());
-//
-//        Font font = UIConfig.FONT_DEFAULT;
-//
-//
-//// ── Grupo 6b: Exibição ────────────────────────────────────────────────────────
-//        JLabel viewLabel = new JLabel("Exibição:");
-//        viewLabel.setFont(font);
-//        wrapPanel.add(viewLabel);
-//        wrapPanel.add(showRatingCheckbox);
-//        wrapPanel.add(showExtensionTypeCheckbox);
-//        wrapPanel.add(showAnimatedGifCheckbox);
-//        wrapPanel.add(makeSeparator());
-//
-//// ── Grupo 3: Ordenação ────────────────────────────────────────────────────────
-//        JLabel typeLabel = new JLabel("Ordenar:");
-//        typeLabel.setFont(font);
-//        wrapPanel.add(typeLabel);
-//        wrapPanel.add(sortByCombo);
-//        wrapPanel.add(sortOrderCombo);
-//        wrapPanel.add(makeSeparator());
-//
-//// ── Grupo 4: Tipo ─────────────────────────────────────────────────────────────
-//        JLabel filterLabel = new JLabel("Tipo:");
-//        filterLabel.setFont(font);
-//        wrapPanel.add(filterLabel);
-//        wrapPanel.add(filterBox);
-//        wrapPanel.add(makeSeparator());
-//
-//// ── Grupo 5: Rating + Tag ─────────────────────────────────────────────────────
-//        JLabel ratingLabel = new JLabel("Rating:");
-//        JLabel tagLabel = new JLabel("Tag:");
-//        ratingLabel.setFont(font);
-//        tagLabel.setFont(font);
-//        wrapPanel.add(ratingLabel);
-//        wrapPanel.add(ratingFilterCombo);
-//        wrapPanel.add(tagLabel);
-//        wrapPanel.add(tagFilterField);
-//        wrapPanel.add(makeSeparator());
-//
-//// ── Grupo 6: Ícones ───────────────────────────────────────────────────────────
-//        JLabel iconLabel = new JLabel("Ícones:");
-//        iconLabel.setFont(font);
-//        wrapPanel.add(iconLabel);
-//        wrapPanel.add(thumbSizeCombo);
-//        wrapPanel.add(makeSeparator());
-//
-//// ── Grupo 7: Ações ────────────────────────────────────────────────────────────
-//        wrapPanel.add(transferButton);
-//        wrapPanel.add(editModeBtn);
-//        wrapPanel.add(renameFilesBtn);
-//        wrapPanel.add(renameFoldersBtn);
-//        wrapPanel.add(compressModeBtn);
-//        wrapPanel.add(videoConverterModeBtn);
-//
-//        wrapPanel.add(indexButton);
-//        wrapPanel.add(configurationBtn);
-//        wrapPanel.add(newFilesBtn);
-//
-//// ── Monta o painel principal com scroll vertical ──────────────────────────────
-//
-//// ── Monta sem scroll: o WrapLayout recalcula a altura e o BorderLayout
-//// do pai (FileExplorerSwing) se encarrega de expandir o NORTH automaticamente.
-//        JPanel outer = new JPanel(new BorderLayout(0, 2));
-//        outer.add(wrapPanel, BorderLayout.CENTER);
-//        //  outer.add(breadcrumbLabel, BorderLayout.SOUTH);
-//
-//        add(outer, BorderLayout.CENTER);
+        updateTexts();
+        I18N.addLanguageChangeListener(this);
 
         fileExplorerSwing.getThemeManager().addThemeChangeListener(() ->
                 SwingUtilities.invokeLater(() -> {
-                    // 1. Atualiza a variável com o estado do novo tema ativo
                     isDark = UIManager.getBoolean("laf.dark");
 
-                    // 2. Cria ou recupera o ícone correto baseado no novo estado
                     Icon iconeAtualizado = isDark ?
                             fileExplorerSwing.getThemeManager().inverterColorIcon(searchIcon) :
                             searchIcon;
 
-                    // 3. Reaplica a propriedade do cliente para atualizar o FlatLaf
                     searchField.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, iconeAtualizado);
-
-                    // 4. Redesenha o componente para garantir que a mudança visual apareça na hora
                     searchField.repaint();
                     searchField.revalidate();
 
-
-                    // NOVO: atualiza os popups, que ficam fora da árvore do frame
                     if (displayMenu != null) SwingUtilities.updateComponentTreeUI(displayMenu);
                     if (toolsMenu != null) SwingUtilities.updateComponentTreeUI(toolsMenu);
                 })
         );
     }
 
+    private void restoreRightDividerLocation() {
+        fileExplorerSwing.setProgrammaticDividerChange(true);
+        JSplitPane rightSplit = fileExplorerSwing.getRightSplit();
+        try {
+            int totalW = rightSplit.getWidth();
+            if (totalW <= 0) {
+                // layout ainda não computado — tenta de novo no próximo ciclo do EDT
+                SwingUtilities.invokeLater(this::restoreRightDividerLocation);
+                return;
+            }
+
+            int subFolderWidth = lastDividerLocation > 0
+                    ? totalW - lastDividerLocation - rightSplit.getDividerSize()
+                    :  fileExplorerSwing.getSafeRightSplitPos();
+
+            if (subFolderWidth <= 0) subFolderWidth = 200; // fallback final de segurança
+
+            int divPos = totalW - subFolderWidth - rightSplit.getDividerSize();
+            rightSplit.setDividerLocation(Math.max(0, divPos));
+        } finally {
+            SwingUtilities.invokeLater(() -> fileExplorerSwing.setProgrammaticDividerChange(false));
+        }
+    }
+    private void restoreLeftDividerLocation() {
+        fileExplorerSwing.setProgrammaticMainDividerChange(true);
+        try {
+            if ( fileExplorerSwing.getMainSplit().getWidth() <= 0) {
+                SwingUtilities.invokeLater(this::restoreLeftDividerLocation);
+                return;
+            }
+
+            int restore = lastMainDividerLocation > 0
+                    ? lastMainDividerLocation
+                    :  fileExplorerSwing.getSafeLeftSplitPos();
+
+            fileExplorerSwing.getMainSplit().setDividerLocation(restore);
+        } finally {
+            SwingUtilities.invokeLater(() ->fileExplorerSwing.setProgrammaticMainDividerChange(false));
+        }
+    }
+
     private JPanel buildIndexButtonPanel() {
-        JPanel panel = new JPanel(new GridBagLayout()); // centraliza verticalmente
+        JPanel panel = new JPanel(new GridBagLayout());
         panel.add(indexButton);
         return panel;
     }
 
-    // Linha 3 sem o indexButton — remove essa linha do buildDisplayAndActionsRow():
     private JPanel buildDisplayAndActionsRowWithoutIndex() {
         JPanel row = new JPanel(new WrapLayout(FlowLayout.LEFT, 5, 4));
-        Font font = UIConfig.FONT_DEFAULT;
 
-        // indexButton REMOVIDO daqui — agora fica fixo em outer.EAST
         row.add(configurationBtn);
         row.add(newFilesBtn);
         row.add(makeSeparator());
         row.add(createToolsMenuButton());
 
-
         return row;
     }
 
-    // ── Linha 1: Navegação + Busca ──────────────────────────────────────
     private JPanel buildNavigationAndSearchRow() {
         JPanel row = new JPanel(new WrapLayout(FlowLayout.LEFT, 5, 4));
 
@@ -493,33 +464,30 @@ public class SearchPanel extends JPanel {
         row.add(globalSearchCheckbox);
         row.add(showSubfolderContentCheckbox);
 
-
-
         return row;
     }
 
-    // ── Linha 2: Filtros e ordenação ────────────────────────────────────
     private JPanel buildFiltersRow() {
         JPanel row = new JPanel(new WrapLayout(FlowLayout.LEFT, 5, 4));
         Font font = UIConfig.FONT_DEFAULT;
 
-        JLabel typeLabel = new JLabel("Ordenar:");
-        typeLabel.setFont(font);
-        row.add(typeLabel);
+        sortLabel = new JLabel(I18N.get("searchPanel.sortLabel.text"));
+        sortLabel.setFont(font);
+        row.add(sortLabel);
         sortByCombo.setPreferredSize(new Dimension(160, 28));
         row.add(sortByCombo);
         sortOrderCombo.setPreferredSize(new Dimension(160, 28));
         row.add(sortOrderCombo);
         row.add(makeSeparator());
 
-        JLabel filterLabel = new JLabel("Tipo:");
-        filterLabel.setFont(font);
-        row.add(filterLabel);
+        typeLabel = new JLabel(I18N.get("searchPanel.typeLabel.text"));
+        typeLabel.setFont(font);
+        row.add(typeLabel);
         row.add(filterBox);
         row.add(makeSeparator());
 
-        JLabel ratingLabel = new JLabel("Rating:");
-        JLabel tagLabel = new JLabel("Tag:");
+        ratingLabel = new JLabel(I18N.get("searchPanel.ratingLabel.text"));
+        tagLabel = new JLabel(I18N.get("searchPanel.tagLabel.text"));
         ratingLabel.setFont(font);
         tagLabel.setFont(font);
         row.add(ratingLabel);
@@ -528,7 +496,7 @@ public class SearchPanel extends JPanel {
         row.add(tagFilterField);
         row.add(makeSeparator());
 
-        JLabel iconLabel = new JLabel("Ícones:");
+        iconLabel = new JLabel(I18N.get("searchPanel.iconLabel.text"));
         iconLabel.setFont(UIConfig.FONT_DEFAULT);
         row.add(iconLabel);
         row.add(thumbSizeCombo);
@@ -537,80 +505,64 @@ public class SearchPanel extends JPanel {
         return row;
     }
 
-    // ── Linha 3: Exibição + Ferramentas + Ações principais ──────────────
-//    private JPanel buildDisplayAndActionsRow() {
-//        JPanel row = new JPanel(new WrapLayout(FlowLayout.LEFT, 5, 4));
-//        Font font = UIConfig.FONT_DEFAULT;
-//
-//        JLabel iconLabel = new JLabel("Ícones:");
-//        iconLabel.setFont(font);
-//        row.add(iconLabel);
-//        row.add(thumbSizeCombo);
-//        row.add(makeSeparator());
-//
-//        row.add(createDisplayMenuButton());
-//        row.add(createToolsMenuButton());
-//        row.add(makeSeparator());
-//
-//        //row.add(indexButton);
-//        row.add(configurationBtn);
-//        row.add(newFilesBtn);
-//
-//        return row;
-//    }
-
-    /**
-     * Habilita ou desabilita o botão de indexar conforme a pasta atual
-     * já esteja ou não indexada.
-     */
     public void setIndexButtonEnabled(boolean enabled) {
         indexButton.setEnabled(enabled);
         indexButton.setToolTipText(enabled
-                ? "Indexar pasta selecionada"
-                : "Esta pasta já está indexada");
+                ? I18N.get("searchPanel.indexButton.tooltip")
+                : I18N.get("searchPanel.indexButton.tooltip.alreadyIndexed"));
     }
 
-
-    // ── Dropdown "Exibição ▾" — agrupa os toggles de aparência ──────────
     private JButton createDisplayMenuButton() {
-        JButton btn = makeHighlightedMediumBtn("Exibição ▾", "Opções de exibição das miniaturas",120,35);
+        displayMenuBtn = makeHighlightedMediumBtn(I18N.get("searchPanel.displayMenuBtn.text"),
+                I18N.get("searchPanel.displayMenuBtn.tooltip"), 145, 35);
 
-        displayMenu = new JPopupMenu(); // NOVO: atribui ao campo
-        displayMenu.add(wrapAsMenuItem(showRatingCheckbox));
-        displayMenu.add(wrapAsMenuItem(showExtensionTypeCheckbox));
-        displayMenu.add(wrapAsMenuItem(showAnimatedGifCheckbox));
+        displayMenu = new JPopupMenu();
+        showRatingMenuItem = wrapAsMenuItem(showRatingCheckbox);
+        showExtensionTypeMenuItem = wrapAsMenuItem(showExtensionTypeCheckbox);
+        showAnimatedGifMenuItem = wrapAsMenuItem(showAnimatedGifCheckbox);
 
-        btn.addActionListener(e -> displayMenu.show(btn, 0, btn.getHeight()));
-        return btn;
+        showSubfolderContentMenuItem = wrapAsMenuItem(subPanelVisibility);
+        showLeftPanelContentMenuItem = wrapAsMenuItem(leftPanellVisibility);
+
+        displayMenu.add(showRatingMenuItem);
+        displayMenu.add(showExtensionTypeMenuItem);
+        displayMenu.add(showAnimatedGifMenuItem);
+        displayMenu.add(showSubfolderContentMenuItem);
+        displayMenu.add(showLeftPanelContentMenuItem);
+
+        displayMenuBtn.addActionListener(e -> displayMenu.show(displayMenuBtn, 0, displayMenuBtn.getHeight()));
+        return displayMenuBtn;
     }
 
     private JButton createToolsMenuButton() {
-        JButton btn = makeHighlightedMediumBtn("Ferramentas ▾", "Modos de edição e transferência",150,40);
+        toolsMenuBtn = makeHighlightedMediumBtn(I18N.get("searchPanel.toolsMenuBtn.text"),
+                I18N.get("searchPanel.toolsMenuBtn.tooltip"), 155, 40);
 
-        toolsMenu = new JPopupMenu(); // NOVO: atribui ao campo
-        toolsMenu.add(wrapAsMenuItem(transferButton, "✂️ Selecionar(S)"));
-        toolsMenu.add(wrapAsMenuItem(editModeBtn, "🖼 Editar imagens(E)"));
-        toolsMenu.add(wrapAsMenuItem(renameFilesBtn, "🗒 Renomear arquivos(R)"));
-        toolsMenu.add(wrapAsMenuItem(renameFoldersBtn, "📁 Renomear pastas(F)"));
-        toolsMenu.add(wrapAsMenuItem(compressModeBtn, "🖼 Compressão de Arquivos(C)"));
-        toolsMenu.add(wrapAsMenuItem(videoConverterModeBtn, "🖼 Conversão de Vídeos(V)"));
+        toolsMenu = new JPopupMenu();
+        transferMenuItem = wrapAsMenuItem(transferButton, I18N.get("searchPanel.transferButton.text"));
+        editModeMenuItem = wrapAsMenuItem(editModeBtn, I18N.get("searchPanel.editModeBtn.text"));
+        renameFilesMenuItem = wrapAsMenuItem(renameFilesBtn, I18N.get("searchPanel.renameFilesBtn.text"));
+        renameFoldersMenuItem = wrapAsMenuItem(renameFoldersBtn, I18N.get("searchPanel.renameFoldersBtn.text"));
+        compressModeMenuItem = wrapAsMenuItem(compressModeBtn, I18N.get("searchPanel.compressModeBtn.text"));
+        videoConverterMenuItem = wrapAsMenuItem(videoConverterModeBtn, I18N.get("searchPanel.videoConverterModeBtn.text"));
 
-        btn.addActionListener(e -> toolsMenu.show(btn, 0, btn.getHeight()));
-        return btn;
+        toolsMenu.add(transferMenuItem);
+        toolsMenu.add(editModeMenuItem);
+        toolsMenu.add(renameFilesMenuItem);
+        toolsMenu.add(renameFoldersMenuItem);
+        toolsMenu.add(compressModeMenuItem);
+        toolsMenu.add(videoConverterMenuItem);
+
+        toolsMenuBtn.addActionListener(e -> toolsMenu.show(toolsMenuBtn, 0, toolsMenuBtn.getHeight()));
+        return toolsMenuBtn;
     }
 
-    /**
-     * Converte um JCheckBox já existente (com seu ActionListener já
-     * configurado) em um JCheckBoxMenuItem equivalente dentro do popup,
-     * mantendo os dois sincronizados.
-     */
     private JCheckBoxMenuItem wrapAsMenuItem(JCheckBox source) {
         JCheckBoxMenuItem item = new JCheckBoxMenuItem(source.getText(), source.isSelected());
         item.setFont(UIConfig.FONT_DEFAULT);
         item.setToolTipText(source.getToolTipText());
         item.addActionListener(e -> {
             source.setSelected(item.isSelected());
-            // Dispara os ActionListeners já registrados no checkbox original
             for (ActionListener al : source.getActionListeners()) {
                 al.actionPerformed(e);
             }
@@ -618,10 +570,6 @@ public class SearchPanel extends JPanel {
         return item;
     }
 
-    /**
-     * Converte um JButton de "modo" (toggle) existente em um item de menu,
-     * reaproveitando o mesmo ActionListener — sem duplicar lógica de toggle.
-     */
     private JMenuItem wrapAsMenuItem(JButton source, String label) {
         JMenuItem item = new JMenuItem(label);
         item.setFont(UIConfig.FONT_DEFAULT);
@@ -634,14 +582,12 @@ public class SearchPanel extends JPanel {
         return item;
     }
 
-
-
     private JButton makeTextBtn(String text, String toolTipText, String borderColor, String borderHoverColor) {
         Map<String, Object> styleButton = Map.of(
                 "borderWidth", 2,
-                "borderColor", UIManager.getColor(borderColor), // Cor normal
-                "hoverBorderColor", UIManager.getColor(borderHoverColor), // Cor ao passar o mouse
-                "focusedBorderColor", UIManager.getColor("Slider.trackColor") // Cor se focado (opcional)
+                "borderColor", UIManager.getColor(borderColor),
+                "hoverBorderColor", UIManager.getColor(borderHoverColor),
+                "focusedBorderColor", UIManager.getColor("Slider.trackColor")
         );
         JButton btn = new JButton(text);
         btn.setFont(UIConfig.FONT_DEFAULT_BOLD);
@@ -669,7 +615,7 @@ public class SearchPanel extends JPanel {
         return btn;
     }
 
-    private JButton makeHighlightedMediumBtn(String text, String toolTipText, int width,int height) {
+    private JButton makeHighlightedMediumBtn(String text, String toolTipText, int width, int height) {
         Map<String, Object> styleButton = Map.of(
                 "borderWidth", 3,
                 "borderColor", UIManager.getColor("Component.accentColor"),
@@ -685,19 +631,24 @@ public class SearchPanel extends JPanel {
         return btn;
     }
 
-    // Mapeamento int → String do combo
-    private String ratingToComboItem(int rating) {
-        return switch (rating) {
-            case 1 -> "★ 1+";
-            case 2 -> "★★ 2+";
-            case 3 -> "★★★ 3+";
-            case 4 -> "★★★★ 4+";
-            case 5 -> "★★★★★ 5";
-            default -> "★ Qualquer";
+    /**
+     * Recria o modelo do combo de estrelas com os textos traduzidos,
+     * preservando o índice selecionado (getMinRating() depende do índice, não do texto).
+     */
+    private void refreshRatingCombo() {
+        int selectedIndex = ratingFilterCombo.getSelectedIndex();
+        String[] items = {
+                I18N.get("searchPanel.rating.any"),
+                I18N.get("searchPanel.rating.1"),
+                I18N.get("searchPanel.rating.2"),
+                I18N.get("searchPanel.rating.3"),
+                I18N.get("searchPanel.rating.4"),
+                I18N.get("searchPanel.rating.5"),
         };
+        ratingFilterCombo.setModel(new DefaultComboBoxModel<>(items));
+        if (selectedIndex >= 0) ratingFilterCombo.setSelectedIndex(selectedIndex);
     }
 
-    // ── Helpers (adicione como métodos privados na classe) ────────────────────────
     private JLabel label(String text) {
         JLabel l = new JLabel(text);
         l.setFont(UIConfig.FONT_XS_SMALL);
@@ -710,23 +661,15 @@ public class SearchPanel extends JPanel {
         return sep;
     }
 
-
-    // ── API pública nova ──────────────────────────────────────────
-
-    /**
-     * Atualiza estado visual dos botões e do breadcrumb.
-     */
     public void updateNavigationState(NavigationHistory history) {
         backButton.setEnabled(history.canGoBack());
         forwardButton.setEnabled(history.canGoForward());
     }
 
-
     public void setNavigationListener(NavigationListener l) {
         this.navigationListener = l;
     }
 
-    // ── Atalhos de teclado ────────────────────────────────────────
     private void registerKeyboardShortcuts() {
         KeyStroke back = KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, InputEvent.ALT_DOWN_MASK);
         KeyStroke forward = KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, InputEvent.ALT_DOWN_MASK);
@@ -758,22 +701,14 @@ public class SearchPanel extends JPanel {
         this.thumbSizeListener = l;
     }
 
-    /**
-     * Retorna 0 se "Qualquer", caso contrário o valor mínimo de estrelas.
-     */
     public int getMinRating() {
-        int idx = ratingFilterCombo.getSelectedIndex();
-        return idx; // índice 0 = qualquer; 1 = 1+; … 5 = 5
+        return ratingFilterCombo.getSelectedIndex(); // índice 0 = qualquer; 1..5 = estrelas
     }
 
-    /**
-     * Retorna a tag digitada, ou "" se vazia.
-     */
     public String getTagFilter() {
         return tagFilterField.getText().trim();
     }
 
-    // ── disparo de busca ──────────────────────────────────────────
     public void triggerSearch() {
         if (searchListener != null) {
             searchListener.onSearch(
@@ -787,15 +722,17 @@ public class SearchPanel extends JPanel {
     private JTextField createSearchField() {
         JTextField field = new JTextField();
         field.setFont(UIConfig.FONT_DEFAULT);
-        field.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT, "Digite para pesquisar...");
-        field.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON, isDark ? fileExplorerSwing.getThemeManager().inverterColorIcon(searchIcon) : searchIcon);
+        field.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT,
+                I18N.get("searchPanel.searchField.placeholder"));
+        field.putClientProperty(FlatClientProperties.TEXT_FIELD_LEADING_ICON,
+                isDark ? fileExplorerSwing.getThemeManager().inverterColorIcon(searchIcon) : searchIcon);
         field.addActionListener(e -> triggerSearch());
 
         return field;
     }
 
     public void clearSearchTerm() {
-        searchField.setText("");  // ajuste para o nome real do seu campo
+        searchField.setText("");
     }
 
     public void triggerIndex() {
@@ -804,27 +741,18 @@ public class SearchPanel extends JPanel {
         }
     }
 
-    /**
-     * Retorna campo de ordenação selecionado
-     * NOVO MÉTODO
-     */
     public String getSortBy() {
         SortOption selected = (SortOption) sortByCombo.getSelectedItem();
         return selected != null ? selected.getFieldName() : "name";
     }
 
-    /**
-     * Retorna ordem de ordenação selecionada
-     * NOVO MÉTODO
-     */
     public String getSortOrder() {
         OrderBy selected = (OrderBy) sortOrderCombo.getSelectedItem();
         return selected != null ? selected.getSqlOrder() : "ASC";
     }
 
     public String getSearchTerm() {
-        String text = searchField.getText().trim();
-        return text;
+        return searchField.getText().trim();
     }
 
     public String getSelectedFilter() {
@@ -851,31 +779,21 @@ public class SearchPanel extends JPanel {
         void onSizeChanged(ThumbnailSize size);
     }
 
-    // ── Interface ─────────────────────────────────────────────────
     public interface NavigationListener {
         void onBack();
-
         void onForward();
     }
 
-    /**
-     * Interface atualizada com parâmetros de ordenação
-     */
-    // ── interface atualizada ──────────────────────────────────────
     public interface SearchListener {
         void onSearch(String searchTerm, String filter,
                       String sortBy, String sortOrder,
-                      int minRating, String tag);      // NOVO
+                      int minRating, String tag);
     }
 
     public interface IndexListener {
         void onIndexRequest();
     }
 
-    /**
-     * Interface para notificar mudança no estado da busca global.
-     * NOVA INTERFACE
-     */
     public interface GlobalSearchListener {
         void onGlobalSearchChanged(boolean globalSearch);
     }
@@ -884,18 +802,17 @@ public class SearchPanel extends JPanel {
         void onShowSubFolderContentChanged(boolean globalSearch);
     }
 
-
     private void toggleAnimatedGif(boolean visible) {
-        AnimatedGifThumb.setShowAnimatedGif(visible); // ← flag atualizada AQUI
-        propagateAnimatedGifVisibility(fileExplorerSwing);        // ← painéis recriam usando a flag já correta
-        // NÃO chame FileItemPanel.showAnimatedGif = visible — remova se existir
+        AnimatedGifThumb.setShowAnimatedGif(visible);
+        propagateAnimatedGifVisibility(fileExplorerSwing);
     }
+
     private void propagateAnimatedGifVisibility(Component origin) {
-        // Sobe até o JFrame para depois descer até o gridPanel
         Container root = SwingUtilities.getAncestorOfClass(JFrame.class, origin);
         if (root == null) return;
         applyToAllAnimatedGif(root);
     }
+
     private void applyToAllAnimatedGif(Container container) {
         for (Component c : container.getComponents()) {
             if (c instanceof FileItemPanel fip) {
@@ -904,5 +821,117 @@ public class SearchPanel extends JPanel {
                 applyToAllAnimatedGif(inner);
             }
         }
+    }
+
+    // ── i18n ─────────────────────────────────────────────────────
+    private void updateTexts() {
+
+        // Botões de navegação
+        backButton.setToolTipText(I18N.get("searchPanel.backButton.tooltip"));
+        forwardButton.setToolTipText(I18N.get("searchPanel.forwardButton.tooltip"));
+
+        // Campo de busca
+        searchField.putClientProperty(FlatClientProperties.PLACEHOLDER_TEXT,
+                I18N.get("searchPanel.searchField.placeholder"));
+
+        // Combos
+        sortByCombo.setToolTipText(I18N.get("searchPanel.sortByCombo.setToolTipText"));
+        sortOrderCombo.setToolTipText(I18N.get("searchPanel.sortOrderCombo.tooltip"));
+        thumbSizeCombo.setToolTipText(I18N.get("searchPanel.thumbSizeCombo.tooltip"));
+        filterBox.setToolTipText(I18N.get("searchPanel.filterBox.tooltip"));
+        filterBox.repaint(); // reaplica o renderer com os textos traduzidos
+
+        ratingFilterCombo.setToolTipText(I18N.get("searchPanel.ratingFilterCombo.tooltip"));
+        refreshRatingCombo();
+
+        tagFilterField.setToolTipText(I18N.get("searchPanel.tagFilterField.tooltip"));
+
+        // Botões de texto
+        searchButton.setText(I18N.get("searchPanel.searchButton.text"));
+        searchButton.setToolTipText(I18N.get("searchPanel.searchButton.tooltip"));
+
+        indexButton.setText(I18N.get("searchPanel.indexButton.text"));
+
+        transferButton.setText(I18N.get("searchPanel.transferButton.text"));
+        transferButton.setToolTipText(I18N.get("searchPanel.transferButton.tooltip"));
+
+        editModeBtn.setText(I18N.get("searchPanel.editModeBtn.text"));
+        editModeBtn.setToolTipText(I18N.get("searchPanel.editModeBtn.tooltip"));
+
+        compressModeBtn.setText(I18N.get("searchPanel.compressModeBtn.text"));
+        compressModeBtn.setToolTipText(I18N.get("searchPanel.compressModeBtn.tooltip"));
+
+        videoConverterModeBtn.setText(I18N.get("searchPanel.videoConverterModeBtn.text"));
+        videoConverterModeBtn.setToolTipText(I18N.get("searchPanel.videoConverterModeBtn.tooltip"));
+
+        renameFilesBtn.setText(I18N.get("searchPanel.renameFilesBtn.text"));
+        renameFilesBtn.setToolTipText(I18N.get("searchPanel.renameFilesBtn.tooltip"));
+
+        renameFoldersBtn.setText(I18N.get("searchPanel.renameFoldersBtn.text"));
+        renameFoldersBtn.setToolTipText(I18N.get("searchPanel.renameFoldersBtn.tooltip"));
+
+        configurationBtn.setText(I18N.get("searchPanel.configurationBtn.text"));
+        configurationBtn.setToolTipText(I18N.get("searchPanel.configurationBtn.tooltip"));
+
+        newFilesBtn.setText(I18N.get("searchPanel.newFilesBtn.text"));
+        newFilesBtn.setToolTipText(I18N.get("searchPanel.newFilesBtn.tooltip"));
+
+        // Checkboxes
+        globalSearchCheckbox.setText(I18N.get("searchPanel.globalSearchCheckbox.text"));
+        globalSearchCheckbox.setToolTipText(I18N.get("searchPanel.globalSearchCheckbox.tooltip"));
+
+        showSubfolderContentCheckbox.setText(I18N.get("searchPanel.showSubfolderContentCheckbox.text"));
+
+        showRatingCheckbox.setText(I18N.get("searchPanel.showRatingCheckbox.text"));
+        showRatingCheckbox.setToolTipText(I18N.get("searchPanel.showRatingCheckbox.tooltip"));
+
+        showExtensionTypeCheckbox.setText(I18N.get("searchPanel.showExtensionTypeCheckbox.text"));
+        showExtensionTypeCheckbox.setToolTipText(I18N.get("searchPanel.showExtensionTypeCheckbox.tooltip"));
+
+        showAnimatedGifCheckbox.setText(I18N.get("searchPanel.showAnimatedGifCheckbox.text"));
+        showAnimatedGifCheckbox.setToolTipText(I18N.get("searchPanel.showAnimatedGifCheckbox.tooltip"));
+
+        subPanelVisibility.setText(I18N.get("searchPanel.subPanelVisibility"));
+        subPanelVisibility.setToolTipText(I18N.get("searchPanel.subPanelVisibility.setToolTipText"));
+
+        leftPanellVisibility.setText(I18N.get("searchPanel.leftPanellVisibility"));
+        leftPanellVisibility.setToolTipText(I18N.get("searchPanel.leftPanellVisibility.setToolTipText"));
+
+        // Labels soltos
+        sortLabel.setText(I18N.get("searchPanel.sortLabel.text"));
+        typeLabel.setText(I18N.get("searchPanel.typeLabel.text"));
+        ratingLabel.setText(I18N.get("searchPanel.ratingLabel.text"));
+        tagLabel.setText(I18N.get("searchPanel.tagLabel.text"));
+        iconLabel.setText(I18N.get("searchPanel.iconLabel.text"));
+
+        // Botões que abrem popup
+        displayMenuBtn.setText(I18N.get("searchPanel.displayMenuBtn.text"));
+        displayMenuBtn.setToolTipText(I18N.get("searchPanel.displayMenuBtn.tooltip"));
+
+        toolsMenuBtn.setText(I18N.get("searchPanel.toolsMenuBtn.text"));
+        toolsMenuBtn.setToolTipText(I18N.get("searchPanel.toolsMenuBtn.tooltip"));
+
+        // Itens do displayMenu (copiam o texto já atualizado dos checkboxes)
+        showRatingMenuItem.setText(showRatingCheckbox.getText());
+        showExtensionTypeMenuItem.setText(showExtensionTypeCheckbox.getText());
+        showAnimatedGifMenuItem.setText(showAnimatedGifCheckbox.getText());
+        showSubfolderContentMenuItem.setText(subPanelVisibility.getText());
+        showLeftPanelContentMenuItem.setText(leftPanellVisibility.getText());
+
+
+        // Itens do toolsMenu
+        transferMenuItem.setText(I18N.get("searchPanel.transferButton.text"));
+        editModeMenuItem.setText(I18N.get("searchPanel.editModeBtn.text"));
+        renameFilesMenuItem.setText(I18N.get("searchPanel.renameFilesBtn.text"));
+        renameFoldersMenuItem.setText(I18N.get("searchPanel.renameFoldersBtn.text"));
+        compressModeMenuItem.setText(I18N.get("searchPanel.compressModeBtn.text"));
+        videoConverterMenuItem.setText(I18N.get("searchPanel.videoConverterModeBtn.text"));
+    }
+
+    @Override
+    public void onLanguageChanged(Locale newLocale) {
+        updateTexts();
+        revalidate();
+        repaint();
     }
 }

@@ -1,40 +1,59 @@
 package com.esl.searchforfiles.configuration;
 
 import com.esl.searchforfiles.Theme.ThemeManager;
+import com.esl.searchforfiles.localization.I18N;
 import com.esl.searchforfiles.ui.FileExplorerSwing;
 
 import javax.swing.*;
+import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.ItemEvent;
+import java.util.Locale;
 import java.util.Map;
 
-public class OptionConfigPanel extends ConfigPanelBase {
+public class OptionConfigPanel extends ConfigPanelBase implements I18N.LanguageChangeListener  {
     private final FileExplorerSwing mainFrame;
     private final ThemeManager themeManager;
+    private JRadioButton langEnItem;
+    private JRadioButton langPtItem;
+    private JCheckBox imageChBox;
+    private JCheckBox videoChBox;
+    private JCheckBox pdfChBox;
+    private JCheckBox model3dChBox;
 
-    public OptionConfigPanel(ThemeManager themeManager,FileExplorerSwing mainFrame) {
+    private TitledBorder languageSectionBorder;
+    private TitledBorder themeSectionBorder;
+    private TitledBorder identitySectionBorder;
+
+
+    public OptionConfigPanel(ThemeManager themeManager, FileExplorerSwing mainFrame) {
         this.mainFrame = mainFrame;
         this.themeManager = themeManager;
         buildIdentitySection();
         themeSection();
+        buildLanguageSection();
+
+        updateTexts();
+        I18N.addLanguageChangeListener(this);
     }
 
     private void buildIdentitySection() {
-        JPanel section = addSection("Opções");
+        JPanel sectionIdentity = addSection(I18N.get("optionConfigPanel.sectionIdentity.addSection"));
+        identitySectionBorder = (TitledBorder) sectionIdentity.getBorder();
 
-        JCheckBox imageChBox = new JCheckBox("Usar aplicativo default do Windows para Imagens");
+        imageChBox = new JCheckBox(I18N.get("optionConfigPanel.JCheckBox.imageChBox"));
         imageChBox.setFont(UIConfig.FONT_DEFAULT);
         imageChBox.setSelected(mainFrame.isUseDefaultWindowsProgramImage());
 
-        JCheckBox videoChBox = new JCheckBox("Usar aplicativo default do Windows para Videos");
+        videoChBox = new JCheckBox(I18N.get("optionConfigPanel.JCheckBox.videoChBox"));
         videoChBox.setFont(UIConfig.FONT_DEFAULT);
         videoChBox.setSelected(mainFrame.isUseDefaultWindowsProgramVideo());
 
-        JCheckBox pdfChBox = new JCheckBox("Usar aplicativo default do Windows para arquivos PDF");
+        pdfChBox = new JCheckBox(I18N.get("optionConfigPanel.JCheckBox.pdfChBox"));
         pdfChBox.setFont(UIConfig.FONT_DEFAULT);
         pdfChBox.setSelected(mainFrame.isUseDefaultWindowsProgramPdf());
 
-        JCheckBox model3dChBox = new JCheckBox("Usar aplicativo default do Windows para arquivos 3D .obj");
+        model3dChBox = new JCheckBox(I18N.get("optionConfigPanel.JCheckBox.model3dChBox"));
         model3dChBox.setFont(UIConfig.FONT_DEFAULT);
         model3dChBox.setSelected(mainFrame.isUseDefaultWindowsProgram3dModel());
 
@@ -55,11 +74,11 @@ public class OptionConfigPanel extends ConfigPanelBase {
         row.setOpaque(false);
         row.setAlignmentX(Component.LEFT_ALIGNMENT);
         row.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
-        row.add(textBlock,  BorderLayout.CENTER);
+        row.add(textBlock, BorderLayout.CENTER);
 
         // Adiciona direto na seção (sem label fixo à esquerda)
-        section.add(row);
-        section.add(Box.createVerticalStrut(4));
+        sectionIdentity.add(row);
+        sectionIdentity.add(Box.createVerticalStrut(4));
 
 
         imageChBox.addItemListener(e -> {
@@ -81,7 +100,8 @@ public class OptionConfigPanel extends ConfigPanelBase {
     }
 
     private void themeSection() {
-        JPanel section = addSection("Tema (skin)");
+        JPanel sectionTheme = addSection(I18N.get("optionConfigPanel.sectionTheme.addSection"));
+        themeSectionBorder = (TitledBorder) sectionTheme.getBorder();
 
         ButtonGroup group = new ButtonGroup();
         String current = themeManager.getCurrentTheme();
@@ -89,7 +109,7 @@ public class OptionConfigPanel extends ConfigPanelBase {
         for (Map.Entry<String, ThemeManager.ThemeInfo> entry
                 : themeManager.getAvailableThemes().entrySet()) {
 
-            String key  = entry.getKey();
+            String key = entry.getKey();
             ThemeManager.ThemeInfo info = entry.getValue();
 
             JRadioButton radio = new JRadioButton(info.getDisplayName(), key.equals(current));
@@ -100,11 +120,70 @@ public class OptionConfigPanel extends ConfigPanelBase {
             });
 
             group.add(radio);
-            addRow(section, radio);
+            addRow(sectionTheme, radio);
         }
 
-        addRow(section, makeHint(
-                "O tema é salvo automaticamente e aplicado " +
-                        "na próxima inicialização."));
+    }
+
+
+    protected void buildLanguageSection() {
+        JPanel sectionLanguage = addSection(I18N.get("optionConfigPanel.sectionLanguageName"));
+        languageSectionBorder = (TitledBorder) sectionLanguage.getBorder();
+
+        Locale cur = I18N.getCurrentLocale();
+        ButtonGroup grp = new ButtonGroup();
+
+        langEnItem = new JRadioButton();
+        langEnItem.setFont(UIConfig.FONT_DEFAULT);
+        langEnItem.setSelected("en".equals(cur.getLanguage()));
+        langEnItem.addActionListener(e -> changeLanguage(Locale.of("en", "US")));
+
+        langPtItem = new JRadioButton();
+        langPtItem.setFont(UIConfig.FONT_DEFAULT);
+        langPtItem.setSelected("pt".equals(cur.getLanguage()));
+        langPtItem.addActionListener(e -> changeLanguage(Locale.of("pt", "BR")));
+
+        grp.add(langEnItem);
+        grp.add(langPtItem);
+
+        addRow(sectionLanguage, langEnItem);
+        addRow(sectionLanguage, langPtItem);
+    }
+
+
+
+
+    /**
+     * Troca o idioma e persiste a preferência.
+     */
+    protected final void changeLanguage(Locale locale) {
+        I18N.setLocale(locale);
+        mainFrame.getConfigManager().saveLocale(locale);
+    }
+
+    protected void updateTexts() {
+        if (langPtItem != null)  langPtItem.setText(I18N.get("optionConfigPanel.langPtItem.setText"));
+        if (langEnItem != null)  langEnItem.setText(I18N.get("optionConfigPanel.langEnItem.setText"));
+
+        if (identitySectionBorder != null) {
+            identitySectionBorder.setTitle(I18N.get("optionConfigPanel.sectionIdentity.addSection"));
+        }
+        if (themeSectionBorder != null) {
+            themeSectionBorder.setTitle(I18N.get("optionConfigPanel.sectionTheme.addSection"));
+        }
+        if (languageSectionBorder != null) {
+            languageSectionBorder.setTitle(I18N.get("optionConfigPanel.sectionLanguageName"));
+        }
+        if (imageChBox != null)  imageChBox.setText(I18N.get("optionConfigPanel.JCheckBox.imageChBox"));
+        if (videoChBox != null)  videoChBox.setText(I18N.get("optionConfigPanel.JCheckBox.videoChBox"));
+        if (pdfChBox != null)  pdfChBox.setText(I18N.get("optionConfigPanel.JCheckBox.pdfChBox"));
+        if (model3dChBox != null)  model3dChBox.setText(I18N.get("optionConfigPanel.JCheckBox.model3dChBox"));
+    }
+
+    @Override
+    public void onLanguageChanged(Locale newLocale) {
+        updateTexts();
+        repaint();
+        revalidate();
     }
 }

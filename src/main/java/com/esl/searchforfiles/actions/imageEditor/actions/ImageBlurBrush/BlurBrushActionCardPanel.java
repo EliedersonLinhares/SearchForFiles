@@ -148,7 +148,7 @@ public class BlurBrushActionCardPanel extends ActionCardPanel {
 
     private static void applyToggleStyle(JToggleButton btn, boolean active) {
 
-        btn.setBackground(active ? UIConfig.BLUE : new Color(170, 60, 60));
+        btn.setBackground(active ? UIConfig.BLUE : UIConfig.RED);
     }
 
     // ── Modo pintura ──────────────────────────────────────────────
